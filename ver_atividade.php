@@ -27,7 +27,7 @@ $stmt->execute();
 $activity = $stmt->get_result()->fetch_assoc();
 
 if (!$activity) {
-    header('Location: atividades.php?error=not_found');
+    header('Location: index.php?error=not_found');
     exit();
 }
 
@@ -53,9 +53,17 @@ $participants = $stmt_p->get_result();
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
         
         .detail-header { margin-bottom: 3.5rem; display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        @media (max-width: 1024px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .detail-header { flex-direction: column; gap: 1.5rem; }
+            .detail-header h1 { font-size: 2rem; }
+            .btn { width: 100%; }
+            .info-grid { grid-template-columns: 1fr; }
+        }
         .detail-header h1 { font-size: 2.8rem; font-weight: 900; margin-top: 0.5rem; line-height: 1.1; }
         
         .info-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 2rem; margin-bottom: 3rem; }
@@ -93,7 +101,7 @@ $participants = $stmt_p->get_result();
                     <?php if (can('editar_eventos')): ?>
                     <a href="editar_atividade.php?id=<?= $id ?>" class="btn btn-ghost">Editar Registro</a>
                     <?php endif; ?>
-                    <a href="atividades.php" class="btn btn-primary shimmer">Voltar à Lista</a>
+                    <a href="index.php" class="btn btn-primary shimmer">Voltar ao Calendário</a>
                 </div>
             </header>
 

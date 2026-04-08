@@ -11,11 +11,7 @@ requireLogin();
 $id = (int)($_GET['id'] ?? 0);
 $is_master = has_level(0);
 
-// Only Master can edit anyone. Supervisors can edit their own parish members (but for now let's keep it simple: only Master).
-if (!$is_master) {
-    header('Location: usuarios.php?error=unauthorized');
-    exit();
-}
+requirePerm('admin_usuarios');
 
 // 1. Fetch User Data
 $stmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ?");
@@ -38,9 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($data['nome']) || empty($data['email'])) {
         $error = 'Nome e e-mail são obrigatórios.';
     } else {
-        $sql = "UPDATE usuarios SET nome = ?, email = ?, sexo = ?, telefone = ?, paroquia_id = ?, nivel_acesso = ? WHERE id = ?";
+        $oldResult = $conn->query("SELECT * FROM usuarios WHERE id = $id");
+        $oldState = $oldResult->fetch_assoc();
+        
+        $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
+        $perfil_id = (int)($data['perfil_id'] ?? 3);
+        
+        $sql = "UPDATE usuarios SET nome = ?, email = ?, sexo = ?, telefone = ?, data_nascimento = ?, paroquia_id = ?, perfil_id = ? WHERE id = ?";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param('ssssiii', $data['nome'], $data['email'], $data['sexo'], $data['telefone'], $data['paroquia_id'], $data['nivel_acesso'], $id);
+        $stmt->bind_param('sssssiii', $data['nome'], $data['email'], $data['sexo'], $data['telefone'], $dt_nasc, $data['paroquia_id'], $perfil_id, $id);
         
         if ($stmt->execute()) {
             // Optional: Password update logic
@@ -49,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $conn->query("UPDATE usuarios SET senha = '$hash' WHERE id = $id");
             }
             
-            logAction($conn, 'EDITAR_USUARIO', 'usuarios', $id, "Dados atualizados para: " . $data['nome']);
+            logAction($conn, 'EDITAR_USUARIO', 'usuarios', $id, ['antigo' => $oldState, 'novo' => $data]);
             header("Location: usuarios.php?msg=Usuário atualizado com sucesso!");
             exit();
         } else {
@@ -59,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
+$perfis = $conn->query("SELECT id, nome FROM perfis ORDER BY nome");
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -101,6 +104,11 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     </div>
 
                     <div class="form-group">
+                        <label>DATA DE NASCIMENTO</label>
+                        <input type="date" name="data_nascimento" value="<?= h($user['data_nascimento'] ?? '') ?>">
+                    </div>
+
+                    <div class="form-group">
                         <label>GÊNERO</label>
                         <select name="sexo">
                             <option value="M" <?= $user['sexo'] == 'M' || $user['sexo'] == 'Masculino' ? 'selected' : '' ?>>Masculino</option>
@@ -110,12 +118,11 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     </div>
 
                     <div class="form-group">
-                        <label>NÍVEL DE ACESSO</label>
-                        <select name="nivel_acesso">
-                            <option value="0" <?= $user['nivel_acesso'] == 0 ? 'selected' : '' ?>>Master (Desenvolvedor)</option>
-                            <option value="1" <?= $user['nivel_acesso'] == 1 ? 'selected' : '' ?>>Supervisor (Bispo/Padre)</option>
-                            <option value="2" <?= $user['nivel_acesso'] == 2 ? 'selected' : '' ?>>Gerente (Pascom Local)</option>
-                            <option value="3" <?= $user['nivel_acesso'] == 3 ? 'selected' : '' ?>>Usuário / Visitante</option>
+                        <label>PERFIL DE ACESSO</label>
+                        <select name="perfil_id">
+                            <?php while($pf = $perfis->fetch_assoc()): ?>
+                                <option value="<?= $pf['id'] ?>" <?= ($user['perfil_id'] == $pf['id']) ? 'selected' : '' ?>><?= h($pf['nome']) ?></option>
+                            <?php endwhile; ?>
                         </select>
                     </div>
 

@@ -77,4 +77,5 @@ function alert(string $type, string $message): string {
     
     return "<div style='background:{$bg}; border:1px solid {$border}; color:{$border}; padding:1rem; border-radius:var(--r-md); margin-bottom:1.5rem; font-size:0.85rem; font-weight:700; text-align:center;'>{$message}</div>";
 }
+
 ?>

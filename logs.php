@@ -8,11 +8,7 @@
 require_once 'functions.php';
 requireLogin();
 
-// Restricted to Managers and Master
-if (!has_level(1)) {
-    header('Location: dashboard.php?error=unauthorized');
-    exit();
-}
+requirePerm('ver_logs');
 
 $pid = current_paroquia_id();
 $filter_table = $_GET['tabela'] ?? '';
@@ -70,7 +66,14 @@ $logs = $stmt->get_result();
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
+        
+        @media (max-width: 1024px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .header-flex { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+            .filter-bar { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+        }
         
         .header-flex { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3.5rem; }
         
@@ -134,9 +137,9 @@ $logs = $stmt->get_result();
                     <?php while ($l = $logs->fetch_assoc()): ?>
                     <?php 
                         $badgeClass = '';
-                        if (str_contains($l['acao'], 'CRIAR')) $badgeClass = 'success';
-                        if (str_contains($l['acao'], 'EDITAR')) $badgeClass = 'warning';
-                        if (str_contains($l['acao'], 'EXCLUIR')) $badgeClass = 'danger';
+                        if (strpos($l['acao'], 'CRIAR') !== false) $badgeClass = 'success';
+                        if (strpos($l['acao'], 'EDITAR') !== false) $badgeClass = 'warning';
+                        if (strpos($l['acao'], 'EXCLUIR') !== false) $badgeClass = 'danger';
                     ?>
                     <div class="log-item">
                         <div class="log-date"><?= date('d/m/Y H:i:s', strtotime($l['data_hora'])) ?></div>

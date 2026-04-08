@@ -10,7 +10,7 @@ requireLogin();
 
 // Restricted to Master (0)
 if (!has_level(0)) {
-    header('Location: dashboard.php?error=unauthorized');
+    header('Location: index.php?error=unauthorized');
     exit();
 }
 
@@ -31,7 +31,7 @@ if (isset($_GET['id'])) {
         $stmt->execute();
         
         logAction($conn, 'MUDAR_PAROQUIA_CONTEXTO', 'paroquias', $new_id, 'Contexto de administração alterado');
-        header('Location: dashboard.php?msg=Contexto alterado com sucesso');
+        header('Location: index.php?msg=Contexto alterado com sucesso');
         exit();
     }
 }
@@ -86,7 +86,7 @@ $res = $conn->query('SELECT id, nome FROM paroquias ORDER BY nome');
         </div>
 
         <div style="margin-top: 3rem; text-align: center; border-top: 1px solid var(--border); padding-top: 2rem;">
-            <a href="dashboard.php" class="btn btn-ghost" style="font-size: 0.8rem; font-weight: 800;">VOLTAR PARA O PAINEL</a>
+            <a href="index.php" class="btn btn-ghost" style="font-size: 0.8rem; font-weight: 800;">VOLTAR PARA O PAINEL</a>
         </div>
     </main>
 </body>

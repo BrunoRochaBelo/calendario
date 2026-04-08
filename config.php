@@ -56,7 +56,11 @@ function loadPermissions(mysqli $db, int $userId): array {
 }
 
 function can(string $permission): bool {
-    return !empty($_SESSION['perms'][$permission]);
+    return isset($_SESSION['perms'][$permission]) && (bool)$_SESSION['perms'][$permission] === true;
+}
+
+function has_level(int $min_level): bool {
+    return isset($_SESSION['usuario_nivel']) && (int)$_SESSION['usuario_nivel'] <= $min_level;
 }
 
 function requirePerm(string $permission): void {
@@ -81,10 +85,15 @@ function json_response(bool $success, string $message = '', array $data = []): v
 /**
  * Centralized logging function
  */
-function logAction(mysqli $db, string $acao, string $tabela = '', int $regId = 0, string $detalhes = ''): void {
+function logAction(mysqli $db, string $acao, string $tabela = '', int $regId = 0, mixed $detalhes = ''): void {
     $uid = $_SESSION['usuario_id'] ?? null;
     $parish_id = $_SESSION['paroquia_id'] ?? null;
     $ip = $_SERVER['REMOTE_ADDR'] ?? 'CLI';
+    
+    // Auto-serialize arrays for detailed state logs
+    if (is_array($detalhes) || is_object($detalhes)) {
+        $detalhes = json_encode($detalhes, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
     
     $sql = "INSERT INTO log_alteracoes (usuario_id, acao, tabela_afetada, registro_id, detalhes_alteracao, paroquia_id, ip_origem) 
             VALUES (?, ?, ?, ?, ?, ?, ?)";

@@ -9,6 +9,9 @@ require_once 'functions.php';
 requireLogin();
 
 $pid = current_paroquia_id();
+
+requirePerm('admin_sistema');
+
 $msg = $_GET['msg'] ?? '';
 $error = $_GET['error'] ?? '';
 
@@ -68,7 +71,14 @@ $tipos = $conn->query("SELECT * FROM tipos_atividade WHERE paroquia_id = $pid OR
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
+        
+        @media (max-width: 1024px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .header-stack { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+            .types-grid { grid-template-columns: 1fr; }
+            .btn-primary { width: 100%; }
+        }
         
         .header-stack { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem; }
         

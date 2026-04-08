@@ -11,6 +11,28 @@ requireLogin();
 $nome = $_SESSION['usuario_nome'] ?? 'Usuário';
 $initials = mb_strtoupper(mb_substr($nome, 0, 1));
 
+$parish_name = 'Igreja Católica';
+$pid = $_SESSION['paroquia_id'] ?? 0;
+if ($pid > 0) {
+    $stmt = $conn->prepare("SELECT nome FROM paroquias WHERE id = ?");
+    $stmt->bind_param('i', $pid);
+    $stmt->execute();
+    $resParish = $stmt->get_result();
+    if ($resParish && $resParish->num_rows > 0) {
+        $parish_name = $resParish->fetch_assoc()['nome'];
+    }
+}
+
+$all_parishes = [];
+if ($_SESSION['usuario_id'] == 1) {
+    $p_res = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
+    if ($p_res) {
+        while ($p_row = $p_res->fetch_assoc()) {
+            $all_parishes[] = $p_row;
+        }
+    }
+}
+
 // Navigation logic
 $current_page = basename($_SERVER['PHP_SELF']);
 function is_active(string $page): string {
@@ -28,11 +50,27 @@ function is_active(string $page): string {
         <div class="brand">
             <!-- ... same brand content ... -->
             <div class="brand-logo">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <?php 
+                $icon_path = "img/paroquia_{$pid}.png";
+                if ($pid > 0 && file_exists(__DIR__ . '/' . $icon_path)): 
+                ?>
+                    <img src="<?= $icon_path ?>?v=<?= time() ?>" alt="Paróquia" style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;">
+                <?php else: ?>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <?php endif; ?>
             </div>
             <div class="brand-text">
                 <span class="brand-name">PASCOM</span>
-                <span class="brand-sub">Portal Digital</span>
+                <?php if ($_SESSION['usuario_id'] == 1): ?>
+                    <select class="brand-sub-select" onchange="window.location.href='select_paroquia.php?id='+this.value">
+                        <?php if ($pid == 0): ?><option value="0" selected>Selecionar...</option><?php endif; ?>
+                        <?php foreach($all_parishes as $p): ?>
+                            <option value="<?= $p['id'] ?>" <?= $p['id'] == $pid ? 'selected' : '' ?>><?= h($p['nome']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                <?php else: ?>
+                    <span class="brand-sub" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; display: block;"><?= h($parish_name) ?></span>
+                <?php endif; ?>
             </div>
         </div>
         <button class="close-sidebar" onclick="toggleSidebar()">
@@ -54,6 +92,12 @@ function is_active(string $page): string {
         <?php if (can('admin_sistema') || can('admin_usuarios')): ?>
         <div class="nav-group">
             <span class="nav-label">Administração</span>
+            <?php if ($_SESSION['usuario_id'] == 1): ?>
+            <a href="paroquias.php" class="<?= is_active('paroquias.php') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16"/><path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/></svg>
+                <span>Sedes/Contextos</span>
+            </a>
+            <?php endif; ?>
             <?php if (can('admin_sistema')): ?>
             <a href="locais_paroquia.php" class="<?= is_active('locais_paroquia.php') ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -73,7 +117,7 @@ function is_active(string $page): string {
             <?php endif; ?>
         </div>
         <?php endif; ?>
-
+        
         <?php if (can('ver_logs')): ?>
         <div class="nav-group">
             <span class="nav-label">Relatórios</span>
@@ -148,6 +192,14 @@ function is_active(string $page): string {
 .brand-text { display: flex; flex-direction: column; }
 .brand-name { font-weight: 900; font-size: 1.1rem; letter-spacing: -0.01em; color: var(--text); }
 .brand-sub { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; }
+.brand-sub-select { 
+    font-size: 0.75rem; color: var(--text-dim); font-weight: 600;
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+    border-radius: 4px; padding: 0.1rem 0.3rem; outline: none;
+    max-width: 140px; cursor: pointer; transition: all 0.2s;
+}
+.brand-sub-select:hover { border-color: var(--primary); background: rgba(var(--primary-rgb), 0.1); }
+.brand-sub-select option { background: #1a1b2e; color: #fff; }
 
 .sidebar-nav { flex: 1; overflow-y: auto; padding: 1rem; }
 /* ... existing nav styles ... */

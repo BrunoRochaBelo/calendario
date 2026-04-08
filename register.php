@@ -8,11 +8,7 @@
 require_once 'functions.php';
 requireLogin();
 
-// Only Master (0) can register new staff/managers
-if (!has_level(0)) {
-    header('Location: dashboard.php?error=unauthorized');
-    exit();
-}
+requirePerm('admin_usuarios');
 
 $pid = current_paroquia_id();
 $msg = $_GET['msg'] ?? '';
@@ -25,15 +21,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Por favor, preencha nome, e-mail e senha.';
     } else {
         $hash = password_hash($data['senha'], PASSWORD_DEFAULT);
-        $nivel = (int)($data['nivel_acesso'] ?? 2);
+        $perfil_id = (int)($data['perfil_id'] ?? 3);
         $target_pid = (int)($data['paroquia_id'] ?: $pid);
+        $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
         
-        $sql = "INSERT INTO usuarios (nome, email, senha, sexo, telefone, paroquia_id, nivel_acesso, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, 1)";
+        $sql = "INSERT INTO usuarios (nome, email, senha, sexo, telefone, data_nascimento, paroquia_id, perfil_id, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param('sssssii', $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $target_pid, $nivel);
+        $stmt->bind_param('ssssssii', $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $dt_nasc, $target_pid, $perfil_id);
         
         if ($stmt->execute()) {
-            logAction($conn, 'REGISTRAR_USUARIO', 'usuarios', $conn->insert_id, "Novo usuário: " . $data['nome']);
+            logAction($conn, 'REGISTRAR_USUARIO', 'usuarios', $conn->insert_id, ['novo' => $data]);
             header("Location: register.php?msg=Usuário cadastrado com sucesso!");
             exit();
         } else {
@@ -44,6 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch Parishes for the dropdown
 $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
+// Fetch Perfis
+$perfis = $conn->query("SELECT id, nome FROM perfis ORDER BY nome");
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -54,7 +53,14 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: margin 0.3s; }
+        
+        @media (max-width: 1024px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .form-grid { grid-template-columns: 1fr; }
+            .full-row { grid-column: span 1; }
+            .form-container { padding: 2.5rem; }
+        }
         
         .form-container { width: 100%; max-width: 700px; padding: 4rem; border-radius: 32px; }
         .form-header { margin-bottom: 3rem; text-align: center; }
@@ -105,6 +111,11 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     </div>
 
                     <div class="form-group">
+                        <label>DATA DE NASCIMENTO</label>
+                        <input type="date" name="data_nascimento">
+                    </div>
+
+                    <div class="form-group">
                         <label>GÊNERO</label>
                         <select name="sexo">
                             <option value="M">Masculino</option>
@@ -114,11 +125,11 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     </div>
 
                     <div class="form-group">
-                        <label>NÍVEL DE ACESSO</label>
-                        <select name="nivel_acesso">
-                            <option value="2">Gerente (Paroquial)</option>
-                            <option value="1">Supervisor (Paroquial)</option>
-                            <option value="3">Usuário / Visitante</option>
+                        <label>PERFIL DE ACESSO</label>
+                        <select name="perfil_id">
+                            <?php while($pf = $perfis->fetch_assoc()): ?>
+                                <option value="<?= $pf['id'] ?>"><?= h($pf['nome']) ?></option>
+                            <?php endwhile; ?>
                         </select>
                     </div>
 
@@ -138,7 +149,7 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
 
                     <div class="full-row" style="display: flex; gap: 1rem; margin-top: 1rem;">
                         <button type="submit" class="btn btn-primary shimmer" style="flex: 2;">Finalizar Cadastro</button>
-                        <a href="dashboard.php" class="btn btn-ghost" style="flex: 1;">Cancelar</a>
+                        <a href="index.php" class="btn btn-ghost" style="flex: 1;">Cancelar</a>
                     </div>
                 </form>
             </section>

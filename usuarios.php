@@ -8,20 +8,24 @@
 require_once 'functions.php';
 requireLogin();
 
-// Restricted to Supervisors and Masters
-if (!has_level(1)) {
-    header('Location: dashboard.php?error=unauthorized');
-    exit();
-}
+requirePerm('admin_usuarios');
 
 $pid = current_paroquia_id();
+$can_edit = can('admin_usuarios');
 $is_master = has_level(0);
 
 // 1. Handle Status Toggles (AJAX/Simple POST)
-if (isset($_GET['toggle_status']) && $is_master) {
+if (isset($_GET['toggle_status']) && $can_edit) {
     $uid = (int)$_GET['toggle_status'];
+    $oldResult = $conn->query("SELECT * FROM usuarios WHERE id = $uid");
+    $oldState = $oldResult->fetch_assoc();
+    
     $conn->query("UPDATE usuarios SET ativo = 1 - ativo WHERE id = $uid");
-    logAction($conn, 'ALTERAR_STATUS_USUARIO', 'usuarios', $uid, 'Status de ativação alterado');
+    
+    $newResult = $conn->query("SELECT * FROM usuarios WHERE id = $uid");
+    $newState = $newResult->fetch_assoc();
+    
+    logAction($conn, 'ALTERAR_STATUS_USUARIO', 'usuarios', $uid, ['antigo' => $oldState, 'novo' => $newState]);
     header('Location: usuarios.php?msg=Status alterado com sucesso');
     exit();
 }
@@ -71,7 +75,14 @@ $users = $stmt->get_result();
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
+        
+        @media (max-width: 1024px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .header-flex { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+            .user-grid { grid-template-columns: 1fr; }
+            .btn-primary { width: 100%; }
+        }
         
         .header-flex { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3.5rem; }
         
@@ -114,7 +125,7 @@ $users = $stmt->get_result();
                     <p style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost);">ADMINISTRAÇÃO</p>
                     <h1 class="gradient-text">Usuários & Acessos</h1>
                 </div>
-                <?php if ($is_master): ?>
+                <?php if ($can_edit): ?>
                     <a href="register.php" class="btn btn-primary shimmer">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="16" x2="22" y1="11" y2="11"/></svg>
                         Novo Usuário
@@ -155,7 +166,7 @@ $users = $stmt->get_result();
                         </div>
                     </div>
 
-                    <?php if ($is_master && $u['id'] != $_SESSION['usuario_id']): ?>
+                    <?php if ($can_edit && $u['id'] != $_SESSION['usuario_id']): ?>
                     <div class="user-actions">
                         <a href="usuarios.php?toggle_status=<?= $u['id'] ?>" class="btn <?= $u['ativo'] ? 'btn-ghost' : 'btn-primary' ?>" style="flex: 1; font-size: 0.75rem; padding: 0.6rem;">
                             <?= $u['ativo'] ? 'Desativar' : 'Ativar' ?>

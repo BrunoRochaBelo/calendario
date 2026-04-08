@@ -19,7 +19,6 @@ if ($month > 12) { $month = 1; $year++; }
 if ($month < 1) { $month = 12; $year--; }
 
 $dt = new DateTime("$year-$month-01");
-$monthName = strftime('%B', $dt->getTimestamp()); // Will use setlocale or manual map
 $monthNames = [
     1 => 'JANEIRO', 2 => 'FEVEREIRO', 3 => 'MARÇO', 4 => 'ABRIL',
     5 => 'MAIO', 6 => 'JUNHO', 7 => 'JULHO', 8 => 'AGOSTO',
@@ -53,6 +52,52 @@ while ($row = $res->fetch_assoc()) {
     $day = (int)date('d', strtotime($row['data_inicio']));
     $activitiesByDay[$day][] = $row;
 }
+
+// 4. Fetch Birthdays
+$sqlB = "SELECT nome, data_nascimento FROM usuarios WHERE paroquia_id = ? AND MONTH(data_nascimento) = ? AND ativo = 1";
+$stmtB = $conn->prepare($sqlB);
+$stmtB->bind_param('ii', $pid, $month);
+$stmtB->execute();
+$resB = $stmtB->get_result();
+while ($u = $resB->fetch_assoc()) {
+    $day = (int)date('d', strtotime($u['data_nascimento']));
+    $bdayAct = [
+        'is_birthday' => true,
+        'nome' => "Aniver: " . explode(' ', trim($u['nome']))[0]
+    ];
+    if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
+    array_unshift($activitiesByDay[$day], $bdayAct);
+}
+
+// 5. Catholic Holidays
+$holidays = [
+    '01-01' => 'Santa Maria',
+    '10-12' => 'Nossa Sra. Aparecida',
+    '11-02' => 'Finados',
+    '12-25' => 'Natal do Senhor',
+];
+
+if (function_exists('easter_days')) {
+    $easterDays = easter_days($year);
+    $easterTimestamp = strtotime("$year-03-21 +$easterDays days");
+    $holidays[date('m-d', $easterTimestamp)] = 'Páscoa';
+    $holidays[date('m-d', strtotime('-2 days', $easterTimestamp))] = 'Sexta-feira Santa';
+    $holidays[date('m-d', strtotime('+60 days', $easterTimestamp))] = 'Corpus Christi';
+    $holidays[date('m-d', strtotime('-7 days', $easterTimestamp))] = 'Domingo de Ramos';
+}
+
+foreach ($holidays as $mmdd => $hName) {
+    list($hM, $hD) = explode('-', $mmdd);
+    if ((int)$hM === $month) {
+        $day = (int)$hD;
+        $hAct = [
+            'is_holiday' => true,
+            'nome' => $hName
+        ];
+        if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
+        array_unshift($activitiesByDay[$day], $hAct);
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -73,7 +118,7 @@ while ($row = $res->fetch_assoc()) {
         }
         .month-display { display: flex; align-items: baseline; gap: 1rem; }
         .month-display h1 { 
-            font-size: clamp(2rem, 5vw, 4rem); color: #ef4444; font-weight: 950; 
+            font-size: clamp(2rem, 5vw, 4rem); color: var(--primary); font-weight: 950; 
             letter-spacing: -0.05em; margin: 0; line-height: 0.8;
             text-transform: uppercase;
         }
@@ -136,10 +181,14 @@ while ($row = $res->fetch_assoc()) {
             background: rgba(var(--primary-rgb), 0.2);
             transform: scale(1.02); border-color: var(--primary); 
         }
+        .act-birthday { background: transparent; border: 1px dashed rgba(150, 150, 150, 0.3); opacity: 0.7; color: var(--text-dim); }
+        .act-birthday:hover { opacity: 1; transform: none; border-color: rgba(150, 150, 150, 0.5); }
+        .act-holiday { background: rgba(251, 191, 36, 0.1); border-left: 3px solid #fbbf24; color: #b45309; }
 
         /* Mobile View (Rows) - IMPROVED */
         @media (max-width: 1024px) {
             .main-content { margin-left: 0 !important; padding: 1rem; height: auto; overflow: visible; }
+            .calendar-header { padding-left: 4.5rem; } /* Add room for menu toggle */
             .cal-grid { display: flex; flex-direction: column; gap: 0.5rem; height: auto; border: none; background: transparent; }
             .calendar-container { border: none; background: transparent; box-shadow: none; overflow: visible; }
             .cal-weekday { display: none; }
@@ -174,11 +223,12 @@ while ($row = $res->fetch_assoc()) {
         <main class="main-content">
             <header class="calendar-header animate-in">
                 <div class="month-display">
-                    <h1 class="gradient-text" style="background: linear-gradient(to bottom, #ef4444, #991b1b); -webkit-background-clip: text;"><?= $displayMonth ?></h1>
+                    <h1 class="gradient-text" style="background: linear-gradient(to bottom, var(--primary), var(--accent)); -webkit-background-clip: text;"><?= $displayMonth ?></h1>
                     <span class="year-label"><?= $year ?></span>
                 </div>
                 <div class="nav-controls">
                     <a href="?m=<?= $month-1 ?>&y=<?= $year ?>" class="btn btn-ghost" style="padding: 0.7rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg></a>
+                    <a href="?m=<?= date('n') ?>&y=<?= date('Y') ?>" class="btn btn-ghost" style="padding: 0.7rem 1.2rem; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em;">HOJE</a>
                     <a href="?m=<?= $month+1 ?>&y=<?= $year ?>" class="btn btn-ghost" style="padding: 0.7rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg></a>
                 </div>
             </header>
@@ -209,10 +259,22 @@ while ($row = $res->fetch_assoc()) {
                             <div class="activities-list">
                                 <?php if (isset($activitiesByDay[$dayIdx])): ?>
                                     <?php foreach ($activitiesByDay[$dayIdx] as $act): ?>
-                                        <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="act-pill" style="border-left: 3px solid <?= $act['cor'] ?: 'var(--primary)' ?>;">
-                                            <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
-                                            <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
-                                        </a>
+                                        <?php if (!empty($act['is_birthday'])): ?>
+                                            <div class="act-pill act-birthday" style="pointer-events: none;">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                                <strong style="font-weight: 700; font-size: 0.55rem;"><?= h($act['nome']) ?></strong>
+                                            </div>
+                                        <?php elseif (!empty($act['is_holiday'])): ?>
+                                            <div class="act-pill act-holiday" style="pointer-events: none;">
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                                                <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
+                                            </div>
+                                        <?php else: ?>
+                                            <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="act-pill" style="border-left: 3px solid <?= $act['cor'] ?: 'var(--primary)' ?>;">
+                                                <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
+                                                <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
+                                            </a>
+                                        <?php endif; ?>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
                             </div>
