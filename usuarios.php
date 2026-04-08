@@ -60,7 +60,8 @@ if (!$is_master) {
     $where[] = "u.paroquia_id = ?";
     $params[] = $pid;
     $types .= "i";
-    $where[] = "(u.id = ? OR u.nivel_acesso > ?)";
+    // Nunca exibir o Admin Master (id=1 / nivel=0) para outros usuários
+    $where[] = "(u.id = ? OR (u.nivel_acesso > ? AND u.nivel_acesso <> 0 AND u.id <> 1))";
     $params[] = $my_user_id;
     $params[] = $my_level;
     $types .= "ii";

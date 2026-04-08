@@ -31,6 +31,11 @@ if (!$user) {
     exit();
 }
 
+if (!$is_master && !$is_self && ((int)$user['nivel_acesso'] === 0 || (int)$user['id'] === 1)) {
+    header('Location: usuarios.php?error=unauthorized');
+    exit();
+}
+
 if (
     (int)$user['id'] !== $my_user_id &&
     (
