@@ -44,17 +44,6 @@ $sql = "
         t.cor,
         t.icone,
         (
-            SELECT GROUP_CONCAT(CONCAT(pre.nome, '||', COALESCE(pre.foto_perfil, '')) SEPARATOR '##')
-            FROM (
-                SELECT u.nome, u.foto_perfil
-                FROM inscricoes i_pre
-                INNER JOIN usuarios u ON u.id = i_pre.usuario_id
-                WHERE i_pre.atividade_id = a.id
-                ORDER BY u.nome ASC
-                LIMIT 3
-            ) pre
-        ) AS inscritos_preview,
-        (
             SELECT COUNT(*)
             FROM inscricoes i
             WHERE i.atividade_id = a.id
@@ -71,24 +60,6 @@ $res = $stmt->get_result();
 
 $activitiesByDay = [];
 while ($row = $res->fetch_assoc()) {
-    $previewItems = [];
-    $previewRaw = trim((string)($row['inscritos_preview'] ?? ''));
-    if ($previewRaw !== '') {
-        foreach (explode('##', $previewRaw) as $chunk) {
-            if ($chunk === '') continue;
-            $parts = explode('||', $chunk, 2);
-            $pname = trim((string)($parts[0] ?? ''));
-            $pphoto = trim((string)($parts[1] ?? ''));
-            if ($pphoto !== '' && !file_exists(__DIR__ . '/' . $pphoto)) {
-                $pphoto = '';
-            }
-            if ($pname !== '') {
-                $previewItems[] = ['nome' => $pname, 'foto_perfil' => $pphoto];
-            }
-        }
-    }
-    $row['inscritos_preview_items'] = $previewItems;
-    $row['inscritos_more'] = max(0, (int)($row['total_inscritos'] ?? 0) - count($previewItems));
     $day = (int)date('d', strtotime($row['data_inicio']));
     $activitiesByDay[$day][] = $row;
 }
@@ -245,63 +216,6 @@ foreach ($holidays as $mmdd => $hName) {
             text-transform: uppercase;
             white-space: nowrap;
         }
-        .subs-preview {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.35rem;
-            margin: 0.25rem 0 0 0.35rem;
-        }
-        .subs-preview[hidden] { display: none; }
-        .sub-item {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.35rem;
-            padding: 0.18rem 0.45rem;
-            border-radius: 999px;
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
-            max-width: 100%;
-        }
-        .sub-avatar,
-        .sub-avatar-img {
-            width: 18px;
-            height: 18px;
-            border-radius: 999px;
-            flex-shrink: 0;
-        }
-        .sub-avatar {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            background: var(--panel-hi);
-            border: 1px solid var(--border);
-            font-size: 0.6rem;
-            font-weight: 900;
-            color: var(--primary);
-        }
-        .sub-avatar-img { object-fit: cover; border: 1px solid rgba(255,255,255,0.25); }
-        .sub-name {
-            font-size: 0.62rem;
-            font-weight: 800;
-            color: var(--text);
-            max-width: 110px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .sub-more {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0.18rem 0.5rem;
-            border-radius: 999px;
-            background: rgba(var(--accent-rgb), 0.12);
-            border: 1px solid rgba(var(--accent-rgb), 0.2);
-            color: var(--accent);
-            font-size: 0.6rem;
-            font-weight: 900;
-            letter-spacing: 0.04em;
-        }
         .act-pill:hover { 
             background: rgba(var(--primary-rgb), 0.2);
             transform: scale(1.02); border-color: var(--primary); 
@@ -448,70 +362,14 @@ foreach ($holidays as $mmdd => $hName) {
                                                 >
                                                     <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
                                                     <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
-                                                    <span class="act-count" id="act-count-<?= (int)$act['id'] ?>"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
+                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
                                                 </button>
-                                                <div
-                                                    class="subs-preview"
-                                                    id="subs-preview-<?= (int)$act['id'] ?>"
-                                                    <?= ((int)($act['total_inscritos'] ?? 0)) > 0 ? '' : 'hidden' ?>
-                                                >
-                                                    <?php foreach (($act['inscritos_preview_items'] ?? []) as $pi): ?>
-                                                        <?php
-                                                            $n = (string)($pi['nome'] ?? '');
-                                                            $parts = preg_split('/\s+/', trim($n)) ?: [];
-                                                            $first = $parts[0] ?? $n;
-                                                            $last = count($parts) > 1 ? $parts[count($parts)-1] : '';
-                                                            $disp = trim($first . ' ' . $last);
-                                                            $disp = mb_substr($disp, 0, 12);
-                                                            $photo = (string)($pi['foto_perfil'] ?? '');
-                                                        ?>
-                                                        <div class="sub-item">
-                                                            <?php if ($photo !== '' && file_exists(__DIR__ . '/' . $photo)): ?>
-                                                                <img class="sub-avatar-img" src="<?= h($photo) ?>?v=<?= time() ?>" alt="Foto">
-                                                            <?php else: ?>
-                                                                <div class="sub-avatar"><?= mb_strtoupper(mb_substr($disp ?: $n ?: '?', 0, 1)) ?></div>
-                                                            <?php endif; ?>
-                                                            <span class="sub-name"><?= h($disp ?: $n ?: '?') ?></span>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                    <?php if (!empty($act['inscritos_more'])): ?>
-                                                        <div class="sub-more">+<?= (int)$act['inscritos_more'] ?></div>
-                                                    <?php endif; ?>
-                                                </div>
                                             <?php else: ?>
                                                 <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="act-pill" style="border-left: 3px solid <?= h($act['cor'] ?: 'var(--primary)') ?>;">
                                                     <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
                                                     <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
-                                                    <span class="act-count" id="act-count-<?= (int)$act['id'] ?>"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
+                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
                                                 </a>
-                                                <div
-                                                    class="subs-preview"
-                                                    id="subs-preview-<?= (int)$act['id'] ?>"
-                                                    <?= ((int)($act['total_inscritos'] ?? 0)) > 0 ? '' : 'hidden' ?>
-                                                >
-                                                    <?php foreach (($act['inscritos_preview_items'] ?? []) as $pi): ?>
-                                                        <?php
-                                                            $n = (string)($pi['nome'] ?? '');
-                                                            $parts = preg_split('/\s+/', trim($n)) ?: [];
-                                                            $first = $parts[0] ?? $n;
-                                                            $last = count($parts) > 1 ? $parts[count($parts)-1] : '';
-                                                            $disp = trim($first . ' ' . $last);
-                                                            $disp = mb_substr($disp, 0, 12);
-                                                            $photo = (string)($pi['foto_perfil'] ?? '');
-                                                        ?>
-                                                        <div class="sub-item">
-                                                            <?php if ($photo !== '' && file_exists(__DIR__ . '/' . $photo)): ?>
-                                                                <img class="sub-avatar-img" src="<?= h($photo) ?>?v=<?= time() ?>" alt="Foto">
-                                                            <?php else: ?>
-                                                                <div class="sub-avatar"><?= mb_strtoupper(mb_substr($disp ?: $n ?: '?', 0, 1)) ?></div>
-                                                            <?php endif; ?>
-                                                            <span class="sub-name"><?= h($disp ?: $n ?: '?') ?></span>
-                                                        </div>
-                                                    <?php endforeach; ?>
-                                                    <?php if (!empty($act['inscritos_more'])): ?>
-                                                        <div class="sub-more">+<?= (int)$act['inscritos_more'] ?></div>
-                                                    <?php endif; ?>
-                                                </div>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
@@ -618,62 +476,6 @@ foreach ($holidays as $mmdd => $hName) {
                 )).join('');
             }
 
-            function escapeHtml(value) {
-                return String(value ?? '')
-                    .replaceAll('&', '&amp;')
-                    .replaceAll('<', '&lt;')
-                    .replaceAll('>', '&gt;')
-                    .replaceAll('\"', '&quot;')
-                    .replaceAll(\"'\", '&#39;');
-            }
-
-            function shortDisplayName(fullName) {
-                const raw = String(fullName ?? '').trim();
-                if (!raw) return '?';
-                const parts = raw.split(/\\s+/g);
-                const first = parts[0] || raw;
-                const last = parts.length > 1 ? parts[parts.length - 1] : '';
-                let disp = (first + ' ' + last).trim();
-                if (!disp) disp = first;
-                if (disp.length > 12) disp = disp.slice(0, 12);
-                return disp;
-            }
-
-            function updateCalendarCard(activity) {
-                const countEl = document.getElementById(`act-count-${activity.id}`);
-                if (countEl) {
-                    countEl.textContent = `${activity.total_inscritos} inscritos`;
-                }
-
-                const previewEl = document.getElementById(`subs-preview-${activity.id}`);
-                if (!previewEl) return;
-
-                const total = Number(activity.total_inscritos || 0);
-                const participants = Array.isArray(activity.participants) ? activity.participants : [];
-                if (total <= 0 || participants.length === 0) {
-                    previewEl.innerHTML = '';
-                    previewEl.hidden = true;
-                    return;
-                }
-
-                const max = 3;
-                const shown = participants.slice(0, max);
-                const itemsHtml = shown.map((p) => {
-                    const disp = shortDisplayName(p.nome);
-                    const photo = (p.foto_perfil || '').trim();
-                    if (photo) {
-                        return `<div class=\"sub-item\"><img class=\"sub-avatar-img\" src=\"${escapeHtml(photo)}?v=${Date.now()}\" alt=\"Foto\"><span class=\"sub-name\">${escapeHtml(disp)}</span></div>`;
-                    }
-                    const initial = (disp[0] || '?').toUpperCase();
-                    return `<div class=\"sub-item\"><div class=\"sub-avatar\">${escapeHtml(initial)}</div><span class=\"sub-name\">${escapeHtml(disp)}</span></div>`;
-                }).join('');
-
-                const more = total - shown.length;
-                const moreHtml = more > 0 ? `<div class=\"sub-more\">+${more}</div>` : '';
-                previewEl.innerHTML = itemsHtml + moreHtml;
-                previewEl.hidden = false;
-            }
-
             function fillModal(activity) {
                 currentActivityId = activity.id;
                 document.getElementById('eventModalType').textContent = activity.nome_tipo || 'Evento';
@@ -683,7 +485,6 @@ foreach ($holidays as $mmdd => $hName) {
                 document.getElementById('eventModalDescription').textContent = activity.descricao || 'Sem descrição.';
                 viewButton.href = `ver_atividade.php?id=${activity.id}`;
                 renderParticipants(activity.participants || []);
-                updateCalendarCard(activity);
 
                 joinButton.style.display = activity.can_interact && !activity.usuario_inscrito ? 'inline-flex' : 'none';
                 leaveButton.style.display = activity.can_interact && activity.usuario_inscrito ? 'inline-flex' : 'none';

@@ -57,7 +57,7 @@ if ($activityId > 0) {
 
     $participants = [];
     $partsStmt = $conn->prepare("
-        SELECT u.nome, u.foto_perfil, i.data_inscricao
+        SELECT u.nome, i.data_inscricao
         FROM inscricoes i
         INNER JOIN usuarios u ON u.id = i.usuario_id
         WHERE i.atividade_id = ?
@@ -67,12 +67,7 @@ if ($activityId > 0) {
     $partsStmt->execute();
     $partsRes = $partsStmt->get_result();
     while ($row = $partsRes->fetch_assoc()) {
-        $photo = trim((string)($row['foto_perfil'] ?? ''));
-        if ($photo !== '' && !file_exists(__DIR__ . '/' . $photo)) {
-            $photo = '';
-        }
         $participants[] = $row;
-        $participants[count($participants)-1]['foto_perfil'] = $photo;
     }
 
     $startTs = activityStartTimestamp($activity);
