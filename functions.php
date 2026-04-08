@@ -48,6 +48,63 @@ function current_paroquia_id(): int {
     return (int)($_SESSION['paroquia_id'] ?? 0);
 }
 
+function userCanSwitchParish(): bool {
+    return (bool)(
+        ($_SESSION['usuario_id'] ?? 0) === 1 ||
+        can('admin_sistema') ||
+        (int)($_SESSION['usuario_nivel'] ?? -1) === 0
+    );
+}
+
+function canInteractWithActivity(): bool {
+    return is_authenticated() && can('ver_calendario');
+}
+
+function canBypassEnrollmentDeadline(): bool {
+    return (bool)(
+        can('admin_sistema') ||
+        ($_SESSION['usuario_id'] ?? 0) === 1 ||
+        (int)($_SESSION['usuario_nivel'] ?? 0) >= 3
+    );
+}
+
+function ensureInscricoesTable(mysqli $db): bool {
+    static $checked = false;
+
+    if ($checked) {
+        return true;
+    }
+
+    $checked = true;
+    $exists = $db->query("SHOW TABLES LIKE 'inscricoes'");
+    if ($exists && $exists->num_rows > 0) {
+        return true;
+    }
+
+    $sql = "
+        CREATE TABLE inscricoes (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            atividade_id INT(10) UNSIGNED NOT NULL,
+            usuario_id INT(10) UNSIGNED NOT NULL,
+            data_inscricao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_inscricao_atividade_usuario (atividade_id, usuario_id),
+            KEY fk_inscricao_atividade (atividade_id),
+            KEY fk_inscricao_usuario (usuario_id),
+            CONSTRAINT fk_inscricao_atividade FOREIGN KEY (atividade_id) REFERENCES atividades (id) ON DELETE CASCADE,
+            CONSTRAINT fk_inscricao_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
+    return (bool)$db->query($sql);
+}
+
+function activityStartTimestamp(array $activity): int {
+    $date = $activity['data_inicio'] ?? date('Y-m-d');
+    $time = $activity['hora_inicio'] ?? '00:00:00';
+    return strtotime(trim($date . ' ' . $time));
+}
+
 /**
  * Sanitiza inputs de formulário em massa
  */
