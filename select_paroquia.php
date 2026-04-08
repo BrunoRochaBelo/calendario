@@ -8,8 +8,7 @@
 require_once 'functions.php';
 requireLogin();
 
-// Restricted to Master (0)
-if (!has_level(0)) {
+if (!userCanSwitchParish()) {
     header('Location: index.php?error=unauthorized');
     exit();
 }

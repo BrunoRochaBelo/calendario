@@ -24,7 +24,7 @@ if ($pid > 0) {
 }
 
 $all_parishes = [];
-if ($_SESSION['usuario_id'] == 1) {
+if (userCanSwitchParish()) {
     $p_res = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
     if ($p_res) {
         while ($p_row = $p_res->fetch_assoc()) {
@@ -61,7 +61,7 @@ function is_active(string $page): string {
             </div>
             <div class="brand-text">
                 <span class="brand-name">PASCOM</span>
-                <?php if ($_SESSION['usuario_id'] == 1): ?>
+                <?php if (userCanSwitchParish()): ?>
                     <select class="brand-sub-select" onchange="window.location.href='select_paroquia.php?id='+this.value">
                         <?php if ($pid == 0): ?><option value="0" selected>Selecionar...</option><?php endif; ?>
                         <?php foreach($all_parishes as $p): ?>
@@ -255,4 +255,3 @@ function toggleSidebar() {
     sidebar.classList.toggle('open');
 }
 </script>
-

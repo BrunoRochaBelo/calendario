@@ -7,9 +7,12 @@
 
 require_once 'functions.php';
 requireLogin();
+ensureInscricoesTable($conn);
 
 $pid = current_paroquia_id();
 $id = (int)($_GET['id'] ?? 0);
+$msg = $_GET['msg'] ?? '';
+$error = $_GET['error'] ?? '';
 
 // 1. Fetch Activity Details
 $sql = "
@@ -92,6 +95,8 @@ $participants = $stmt_p->get_result();
         <?php include 'sidebar.php'; ?>
 
         <main class="main-content">
+            <?php if ($msg): ?><?= alert('success', h($msg)) ?><?php endif; ?>
+            <?php if ($error): ?><?= alert('error', h($error)) ?><?php endif; ?>
             <header class="detail-header animate-in">
                 <div>
                     <span class="type-badge" style="background:var(--panel-hi);"><?= h($activity['nome_tipo'] ?: 'Evento') ?></span>

@@ -28,17 +28,24 @@ $baseSql = "
         t.cor,
         t.icone,
         t.nome_tipo,
-        COUNT(DISTINCT i.id) AS total_inscritos,
-        MAX(CASE WHEN i.usuario_id = ? THEN 1 ELSE 0 END) AS usuario_inscrito
+        (
+            SELECT COUNT(*)
+            FROM inscricoes i_count
+            WHERE i_count.atividade_id = a.id
+        ) AS total_inscritos,
+        EXISTS(
+            SELECT 1
+            FROM inscricoes i_user
+            WHERE i_user.atividade_id = a.id AND i_user.usuario_id = ?
+        ) AS usuario_inscrito
     FROM atividades a
     LEFT JOIN locais_paroquia l ON a.local_id = l.id
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
-    LEFT JOIN inscricoes i ON i.atividade_id = a.id
     WHERE a.paroquia_id = ?
 ";
 
 if ($activityId > 0) {
-    $sql = $baseSql . " AND a.id = ? GROUP BY a.id LIMIT 1";
+    $sql = $baseSql . " AND a.id = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param('iii', $userId, $pid, $activityId);
     $stmt->execute();
@@ -96,7 +103,6 @@ $sql = $baseSql . "
         (MONTH(a.data_inicio) = ? AND YEAR(a.data_inicio) = ?)
         OR (a.data_fim IS NOT NULL AND MONTH(a.data_fim) = ? AND YEAR(a.data_fim) = ?)
       )
-    GROUP BY a.id
     ORDER BY a.data_inicio ASC, a.hora_inicio ASC, a.nome ASC
 ";
 

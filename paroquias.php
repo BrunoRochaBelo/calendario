@@ -104,11 +104,19 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
     <title>Sedes e Contextos — PASCOM</title>
     <link rel="stylesheet" href="style.css">
     <style>
+        .app-shell { display: flex; min-height: 100vh; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
+        .header-flex { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; margin-bottom: 3rem; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
+
         .pq-card { 
             padding: 1.5rem; border-radius: 24px; position: relative; 
             overflow: hidden; display: flex; align-items: center; gap: 1.5rem; 
         }
         @media (max-width: 768px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .header-flex { flex-direction: column; align-items: flex-start; }
+            .grid { grid-template-columns: 1fr; }
             .pq-card { flex-direction: column; align-items: flex-start; text-align: left; }
             .pq-card > div:last-child { width: 100%; flex-direction: row; justify-content: space-between; }
         }

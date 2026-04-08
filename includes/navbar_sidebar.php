@@ -13,7 +13,7 @@ if (session_status() === PHP_SESSION_NONE) {
             <span class="navbar-toggler-icon"></span>
         </button>
         <!-- Lógica Nível 0 para Seleção de Paróquia (Dropdown) -->
-        <?php if (has_level(0)):
+        <?php if (userCanSwitchParish()):
             $stmtPar = $conn->query('SELECT id, nome FROM paroquias ORDER BY nome');
             $nome_par = 'Selecione a Paróquia';
 
