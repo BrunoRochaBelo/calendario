@@ -36,7 +36,6 @@ CREATE TABLE `perfis` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nome` varchar(50) NOT NULL,
   `descricao` text DEFAULT NULL,
-  `nivel_hierarquia` int(11) DEFAULT 0,
   `perm_ver_calendario` tinyint(1) DEFAULT 1,
   `perm_criar_eventos` tinyint(1) DEFAULT 0,
   `perm_editar_eventos` tinyint(1) DEFAULT 0,

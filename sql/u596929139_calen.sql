@@ -139,7 +139,6 @@ CREATE TABLE `perfis` (
   `id` int(10) UNSIGNED NOT NULL,
   `nome` varchar(50) NOT NULL,
   `descricao` text DEFAULT NULL,
-  `nivel_hierarquia` int(11) DEFAULT 0,
   `perm_ver_calendario` tinyint(1) DEFAULT 1,
   `perm_criar_eventos` tinyint(1) DEFAULT 0,
   `perm_editar_eventos` tinyint(1) DEFAULT 0,
@@ -154,14 +153,14 @@ CREATE TABLE `perfis` (
 -- Despejando dados para a tabela `perfis`
 --
 
-INSERT INTO `perfis` (`id`, `nome`, `descricao`, `nivel_hierarquia`, `perm_ver_calendario`, `perm_criar_eventos`, `perm_editar_eventos`, `perm_excluir_eventos`, `perm_ver_restritos`, `perm_admin_usuarios`, `perm_admin_sistema`, `perm_ver_logs`) VALUES
-(1, 'MASTER', NULL, 100, 1, 1, 1, 1, 1, 1, 1, 1),
-(2, 'ADMINISTRADOR PAROQUIAL', NULL, 80, 1, 1, 1, 0, 1, 1, 1, 1),
-(3, 'SECRETARIA', NULL, 60, 1, 1, 1, 0, 1, 0, 1, 0),
-(4, 'PADRE', NULL, 70, 1, 1, 1, 1, 1, 0, 0, 1),
-(5, 'PASCOM', NULL, 50, 1, 0, 0, 0, 0, 0, 1, 0),
-(6, 'COORDENADOR PASTORAL', NULL, 40, 1, 1, 0, 0, 0, 0, 0, 0),
-(7, 'VISITANTE', NULL, 0, 1, 0, 0, 0, 0, 0, 0, 0);
+INSERT INTO `perfis` (`id`, `nome`, `descricao`, `perm_ver_calendario`, `perm_criar_eventos`, `perm_editar_eventos`, `perm_excluir_eventos`, `perm_ver_restritos`, `perm_admin_usuarios`, `perm_admin_sistema`, `perm_ver_logs`) VALUES
+(1, 'MASTER', NULL, 1, 1, 1, 1, 1, 1, 1, 1),
+(2, 'ADMINISTRADOR PAROQUIAL', NULL, 1, 1, 1, 0, 1, 1, 1, 1),
+(3, 'SECRETARIA', NULL, 1, 1, 1, 0, 1, 0, 1, 0),
+(4, 'PADRE', NULL, 1, 1, 1, 1, 1, 0, 0, 1),
+(5, 'PASCOM', NULL, 1, 0, 0, 0, 0, 0, 1, 0),
+(6, 'COORDENADOR PASTORAL', NULL, 1, 1, 0, 0, 0, 0, 0, 0),
+(7, 'VISITANTE', NULL, 1, 0, 0, 0, 0, 0, 0, 0);
 
 -- --------------------------------------------------------
 

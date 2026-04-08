@@ -28,6 +28,11 @@ function requireLogin(): void {
         header('Location: login.php');
         exit();
     }
+
+    global $conn;
+    if (isset($conn) && $conn instanceof mysqli) {
+        ensurePerfisHierarchyRemoved($conn);
+    }
 }
 
 // 5. RBAC & Permissions Logic
@@ -69,8 +74,24 @@ function ensureUserPhotoColumn(mysqli $db): void {
     $db->query("ALTER TABLE `usuarios` ADD COLUMN `foto_perfil` VARCHAR(255) NULL DEFAULT NULL AFTER `data_nascimento`");
 }
 
+function ensurePerfisHierarchyRemoved(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $exists = $db->query("SHOW COLUMNS FROM `perfis` LIKE 'nivel_hierarquia'");
+    if (!$exists || $exists->num_rows === 0) {
+        return;
+    }
+
+    $db->query("ALTER TABLE `perfis` DROP COLUMN `nivel_hierarquia`");
+}
+
 function loadPermissions(mysqli $db, int $userId): array {
     ensurePermissionColumns($db);
+    ensurePerfisHierarchyRemoved($db);
 
     $sql = "
         SELECT 

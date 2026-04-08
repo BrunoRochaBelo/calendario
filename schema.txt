@@ -71,7 +71,6 @@ CREATE TABLE `perfis` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `nome` varchar(50) NOT NULL,
   `descricao` text DEFAULT NULL,
-  `nivel_hierarquia` int(11) DEFAULT 0,
   `perm_ver_calendario` tinyint(1) DEFAULT 1,
   `perm_criar_eventos` tinyint(1) DEFAULT 0,
   `perm_editar_eventos` tinyint(1) DEFAULT 0,
@@ -124,4 +123,3 @@ CREATE TABLE `usuarios` (
   CONSTRAINT `fk_usuario_paroquia` FOREIGN KEY (`paroquia_id`) REFERENCES `paroquias` (`id`) ON DELETE SET NULL,
   CONSTRAINT `fk_usuario_perfil` FOREIGN KEY (`perfil_id`) REFERENCES `perfis` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-
