@@ -83,7 +83,7 @@ while ($u = $resB->fetch_assoc()) {
     $shortName = mb_substr($firstName, 0, 10);
     $bdayAct = [
         'is_birthday' => true,
-        'nome' => $shortName,
+        'nome' => "Aniv. {$shortName} 🎂",
         'foto_perfil' => (string)($u['foto_perfil'] ?? '')
     ];
     if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
