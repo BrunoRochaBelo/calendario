@@ -44,6 +44,14 @@ $sql = "
         t.cor,
         t.icone,
         (
+            SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))
+            FROM inscricoes i_pre
+            INNER JOIN usuarios u ON u.id = i_pre.usuario_id
+            WHERE i_pre.atividade_id = a.id
+            ORDER BY i_pre.data_inscricao ASC
+            LIMIT 1
+        ) AS primeiro_inscrito,
+        (
             SELECT COUNT(*)
             FROM inscricoes i
             WHERE i.atividade_id = a.id
@@ -60,6 +68,19 @@ $res = $stmt->get_result();
 
 $activitiesByDay = [];
 while ($row = $res->fetch_assoc()) {
+    $row['primeiro_inscrito_nome'] = '';
+    $row['primeiro_inscrito_foto'] = '';
+    $previewRaw = trim((string)($row['primeiro_inscrito'] ?? ''));
+    if ($previewRaw !== '') {
+        $parts = explode('||', $previewRaw, 2);
+        $pname = trim((string)($parts[0] ?? ''));
+        $pphoto = trim((string)($parts[1] ?? ''));
+        if ($pphoto !== '' && !file_exists(__DIR__ . '/' . $pphoto)) {
+            $pphoto = '';
+        }
+        $row['primeiro_inscrito_nome'] = $pname;
+        $row['primeiro_inscrito_foto'] = $pphoto;
+    }
     $day = (int)date('d', strtotime($row['data_inicio']));
     $activitiesByDay[$day][] = $row;
 }
@@ -230,6 +251,53 @@ foreach ($holidays as $mmdd => $hName) {
             border: 1px solid rgba(255,255,255,0.25);
             flex-shrink: 0;
         }
+        .enroll-preview {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin: 0.25rem 0 0 0.5rem;
+            color: var(--text-dim);
+            font-size: 0.62rem;
+            font-weight: 800;
+            max-width: 100%;
+        }
+        .enroll-preview[hidden] { display: none; }
+        .enroll-avatar,
+        .enroll-avatar-img {
+            width: 18px;
+            height: 18px;
+            border-radius: 999px;
+            flex-shrink: 0;
+        }
+        .enroll-avatar {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--panel-hi);
+            border: 1px solid var(--border);
+            color: var(--primary);
+            font-size: 0.6rem;
+            font-weight: 900;
+        }
+        .enroll-avatar-img { object-fit: cover; border: 1px solid rgba(255,255,255,0.25); }
+        .enroll-name {
+            color: var(--text);
+            max-width: 130px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .enroll-more {
+            margin-left: auto;
+            padding: 0.12rem 0.4rem;
+            border-radius: 999px;
+            background: rgba(var(--accent-rgb), 0.12);
+            border: 1px solid rgba(var(--accent-rgb), 0.2);
+            color: var(--accent);
+            font-size: 0.58rem;
+            font-weight: 900;
+            flex-shrink: 0;
+        }
         .act-holiday { background: rgba(251, 191, 36, 0.1); border-left: 3px solid #fbbf24; color: #b45309; }
 
         /* Mobile View (Rows) - IMPROVED */
@@ -364,12 +432,52 @@ foreach ($holidays as $mmdd => $hName) {
                                                     <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
                                                     <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
                                                 </button>
+                                                <?php
+                                                    $enName = trim((string)($act['primeiro_inscrito_nome'] ?? ''));
+                                                    $enPhoto = trim((string)($act['primeiro_inscrito_foto'] ?? ''));
+                                                    $enParts = preg_split('/\s+/', trim($enName)) ?: [];
+                                                    $enFirst = $enParts[0] ?? $enName;
+                                                    $enLast = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
+                                                    $enDisp = trim($enFirst . ' ' . $enLast);
+                                                    $enDisp = mb_substr($enDisp ?: $enName, 0, 12);
+                                                    $enTotal = (int)($act['total_inscritos'] ?? 0);
+                                                    $enMore = max(0, $enTotal - 1);
+                                                ?>
+                                                <div class="enroll-preview" <?= ($enTotal > 0 && $enName !== '') ? '' : 'hidden' ?>>
+                                                    <?php if ($enPhoto !== '' && file_exists(__DIR__ . '/' . $enPhoto)): ?>
+                                                        <img class="enroll-avatar-img" src="<?= h($enPhoto) ?>?v=<?= time() ?>" alt="Foto">
+                                                    <?php else: ?>
+                                                        <div class="enroll-avatar"><?= mb_strtoupper(mb_substr($enDisp ?: $enName ?: '?', 0, 1)) ?></div>
+                                                    <?php endif; ?>
+                                                    <span class="enroll-name"><?= h($enDisp ?: $enName ?: '?') ?></span>
+                                                    <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
+                                                </div>
                                             <?php else: ?>
                                                 <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="act-pill" style="border-left: 3px solid <?= h($act['cor'] ?: 'var(--primary)') ?>;">
                                                     <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
                                                     <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
                                                     <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
                                                 </a>
+                                                <?php
+                                                    $enName = trim((string)($act['primeiro_inscrito_nome'] ?? ''));
+                                                    $enPhoto = trim((string)($act['primeiro_inscrito_foto'] ?? ''));
+                                                    $enParts = preg_split('/\s+/', trim($enName)) ?: [];
+                                                    $enFirst = $enParts[0] ?? $enName;
+                                                    $enLast = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
+                                                    $enDisp = trim($enFirst . ' ' . $enLast);
+                                                    $enDisp = mb_substr($enDisp ?: $enName, 0, 12);
+                                                    $enTotal = (int)($act['total_inscritos'] ?? 0);
+                                                    $enMore = max(0, $enTotal - 1);
+                                                ?>
+                                                <div class="enroll-preview" <?= ($enTotal > 0 && $enName !== '') ? '' : 'hidden' ?>>
+                                                    <?php if ($enPhoto !== '' && file_exists(__DIR__ . '/' . $enPhoto)): ?>
+                                                        <img class="enroll-avatar-img" src="<?= h($enPhoto) ?>?v=<?= time() ?>" alt="Foto">
+                                                    <?php else: ?>
+                                                        <div class="enroll-avatar"><?= mb_strtoupper(mb_substr($enDisp ?: $enName ?: '?', 0, 1)) ?></div>
+                                                    <?php endif; ?>
+                                                    <span class="enroll-name"><?= h($enDisp ?: $enName ?: '?') ?></span>
+                                                    <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
+                                                </div>
                                             <?php endif; ?>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
