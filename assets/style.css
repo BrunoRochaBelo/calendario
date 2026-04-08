@@ -1,0 +1,119 @@
+/* Estilos Globais */
+body {
+    background-color: #f8f9fa;
+}
+
+main {
+    padding-top: 60px; /* Ajuste para a navbar */
+}
+
+/* Mensagens de feedback */
+.msg-erro, .alert-danger {
+    background: #f8d7da;
+    color: #721c24;
+    padding: 10px 15px;
+    border-radius: .25rem;
+    border: 1px solid #f5c6cb;
+}
+
+.msg-ok, .alert-success {
+    background: #d4edda;
+    color: #155724;
+    padding: 10px 15px;
+    border-radius: .25rem;
+    border: 1px solid #c3e6cb;
+}
+
+/* Estilo para domingos */
+.sunday {
+    color: #d9534f !important; /* Vermelho para domingos */
+    font-weight: bold;
+}
+
+/* Calendário Desktop (.calendar-table) */
+.calendar-table td {
+    height: 120px;
+    vertical-align: top;
+    position: relative;
+}
+.day-number {
+    font-size: 1.1em;
+    font-weight: bold;
+    padding: 5px;
+}
+.event {
+    font-size: 0.8em;
+    padding: 2px 5px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    margin-bottom: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.add-event {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: none; /* Escondido por padrão */
+    text-decoration: none;
+}
+.calendar-table td:hover .add-event {
+    display: inline; /* Mostra ao passar o mouse */
+}
+
+
+/* Calendário Mobile (.mobile-calendar-list) */
+.mobile-calendar-list {
+    padding: 0;
+    margin: 0;
+}
+.mobile-day-item {
+    display: flex;
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+    align-items: flex-start;
+}
+.mobile-day-header {
+    flex-basis: 60px;
+    flex-shrink: 0;
+    font-size: 1.2em;
+}
+.mobile-day-events {
+    flex-grow: 1;
+}
+
+
+/* Botão de Ação Flutuante (FAB) */
+.fab {
+    position: fixed;
+    right: 25px;
+    bottom: 25px;
+    background-color: #0d6efd;
+    color: #fff;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 56px;
+    font-size: 24px;
+    text-decoration: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,.15);
+    transition: background-color .3s;
+    z-index: 1030;
+}
+
+.fab:hover {
+    background-color: #0b5ed7;
+    color: #fff;
+}
+
+/* Remove o padding padrão do container do calendário no mobile */
+@media (max-width: 991.98px) {
+    #calendar {
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        background-color: transparent;
+    }
+}
