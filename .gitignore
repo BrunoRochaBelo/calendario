@@ -9,6 +9,8 @@ Thumbs.db
 
 # Uploads temporarios
 img/*.tmp
+img/usuarios/
+img/tipos_atividade/
 
 # Editor
 .vscode/

@@ -71,10 +71,19 @@ $stmtB->bind_param('ii', $pid, $month);
 $stmtB->execute();
 $resB = $stmtB->get_result();
 while ($u = $resB->fetch_assoc()) {
+    $birthYear = (int)date('Y', strtotime($u['data_nascimento']));
+    if ($year < $birthYear) {
+        continue; // só mostra a partir do ano de nascimento
+    }
     $day = (int)date('d', strtotime($u['data_nascimento']));
+    if ($day < 1 || $day > $daysInMonth) {
+        continue; // ex: 29/02 em ano não-bissexto
+    }
+    $firstName = explode(' ', trim((string)$u['nome']))[0] ?? '';
+    $shortName = mb_substr($firstName, 0, 10);
     $bdayAct = [
         'is_birthday' => true,
-        'nome' => "Aniver: " . explode(' ', trim($u['nome']))[0],
+        'nome' => $shortName,
         'foto_perfil' => (string)($u['foto_perfil'] ?? '')
     ];
     if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
@@ -208,8 +217,8 @@ foreach ($holidays as $mmdd => $hName) {
         .act-birthday { background: transparent; border: 1px dashed rgba(150, 150, 150, 0.3); opacity: 0.7; color: var(--text-dim); }
         .act-birthday:hover { opacity: 1; transform: none; border-color: rgba(150, 150, 150, 0.5); }
         .bday-photo {
-            width: 16px;
-            height: 16px;
+            width: 14px;
+            height: 14px;
             border-radius: 999px;
             object-fit: cover;
             border: 1px solid rgba(255,255,255,0.25);
