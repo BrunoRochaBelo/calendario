@@ -19,9 +19,14 @@ function is_active(string $page): string {
 }
 ?>
 
-<aside class="sidebar animate-in">
+<button class="menu-trigger" onclick="toggleSidebar()">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+</button>
+
+<aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
         <div class="brand">
+            <!-- ... same brand content ... -->
             <div class="brand-logo">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </div>
@@ -30,9 +35,14 @@ function is_active(string $page): string {
                 <span class="brand-sub">Portal Digital</span>
             </div>
         </div>
+        <button class="close-sidebar" onclick="toggleSidebar()">
+             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
     </div>
 
+    <!-- ... rest of sidebar ... -->
     <nav class="sidebar-nav">
+        <!-- ... same nav content ... -->
         <div class="nav-group">
             <span class="nav-label">Principal</span>
             <a href="index.php" class="<?= is_active('index.php') ?>">
@@ -89,6 +99,8 @@ function is_active(string $page): string {
     </div>
 </aside>
 
+<div class="sidebar-overlay" onclick="toggleSidebar()"></div>
+
 <style>
 :root {
     --sidebar-w: 280px;
@@ -96,12 +108,36 @@ function is_active(string $page): string {
 
 .sidebar {
     position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
-    background: rgba(13, 14, 26, 0.8); backdrop-filter: blur(25px);
+    background: rgba(13, 14, 26, 0.9); backdrop-filter: blur(25px);
     border-right: 1px solid var(--border); display: flex; flex-direction: column;
-    z-index: 1000;
+    z-index: 2100; transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.sidebar-header { padding: 2rem 1.5rem; }
+.sidebar-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px);
+    z-index: 2050; opacity: 0; pointer-events: none; transition: all 0.4s;
+}
+
+.sidebar.open + .sidebar-overlay {
+    opacity: 1; pointer-events: auto;
+}
+
+.menu-trigger {
+    position: fixed; top: 1.5rem; left: 1.5rem; z-index: 1000;
+    width: 48px; height: 48px; border-radius: 12px;
+    background: var(--panel-hi); border: 1px solid var(--border);
+    color: var(--text); display: none; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 0.3s;
+}
+.menu-trigger:hover { background: var(--border); transform: scale(1.05); }
+
+.close-sidebar {
+    background: transparent; border: none; color: var(--text-ghost);
+    cursor: pointer; display: none; padding: 0.5rem; transition: 0.2s;
+}
+.close-sidebar:hover { color: #ef4444; }
+
+.sidebar-header { padding: 2rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
 .brand { display: flex; align-items: center; gap: 1rem; }
 .brand-logo { 
     width: 42px; height: 42px; border-radius: 12px; 
@@ -114,6 +150,7 @@ function is_active(string $page): string {
 .brand-sub { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; }
 
 .sidebar-nav { flex: 1; overflow-y: auto; padding: 1rem; }
+/* ... existing nav styles ... */
 .nav-group { margin-bottom: 2rem; }
 .nav-label { 
     display: block; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; 
@@ -130,7 +167,6 @@ function is_active(string $page): string {
     background: rgba(var(--primary-rgb), 0.1); color: var(--primary); 
     box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.2);
 }
-.nav-item.active svg { filter: drop-shadow(0 0 5px var(--primary)); }
 
 .sidebar-footer { 
     padding: 1.5rem; border-top: 1px solid var(--border);
@@ -146,7 +182,7 @@ function is_active(string $page): string {
 .user-details { display: flex; flex-direction: column; }
 .user-name { font-size: 0.85rem; font-weight: 700; color: var(--text); }
 .user-status { font-size: 0.7rem; color: #22c55e; font-weight: 700; display: flex; align-items: center; gap: 0.3rem; }
-.user-status::before { content: ''; width: 6px; height: 6px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 8px #22c55e; }
+.user-status::before { content: ''; width: 6px; height: 6px; background: #22c55e; border-radius: 50%; }
 
 .logout-btn { 
     color: var(--text-ghost); transition: all 0.2s; 
@@ -155,7 +191,16 @@ function is_active(string $page): string {
 .logout-btn:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
 
 @media (max-width: 1024px) {
-    .sidebar { transform: translateX(-100%); }
+    .sidebar { transform: translateX(-100%); width: 260px; }
     .sidebar.open { transform: translateX(0); }
+    .menu-trigger, .close-sidebar { display: flex; }
 }
 </style>
+
+<script>
+function toggleSidebar() {
+    const sidebar = document.getElementById('mainSidebar');
+    sidebar.classList.toggle('open');
+}
+</script>
+

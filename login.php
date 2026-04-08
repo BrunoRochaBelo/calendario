@@ -9,7 +9,7 @@ require_once 'functions.php';
 
 // Redirect if already logged in
 if (is_authenticated()) {
-    header('Location: dashboard.php');
+    header('Location: index.php');
     exit();
 }
 
@@ -37,7 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['perms'] = loadPermissions($conn, $u['id']);
                 logAction($conn, 'LOGIN', 'usuarios', $u['id'], 'Autenticação bem-sucedida');
                 
-                header('Location: dashboard.php');
+                header('Location: index.php');
                 exit();
             }
         } else {
