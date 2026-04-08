@@ -106,6 +106,9 @@ function has_level(int $min_level): bool {
 
 function requirePerm(string $permission): void {
     requireLogin();
+    if (has_level(0)) {
+        return;
+    }
     if (!can($permission)) {
         header('Location: index.php?error=unauthorized');
         exit();

@@ -31,6 +31,7 @@ if (isset($_GET['toggle_status']) && $can_edit) {
     }
 
     if (
+        !$is_master &&
         (int)$oldState['id'] !== $my_user_id &&
         (
             (int)$oldState['paroquia_id'] !== $pid ||

@@ -37,6 +37,7 @@ if (!$is_master && !$is_self && ((int)$user['nivel_acesso'] === 0 || (int)$user[
 }
 
 if (
+    !$is_master &&
     (int)$user['id'] !== $my_user_id &&
     (
         (int)$user['paroquia_id'] !== $my_pid ||
