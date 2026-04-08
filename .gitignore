@@ -1,0 +1,19 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# PHP / local runtime
+*.log
+*.cache
+*.tmp
+
+# Uploads temporarios
+img/*.tmp
+
+# Editor
+.vscode/
+.idea/
+
+# PHPUnit / Composer
+vendor/
+composer.lock
