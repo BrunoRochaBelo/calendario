@@ -21,7 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Por favor, preencha nome, e-mail e senha.';
     } else {
         $hash = password_hash($data['senha'], PASSWORD_DEFAULT);
-        $perfil_id = (int)($data['perfil_id'] ?? 3);
+        $perfil_id = 9; // Força Visitante padrão
         $target_pid = (int)($data['paroquia_id'] ?: $pid);
         $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
         
@@ -41,8 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Fetch Parishes for the dropdown
 $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
-// Fetch Perfis
-$perfis = $conn->query("SELECT id, nome FROM perfis ORDER BY nome");
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -124,14 +122,7 @@ $perfis = $conn->query("SELECT id, nome FROM perfis ORDER BY nome");
                         </select>
                     </div>
 
-                    <div class="form-group">
-                        <label>PERFIL DE ACESSO</label>
-                        <select name="perfil_id">
-                            <?php while($pf = $perfis->fetch_assoc()): ?>
-                                <option value="<?= $pf['id'] ?>"><?= h($pf['nome']) ?></option>
-                            <?php endwhile; ?>
-                        </select>
-                    </div>
+                    <input type="hidden" name="perfil_id" value="9">
 
                     <div class="form-group full-row">
                         <label>PARÓQUIA DESIGNADA</label>
