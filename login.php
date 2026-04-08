@@ -17,11 +17,12 @@ $msg = $_GET['msg'] ?? '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    ensureUserPhotoColumn($conn);
     $email = trim($_POST['email'] ?? '');
     $senha = $_POST['senha'] ?? '';
     
     if ($email && $senha) {
-        $stmt = $conn->prepare('SELECT id, nome, senha, paroquia_id, nivel_acesso, ativo FROM usuarios WHERE email = ? LIMIT 1');
+        $stmt = $conn->prepare('SELECT id, nome, senha, paroquia_id, nivel_acesso, ativo, foto_perfil FROM usuarios WHERE email = ? LIMIT 1');
         $stmt->bind_param('s', $email);
         $stmt->execute();
         $u = $stmt->get_result()->fetch_assoc();
@@ -34,6 +35,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['usuario_nome'] = $u['nome'];
                 $_SESSION['paroquia_id'] = (int)$u['paroquia_id'];
                 $_SESSION['usuario_nivel'] = (int)$u['nivel_acesso'];
+                $_SESSION['usuario_foto'] = $u['foto_perfil'] ?? '';
                 
                 $_SESSION['perms'] = loadPermissions($conn, $u['id']);
                 logAction($conn, 'LOGIN', 'usuarios', $u['id'], 'Autenticação bem-sucedida');

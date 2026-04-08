@@ -7,18 +7,39 @@
 
 require_once 'functions.php';
 requireLogin();
+ensureUserPhotoColumn($conn);
 
 requirePerm('admin_usuarios');
 
 $pid = current_paroquia_id();
 $can_edit = can('admin_usuarios');
 $is_master = has_level(0);
+$my_user_id = (int)($_SESSION['usuario_id'] ?? 0);
+$my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
 
 // 1. Handle Status Toggles (AJAX/Simple POST)
 if (isset($_GET['toggle_status']) && $can_edit) {
     $uid = (int)$_GET['toggle_status'];
-    $oldResult = $conn->query("SELECT * FROM usuarios WHERE id = $uid");
-    $oldState = $oldResult->fetch_assoc();
+    $checkStmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ? LIMIT 1");
+    $checkStmt->bind_param('i', $uid);
+    $checkStmt->execute();
+    $oldState = $checkStmt->get_result()->fetch_assoc();
+
+    if (!$oldState) {
+        header('Location: usuarios.php?error=notfound');
+        exit();
+    }
+
+    if (
+        (int)$oldState['id'] !== $my_user_id &&
+        (
+            (int)$oldState['paroquia_id'] !== $pid ||
+            (int)$oldState['nivel_acesso'] <= $my_level
+        )
+    ) {
+        header('Location: usuarios.php?error=unauthorized');
+        exit();
+    }
     
     $conn->query("UPDATE usuarios SET ativo = 1 - ativo WHERE id = $uid");
     
@@ -39,6 +60,10 @@ if (!$is_master) {
     $where[] = "u.paroquia_id = ?";
     $params[] = $pid;
     $types .= "i";
+    $where[] = "(u.id = ? OR u.nivel_acesso > ?)";
+    $params[] = $my_user_id;
+    $params[] = $my_level;
+    $types .= "ii";
 }
 
 $sql = "
@@ -91,7 +116,8 @@ $users = $stmt->get_result();
         .user-card { padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
         .user-card-header { display: flex; align-items: center; gap: 1.2rem; }
         
-        .user-avatar-lg { width: 56px; height: 56px; border-radius: 16px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; color: var(--primary); }
+        .user-avatar-lg { width: 56px; height: 56px; border-radius: 16px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; font-weight: 800; color: var(--primary); overflow: hidden; }
+        .user-avatar-lg img { width: 100%; height: 100%; object-fit: cover; }
         
         .user-meta { display: flex; flex-direction: column; }
         .user-name { font-weight: 800; font-size: 1.1rem; color: var(--text); }
@@ -125,7 +151,7 @@ $users = $stmt->get_result();
                     <p style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost);">ADMINISTRAÇÃO</p>
                     <h1 class="gradient-text">Usuários & Acessos</h1>
                 </div>
-                <?php if ($can_edit): ?>
+                <?php if ($can_edit && (can('cadastrar_usuario') || can('admin_usuarios'))): ?>
                     <a href="register.php" class="btn btn-primary shimmer">
                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="16" x2="22" y1="11" y2="11"/></svg>
                         Novo Usuário
@@ -139,7 +165,13 @@ $users = $stmt->get_result();
                 <?php while ($u = $users->fetch_assoc()): ?>
                 <div class="glass user-card">
                     <div class="user-card-header">
-                        <div class="user-avatar-lg"><?= mb_substr($u['nome'], 0, 1) ?></div>
+                        <div class="user-avatar-lg">
+                            <?php if (!empty($u['foto_perfil']) && file_exists(__DIR__ . '/' . $u['foto_perfil'])): ?>
+                                <img src="<?= h($u['foto_perfil']) ?>?v=<?= time() ?>" alt="Foto">
+                            <?php else: ?>
+                                <?= mb_substr($u['nome'], 0, 1) ?>
+                            <?php endif; ?>
+                        </div>
                         <div class="user-meta">
                             <span class="user-role"><?= $u['nivel_label'] ?></span>
                             <span class="user-name"><?= h($u['nome']) ?></span>
@@ -166,7 +198,10 @@ $users = $stmt->get_result();
                         </div>
                     </div>
 
-                    <?php if ($can_edit && $u['id'] != $_SESSION['usuario_id']): ?>
+                    <?php
+                        $canManageThisUser = (int)$u['id'] !== $my_user_id && (int)$u['nivel_acesso'] > $my_level;
+                    ?>
+                    <?php if ($can_edit && $canManageThisUser): ?>
                     <div class="user-actions">
                         <a href="usuarios.php?toggle_status=<?= $u['id'] ?>" class="btn <?= $u['ativo'] ? 'btn-ghost' : 'btn-primary' ?>" style="flex: 1; font-size: 0.75rem; padding: 0.6rem;">
                             <?= $u['ativo'] ? 'Desativar' : 'Ativar' ?>

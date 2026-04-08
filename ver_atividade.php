@@ -8,6 +8,7 @@
 require_once 'functions.php';
 requireLogin();
 ensureInscricoesTable($conn);
+ensureUserPhotoColumn($conn);
 
 $pid = current_paroquia_id();
 $id = (int)($_GET['id'] ?? 0);
@@ -36,7 +37,7 @@ if (!$activity) {
 
 // 2. Fetch Participants (Inscrições)
 $parts_sql = "
-    SELECT u.nome, u.email, i.data_inscricao 
+    SELECT u.nome, u.email, u.foto_perfil, i.data_inscricao 
     FROM inscricoes i 
     JOIN usuarios u ON i.usuario_id = u.id 
     WHERE i.atividade_id = ?
@@ -81,7 +82,8 @@ $participants = $stmt_p->get_result();
 
         .participants-list { display: grid; gap: 1rem; }
         .participant-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border); }
-        .p-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; color: var(--accent); }
+        .p-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; color: var(--accent); overflow: hidden; }
+        .p-avatar img { width: 100%; height: 100%; object-fit: cover; }
 
         @media (max-width: 1100px) {
             .info-grid { grid-template-columns: 1fr; }
@@ -162,7 +164,13 @@ $participants = $stmt_p->get_result();
                         <?php if ($participants->num_rows > 0): ?>
                             <?php while ($p = $participants->fetch_assoc()): ?>
                             <div class="participant-item">
-                                <div class="p-avatar"><?= mb_substr($p['nome'], 0, 1) ?></div>
+                                <div class="p-avatar">
+                                    <?php if (!empty($p['foto_perfil']) && file_exists(__DIR__ . '/' . $p['foto_perfil'])): ?>
+                                        <img src="<?= h($p['foto_perfil']) ?>?v=<?= time() ?>" alt="Foto">
+                                    <?php else: ?>
+                                        <?= mb_substr($p['nome'], 0, 1) ?>
+                                    <?php endif; ?>
+                                </div>
                                 <div style="flex: 1;">
                                     <div style="font-size: 0.85rem; font-weight: 700;"><?= h($p['nome']) ?></div>
                                     <div style="font-size: 0.7rem; color: var(--text-ghost);"><?= h($p['email']) ?></div>

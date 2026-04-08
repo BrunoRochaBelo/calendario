@@ -7,9 +7,24 @@
 
 require_once 'config.php';
 requireLogin();
+ensureUserPhotoColumn($conn);
 
 $nome = $_SESSION['usuario_nome'] ?? 'Usuário';
 $initials = mb_strtoupper(mb_substr($nome, 0, 1));
+$userPhoto = trim((string)($_SESSION['usuario_foto'] ?? ''));
+if ($userPhoto === '') {
+    $sid = (int)($_SESSION['usuario_id'] ?? 0);
+    if ($sid > 0) {
+        $stPhoto = $conn->prepare("SELECT foto_perfil FROM usuarios WHERE id = ? LIMIT 1");
+        if ($stPhoto) {
+            $stPhoto->bind_param('i', $sid);
+            $stPhoto->execute();
+            $rPhoto = $stPhoto->get_result()->fetch_assoc();
+            $userPhoto = trim((string)($rPhoto['foto_perfil'] ?? ''));
+            $_SESSION['usuario_foto'] = $userPhoto;
+        }
+    }
+}
 
 $parish_name = 'Igreja Católica';
 $pid = $_SESSION['paroquia_id'] ?? 0;
@@ -131,7 +146,13 @@ function is_active(string $page): string {
 
     <div class="sidebar-footer">
         <div class="user-info">
-            <div class="user-avatar"><?= h($initials) ?></div>
+            <div class="user-avatar">
+                <?php if ($userPhoto !== '' && file_exists(__DIR__ . '/' . $userPhoto)): ?>
+                    <img src="<?= h($userPhoto) ?>?v=<?= time() ?>" alt="Perfil">
+                <?php else: ?>
+                    <?= h($initials) ?>
+                <?php endif; ?>
+            </div>
             <div class="user-details">
                 <span class="user-name"><?= h($nome) ?></span>
                 <span class="user-status">Online</span>
@@ -230,7 +251,9 @@ function is_active(string $page): string {
     background: var(--panel-hi); border: 1px solid var(--border);
     display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 0.9rem; color: var(--primary);
+    overflow: hidden;
 }
+.user-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .user-details { display: flex; flex-direction: column; }
 .user-name { font-size: 0.85rem; font-weight: 700; color: var(--text); }
 .user-status { font-size: 0.7rem; color: #22c55e; font-weight: 700; display: flex; align-items: center; gap: 0.3rem; }

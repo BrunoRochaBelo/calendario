@@ -31,7 +31,47 @@ function requireLogin(): void {
 }
 
 // 5. RBAC & Permissions Logic
+function ensurePermissionColumns(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $targets = [
+        ['table' => 'usuarios', 'column' => 'perm_cadastrar_usuario'],
+        ['table' => 'perfis', 'column' => 'perm_cadastrar_usuario'],
+    ];
+
+    foreach ($targets as $target) {
+        $table = $target['table'];
+        $column = $target['column'];
+        $exists = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
+        if ($exists && $exists->num_rows > 0) {
+            continue;
+        }
+        $db->query("ALTER TABLE `{$table}` ADD COLUMN `{$column}` TINYINT(1) NULL DEFAULT NULL AFTER `perm_ver_restritos`");
+    }
+}
+
+function ensureUserPhotoColumn(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE 'foto_perfil'");
+    if ($exists && $exists->num_rows > 0) {
+        return;
+    }
+
+    $db->query("ALTER TABLE `usuarios` ADD COLUMN `foto_perfil` VARCHAR(255) NULL DEFAULT NULL AFTER `data_nascimento`");
+}
+
 function loadPermissions(mysqli $db, int $userId): array {
+    ensurePermissionColumns($db);
+
     $sql = "
         SELECT 
             COALESCE(u.perm_ver_calendario, p.perm_ver_calendario, 0) as ver_calendario,
@@ -39,6 +79,7 @@ function loadPermissions(mysqli $db, int $userId): array {
             COALESCE(u.perm_editar_eventos, p.perm_editar_eventos, 0) as editar_eventos,
             COALESCE(u.perm_excluir_eventos, p.perm_excluir_eventos, 0) as excluir_eventos,
             COALESCE(u.perm_ver_restritos, p.perm_ver_restritos, 0) as ver_restritos,
+            COALESCE(u.perm_cadastrar_usuario, p.perm_cadastrar_usuario, 0) as cadastrar_usuario,
             COALESCE(u.perm_admin_usuarios, p.perm_admin_usuarios, 0) as admin_usuarios,
             COALESCE(u.perm_admin_sistema, p.perm_admin_sistema, 0) as admin_sistema,
             COALESCE(u.perm_ver_logs, p.perm_ver_logs, 0) as ver_logs

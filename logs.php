@@ -7,6 +7,7 @@
 
 require_once 'functions.php';
 requireLogin();
+ensureUserPhotoColumn($conn);
 
 requirePerm('ver_logs');
 
@@ -39,7 +40,7 @@ if ($filter_user) {
 }
 
 $sql = "
-    SELECT l.*, u.nome as usuario_nome 
+    SELECT l.*, u.nome as usuario_nome, u.foto_perfil
     FROM log_alteracoes l 
     LEFT JOIN usuarios u ON l.usuario_id = u.id
 ";
@@ -86,7 +87,8 @@ $logs = $stmt->get_result();
         
         .log-date { font-size: 0.75rem; font-weight: 800; color: var(--text-ghost); font-family: monospace; }
         .log-user { display: flex; align-items: center; gap: 0.8rem; font-size: 0.85rem; font-weight: 700; color: var(--text); }
-        .log-user .avatar { width: 24px; height: 24px; border-radius: 6px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--primary); }
+        .log-user .avatar { width: 24px; height: 24px; border-radius: 6px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; color: var(--primary); overflow: hidden; }
+        .log-user .avatar img { width: 100%; height: 100%; object-fit: cover; }
         
         .log-badge { font-size: 0.65rem; font-weight: 900; padding: 0.3rem 0.6rem; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em; background: var(--panel-hi); color: var(--text-dim); border: 1px solid var(--border); }
         .log-badge.success { color: #10b981; border-color: rgba(16, 185, 129, 0.2); }
@@ -144,7 +146,13 @@ $logs = $stmt->get_result();
                     <div class="log-item">
                         <div class="log-date"><?= date('d/m/Y H:i:s', strtotime($l['data_hora'])) ?></div>
                         <div class="log-user">
-                            <div class="avatar"><?= mb_substr($l['usuario_nome'] ?: '?', 0, 1) ?></div>
+                            <div class="avatar">
+                                <?php if (!empty($l['foto_perfil']) && file_exists(__DIR__ . '/' . $l['foto_perfil'])): ?>
+                                    <img src="<?= h($l['foto_perfil']) ?>?v=<?= time() ?>" alt="Foto">
+                                <?php else: ?>
+                                    <?= mb_substr($l['usuario_nome'] ?: '?', 0, 1) ?>
+                                <?php endif; ?>
+                            </div>
                             <span><?= h($l['usuario_nome'] ?: 'Sistema') ?></span>
                         </div>
                         <div style="display: flex;"><span class="log-badge <?= $badgeClass ?>"><?= h($l['acao']) ?></span></div>

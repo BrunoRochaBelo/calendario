@@ -8,6 +8,7 @@
 require_once 'functions.php';
 requireLogin();
 ensureInscricoesTable($conn);
+ensureUserPhotoColumn($conn);
 
 $pid = current_paroquia_id();
 $canInteractActivities = canInteractWithActivity();
@@ -64,7 +65,7 @@ while ($row = $res->fetch_assoc()) {
 }
 
 // 4. Fetch Birthdays
-$sqlB = "SELECT nome, data_nascimento FROM usuarios WHERE paroquia_id = ? AND MONTH(data_nascimento) = ? AND ativo = 1";
+$sqlB = "SELECT nome, data_nascimento, foto_perfil FROM usuarios WHERE paroquia_id = ? AND MONTH(data_nascimento) = ? AND ativo = 1";
 $stmtB = $conn->prepare($sqlB);
 $stmtB->bind_param('ii', $pid, $month);
 $stmtB->execute();
@@ -73,7 +74,8 @@ while ($u = $resB->fetch_assoc()) {
     $day = (int)date('d', strtotime($u['data_nascimento']));
     $bdayAct = [
         'is_birthday' => true,
-        'nome' => "Aniver: " . explode(' ', trim($u['nome']))[0]
+        'nome' => "Aniver: " . explode(' ', trim($u['nome']))[0],
+        'foto_perfil' => (string)($u['foto_perfil'] ?? '')
     ];
     if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
     array_unshift($activitiesByDay[$day], $bdayAct);
@@ -205,6 +207,14 @@ foreach ($holidays as $mmdd => $hName) {
         }
         .act-birthday { background: transparent; border: 1px dashed rgba(150, 150, 150, 0.3); opacity: 0.7; color: var(--text-dim); }
         .act-birthday:hover { opacity: 1; transform: none; border-color: rgba(150, 150, 150, 0.5); }
+        .bday-photo {
+            width: 16px;
+            height: 16px;
+            border-radius: 999px;
+            object-fit: cover;
+            border: 1px solid rgba(255,255,255,0.25);
+            flex-shrink: 0;
+        }
         .act-holiday { background: rgba(251, 191, 36, 0.1); border-left: 3px solid #fbbf24; color: #b45309; }
 
         /* Mobile View (Rows) - IMPROVED */
@@ -314,7 +324,11 @@ foreach ($holidays as $mmdd => $hName) {
                                     <?php foreach ($activitiesByDay[$dayIdx] as $act): ?>
                                         <?php if (!empty($act['is_birthday'])): ?>
                                             <div class="act-pill act-birthday" style="pointer-events: none;">
-                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                                <?php if (!empty($act['foto_perfil']) && file_exists(__DIR__ . '/' . $act['foto_perfil'])): ?>
+                                                    <img class="bday-photo" src="<?= h($act['foto_perfil']) ?>?v=<?= time() ?>" alt="Foto">
+                                                <?php else: ?>
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                                                <?php endif; ?>
                                                 <strong style="font-weight: 700; font-size: 0.55rem;"><?= h($act['nome']) ?></strong>
                                             </div>
                                         <?php elseif (!empty($act['is_holiday'])): ?>

@@ -65,6 +65,16 @@ $tipos  = $conn->query("SELECT id, nome_tipo FROM tipos_atividade WHERE paroquia
         .form-group label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-ghost); letter-spacing: 0.1em; }
         
         .row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        select[name="local_id"],
+        select[name="tipo_id"] {
+            color: #111827 !important;
+            background: #ffffff !important;
+        }
+        select[name="local_id"] option,
+        select[name="tipo_id"] option {
+            color: #111827 !important;
+            background: #ffffff !important;
+        }
 
         @media (max-width: 768px) {
             .main-content { margin-left: 0; padding: 1.5rem; }
