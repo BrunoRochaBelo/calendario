@@ -103,6 +103,16 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Sedes e Contextos — PASCOM</title>
     <link rel="stylesheet" href="style.css">
+    <style>
+        .pq-card { 
+            padding: 1.5rem; border-radius: 24px; position: relative; 
+            overflow: hidden; display: flex; align-items: center; gap: 1.5rem; 
+        }
+        @media (max-width: 768px) {
+            .pq-card { flex-direction: column; align-items: flex-start; text-align: left; }
+            .pq-card > div:last-child { width: 100%; flex-direction: row; justify-content: space-between; }
+        }
+    </style>
 </head>
 <body>
     <div class="bg-mesh"></div>
@@ -128,7 +138,7 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
 
             <div class="grid animate-in" style="animation-delay: 0.1s;">
                 <?php while ($row = $res->fetch_assoc()): ?>
-                <div class="glass" style="padding: 1.5rem; border-radius: 24px; position: relative; overflow: hidden; display: flex; align-items: center; gap: 1.5rem;">
+                <div class="glass pq-card">
                     <?php 
                     $icon = "img/paroquia_{$row['id']}.png";
                     if (file_exists(__DIR__ . '/' . $icon)): ?>
