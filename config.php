@@ -32,6 +32,7 @@ function requireLogin(): void {
     global $conn;
     if (isset($conn) && $conn instanceof mysqli) {
         ensurePerfisHierarchyRemoved($conn);
+        ensureUserPermissionsMaterialized($conn);
     }
 }
 
@@ -57,6 +58,75 @@ function ensurePermissionColumns(mysqli $db): void {
         }
         $db->query("ALTER TABLE `{$table}` ADD COLUMN `{$column}` TINYINT(1) NULL DEFAULT NULL AFTER `perm_ver_restritos`");
     }
+}
+
+function ensureUserPermissionColumns(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $cols = [
+        'perm_ver_calendario' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_criar_eventos' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_editar_eventos' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_excluir_eventos' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_ver_restritos' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_cadastrar_usuario' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_admin_usuarios' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_admin_sistema' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_ver_logs' => "TINYINT(1) NULL DEFAULT NULL",
+    ];
+
+    foreach ($cols as $col => $def) {
+        $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE '{$col}'");
+        if ($exists && $exists->num_rows > 0) {
+            continue;
+        }
+        $db->query("ALTER TABLE `usuarios` ADD COLUMN `{$col}` {$def}");
+    }
+}
+
+function ensureUserProfileNameColumn(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE 'perfil_nome'");
+    if ($exists && $exists->num_rows > 0) {
+        return;
+    }
+
+    $db->query("ALTER TABLE `usuarios` ADD COLUMN `perfil_nome` VARCHAR(50) NULL DEFAULT NULL");
+}
+
+function ensureUserPermissionsMaterialized(mysqli $db): void {
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    ensureUserPermissionColumns($db);
+    ensureUserProfileNameColumn($db);
+
+    // Normaliza NULL -> 0 (permissões devem existir na tabela usuarios)
+    $db->query("
+        UPDATE usuarios
+        SET
+            perm_ver_calendario = COALESCE(perm_ver_calendario, 0),
+            perm_criar_eventos  = COALESCE(perm_criar_eventos, 0),
+            perm_editar_eventos = COALESCE(perm_editar_eventos, 0),
+            perm_excluir_eventos= COALESCE(perm_excluir_eventos, 0),
+            perm_ver_restritos  = COALESCE(perm_ver_restritos, 0),
+            perm_cadastrar_usuario = COALESCE(perm_cadastrar_usuario, 0),
+            perm_admin_usuarios = COALESCE(perm_admin_usuarios, 0),
+            perm_admin_sistema  = COALESCE(perm_admin_sistema, 0),
+            perm_ver_logs       = COALESCE(perm_ver_logs, 0)
+    ");
 }
 
 function ensureUserPhotoColumn(mysqli $db): void {
@@ -105,22 +175,21 @@ function ensurePerfisHierarchyRemoved(mysqli $db): void {
 }
 
 function loadPermissions(mysqli $db, int $userId): array {
-    ensurePermissionColumns($db);
+    ensureUserPermissionsMaterialized($db);
     ensurePerfisHierarchyRemoved($db);
 
     $sql = "
         SELECT 
-            COALESCE(u.perm_ver_calendario, p.perm_ver_calendario, 0) as ver_calendario,
-            COALESCE(u.perm_criar_eventos, p.perm_criar_eventos, 0) as criar_eventos,
-            COALESCE(u.perm_editar_eventos, p.perm_editar_eventos, 0) as editar_eventos,
-            COALESCE(u.perm_excluir_eventos, p.perm_excluir_eventos, 0) as excluir_eventos,
-            COALESCE(u.perm_ver_restritos, p.perm_ver_restritos, 0) as ver_restritos,
-            COALESCE(u.perm_cadastrar_usuario, p.perm_cadastrar_usuario, 0) as cadastrar_usuario,
-            COALESCE(u.perm_admin_usuarios, p.perm_admin_usuarios, 0) as admin_usuarios,
-            COALESCE(u.perm_admin_sistema, p.perm_admin_sistema, 0) as admin_sistema,
-            COALESCE(u.perm_ver_logs, p.perm_ver_logs, 0) as ver_logs
+            COALESCE(u.perm_ver_calendario, 0) as ver_calendario,
+            COALESCE(u.perm_criar_eventos, 0) as criar_eventos,
+            COALESCE(u.perm_editar_eventos, 0) as editar_eventos,
+            COALESCE(u.perm_excluir_eventos, 0) as excluir_eventos,
+            COALESCE(u.perm_ver_restritos, 0) as ver_restritos,
+            COALESCE(u.perm_cadastrar_usuario, 0) as cadastrar_usuario,
+            COALESCE(u.perm_admin_usuarios, 0) as admin_usuarios,
+            COALESCE(u.perm_admin_sistema, 0) as admin_sistema,
+            COALESCE(u.perm_ver_logs, 0) as ver_logs
         FROM usuarios u
-        LEFT JOIN perfis p ON u.perfil_id = p.id
         WHERE u.id = ?
     ";
     

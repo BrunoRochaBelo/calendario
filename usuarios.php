@@ -69,7 +69,7 @@ if (!$is_master) {
 }
 
 $sql = "
-	    SELECT u.*, p.nome as paroquia_nome, pf.nome as perfil_nome,
+	    SELECT u.*, p.nome as paroquia_nome,
     CASE 
         WHEN u.nivel_acesso = 0 THEN 'Master'
         WHEN u.nivel_acesso = 1 THEN 'Supervisor'
@@ -78,7 +78,6 @@ $sql = "
     END as nivel_label
     FROM usuarios u
 	    LEFT JOIN paroquias p ON u.paroquia_id = p.id
-	    LEFT JOIN perfis pf ON u.perfil_id = pf.id
 	";
 
 if ($where) {
@@ -176,7 +175,7 @@ $users = $stmt->get_result();
                             <?php endif; ?>
                         </div>
                         <div class="user-meta">
-                            <span class="user-role"><?= h($u['perfil_nome'] ?: $u['nivel_label']) ?></span>
+                            <span class="user-role"><?= h(($u['perfil_nome'] ?? '') !== '' ? $u['perfil_nome'] : $u['nivel_label']) ?></span>
                             <span class="user-name"><?= h($u['nome']) ?></span>
                             <div style="margin-top: 0.4rem;">
                                 <span class="status-pill <?= $u['ativo'] ? 'active' : 'inactive' ?>">

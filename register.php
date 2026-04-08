@@ -16,6 +16,8 @@ $error = $_GET['error'] ?? '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ensureUserPhotoColumn($conn);
+    ensureUserPermissionsMaterialized($conn);
+    ensurePermissionColumns($conn);
     $data = sanitize_post($_POST);
     
     if (empty($data['nome']) || empty($data['email']) || empty($data['senha']) || empty($data['palavra_chave'])) {
@@ -25,10 +27,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $perfil_id = 9; // Força Visitante padrão
         $target_pid = (int)($data['paroquia_id'] ?: $pid);
         $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
+
+        $perfilNome = '';
+        $perfilPerms = [
+            'perm_ver_calendario' => 0,
+            'perm_criar_eventos' => 0,
+            'perm_editar_eventos' => 0,
+            'perm_excluir_eventos' => 0,
+            'perm_ver_restritos' => 0,
+            'perm_cadastrar_usuario' => 0,
+            'perm_admin_usuarios' => 0,
+            'perm_admin_sistema' => 0,
+            'perm_ver_logs' => 0,
+        ];
+        $stPf = $conn->prepare("SELECT nome, perm_ver_calendario, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos, perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema, perm_ver_logs FROM perfis WHERE id = ? LIMIT 1");
+        if ($stPf) {
+            $stPf->bind_param('i', $perfil_id);
+            $stPf->execute();
+            $pfRow = $stPf->get_result()->fetch_assoc();
+            if ($pfRow) {
+                $perfilNome = (string)($pfRow['nome'] ?? '');
+                foreach ($perfilPerms as $k => $_) {
+                    $perfilPerms[$k] = (int)($pfRow[$k] ?? 0);
+                }
+            }
+        }
         
-        $sql = "INSERT INTO usuarios (nome, email, senha, sexo, telefone, data_nascimento, palavra_chave, foto_perfil, paroquia_id, perfil_id, ativo) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 1)";
+        $sql = "INSERT INTO usuarios (
+                    nome, email, senha, sexo, telefone, data_nascimento, palavra_chave, foto_perfil,
+                    paroquia_id, perfil_id, perfil_nome, ativo,
+                    perm_ver_calendario, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos,
+                    perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema, perm_ver_logs
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param('sssssssii', $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $dt_nasc, $data['palavra_chave'], $target_pid, $perfil_id);
+        $stmt->bind_param(
+            'sssssssiisiiiiiiiii',
+            $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $dt_nasc, $data['palavra_chave'],
+            $target_pid, $perfil_id, $perfilNome,
+            $perfilPerms['perm_ver_calendario'],
+            $perfilPerms['perm_criar_eventos'],
+            $perfilPerms['perm_editar_eventos'],
+            $perfilPerms['perm_excluir_eventos'],
+            $perfilPerms['perm_ver_restritos'],
+            $perfilPerms['perm_cadastrar_usuario'],
+            $perfilPerms['perm_admin_usuarios'],
+            $perfilPerms['perm_admin_sistema'],
+            $perfilPerms['perm_ver_logs']
+        );
         
         if ($stmt->execute()) {
             $newUserId = (int)$conn->insert_id;

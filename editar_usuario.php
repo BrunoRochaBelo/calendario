@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $oldState = $oldResult->fetch_assoc();
         
         $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
-        $perfil_id = (int)($data['perfil_id'] ?? 3);
+        $perfil_id = (int)($user['perfil_id'] ?? 3);
         
         // Grab Permission flags from POST
         $p_ver_cal = isset($_POST['perm_ver_calendario']) ? 1 : 0;
@@ -192,27 +192,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
-
-// Fetch profiles explicitly with all flags to build JSON map
-$res_perfis = $conn->query("SELECT * FROM perfis ORDER BY nome");
-$perfis_map = [];
-$perfis_html = '';
-while($pf = $res_perfis->fetch_assoc()) {
-    $perfis_html .= '<option value="' . $pf['id'] . '" ' . ($user['perfil_id'] == $pf['id'] ? 'selected' : '') . '>' . h($pf['nome']) . '</option>';
-    $perfis_map[$pf['id']] = [
-        'perm_ver_calendario' => (int)$pf['perm_ver_calendario'],
-        'perm_criar_eventos' => (int)$pf['perm_criar_eventos'],
-        'perm_editar_eventos' => (int)$pf['perm_editar_eventos'],
-        'perm_excluir_eventos' => (int)$pf['perm_excluir_eventos'],
-        'perm_ver_restritos' => (int)$pf['perm_ver_restritos'],
-        'perm_cadastrar_usuario' => (int)$pf['perm_cadastrar_usuario'],
-        'perm_admin_usuarios' => (int)$pf['perm_admin_usuarios'],
-        'perm_admin_sistema' => (int)$pf['perm_admin_sistema'],
-        'perm_ver_logs' => (int)$pf['perm_ver_logs']
-    ];
-}
-
-$perfis_json = json_encode($perfis_map);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -310,15 +289,7 @@ $perfis_json = json_encode($perfis_map);
                         <h3 style="margin-bottom: 1rem; color: var(--primary);">Controle de Privilégios Individuais</h3>
                         <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">O usuário carregará essas permissões no sistema. Você pode aplicar o molde de um Perfil base e customizar as opções logo abaixo.</p>
 
-                        <div class="form-group">
-                            <label>PERFIL BASE (PRESET)</label>
-                            <div style="display: flex; gap: 0.5rem; align-items: center;">
-                                <select name="perfil_id" id="perfil_select" style="flex: 1;">
-                                    <?= $perfis_html ?>
-                                </select>
-                                <button type="button" onclick="applyProfile()" class="btn btn-ghost apply-btn">OK (Copiar)</button>
-                            </div>
-                        </div>
+                        <input type="hidden" name="perfil_id" value="<?= (int)$user['perfil_id'] ?>">
 
                         <div class="perm-grid">
                             <label class="perm-item"><input type="checkbox" name="perm_ver_calendario" id="pm_ver_calendario" <?= $user['perm_ver_calendario'] ? 'checked' : '' ?>> Ver Calendário</label>
@@ -380,34 +351,7 @@ $perfis_json = json_encode($perfis_map);
     </div>
 
     <script>
-    const perfisMap = <?= $perfis_json ?>;
-    
-    function applyProfile() {
-        const sel = document.getElementById('perfil_select').value;
-        const perms = perfisMap[sel];
-        
-        if (perms) {
-            document.getElementById('pm_ver_calendario').checked = perms.perm_ver_calendario === 1;
-            document.getElementById('pm_criar_eventos').checked = perms.perm_criar_eventos === 1;
-            document.getElementById('pm_editar_eventos').checked = perms.perm_editar_eventos === 1;
-            document.getElementById('pm_excluir_eventos').checked = perms.perm_excluir_eventos === 1;
-            const pmVerRestritos = document.getElementById('pm_ver_restritos');
-            if (!pmVerRestritos.disabled) {
-                pmVerRestritos.checked = perms.perm_ver_restritos === 1;
-            }
-            document.getElementById('pm_cadastrar_usuario').checked = perms.perm_cadastrar_usuario === 1;
-            document.getElementById('pm_admin_usuarios').checked = perms.perm_admin_usuarios === 1;
-            document.getElementById('pm_admin_sistema').checked = perms.perm_admin_sistema === 1;
-            document.getElementById('pm_ver_logs').checked = perms.perm_ver_logs === 1;
-            
-            // Add visual cue
-            const grid = document.querySelector('.perm-grid');
-            grid.style.borderColor = 'var(--primary)';
-            setTimeout(() => grid.style.borderColor = 'var(--border)', 1000);
-        } else {
-            alert('Falha ao carregar as permissões do perfil selecionado.');
-        }
-    }
+    // presets de perfil removidos: permissões vêm apenas da tabela usuarios
     </script>
 </body>
 </html>
