@@ -273,10 +273,11 @@ foreach ($holidays as $mmdd => $hName) {
         .event-modal-header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
         .event-modal-title { font-size: 1.5rem; font-weight: 900; margin: 0.35rem 0; }
         .event-meta { display: grid; gap: 0.4rem; color: var(--text-dim); font-size: 0.9rem; }
-        .participant-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+        .participant-chips { display: grid; gap: 0.5rem; margin-top: 1rem; }
         .participant-chip {
-            padding: 0.45rem 0.75rem; border-radius: 999px; background: var(--panel-hi);
-            border: 1px solid var(--border); font-size: 0.8rem; color: var(--text);
+            padding: 0.55rem 0.75rem; border-radius: 12px; background: var(--panel-hi);
+            border: 1px solid var(--border); font-size: 0.85rem; color: var(--text);
+            width: 100%;
         }
         .event-modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap; }
         .modal-note {
@@ -467,11 +468,11 @@ foreach ($holidays as $mmdd => $hName) {
             function renderParticipants(participants) {
                 const container = document.getElementById('eventModalParticipants');
                 if (!participants.length) {
-                    container.innerHTML = '<span class="participant-chip">Nenhum inscrito ainda</span>';
+                    container.innerHTML = '<div class="participant-chip">Nenhum inscrito ainda</div>';
                     return;
                 }
                 container.innerHTML = participants.map((participant) => (
-                    `<span class="participant-chip">${participant.nome}</span>`
+                    `<div class="participant-chip">${participant.nome}</div>`
                 )).join('');
             }
 
