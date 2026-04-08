@@ -79,11 +79,17 @@ while ($u = $resB->fetch_assoc()) {
     if ($day < 1 || $day > $daysInMonth) {
         continue; // ex: 29/02 em ano não-bissexto
     }
-    $firstName = explode(' ', trim((string)$u['nome']))[0] ?? '';
-    $shortName = mb_substr($firstName, 0, 10);
+    $nameParts = preg_split('/\s+/', trim((string)$u['nome'])) ?: [];
+    $firstName = $nameParts[0] ?? '';
+    $lastName = count($nameParts) > 1 ? $nameParts[count($nameParts) - 1] : '';
+    $displayName = trim($firstName . ' ' . $lastName);
+    if ($displayName === '') {
+        $displayName = $firstName;
+    }
+    $shortName = mb_substr($displayName, 0, 12);
     $bdayAct = [
         'is_birthday' => true,
-        'nome' => "Aniv. {$shortName} 🎂",
+        'nome' => "Aniv. {$shortName}",
         'foto_perfil' => (string)($u['foto_perfil'] ?? '')
     ];
     if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
