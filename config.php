@@ -74,6 +74,21 @@ function ensureUserPhotoColumn(mysqli $db): void {
     $db->query("ALTER TABLE `usuarios` ADD COLUMN `foto_perfil` VARCHAR(255) NULL DEFAULT NULL AFTER `data_nascimento`");
 }
 
+function ensureUserLastLoginColumn(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE 'ultimo_login'");
+    if ($exists && $exists->num_rows > 0) {
+        return;
+    }
+
+    $db->query("ALTER TABLE `usuarios` ADD COLUMN `ultimo_login` TIMESTAMP NULL DEFAULT NULL");
+}
+
 function ensurePerfisHierarchyRemoved(mysqli $db): void {
     static $checked = false;
     if ($checked) {

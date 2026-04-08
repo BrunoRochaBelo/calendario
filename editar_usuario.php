@@ -292,6 +292,11 @@ $perfis_json = json_encode($perfis_map);
                     </div>
 
                     <div class="form-group">
+                        <label>DATA DE ANIVERSÁRIO</label>
+                        <input type="date" name="data_nascimento" value="<?= h($user['data_nascimento']) ?>">
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
                         <label>GÊNERO</label>
                         <select name="sexo">
                             <option value="M" <?= $user['sexo'] == 'M' || $user['sexo'] == 'Masculino' ? 'selected' : '' ?>>Masculino</option>

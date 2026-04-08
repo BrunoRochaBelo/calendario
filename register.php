@@ -150,7 +150,7 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     </div>
 
                     <div class="form-group">
-                        <label>DATA DE NASCIMENTO</label>
+                        <label>DATA DE ANIVERSÁRIO</label>
                         <input type="date" name="data_nascimento">
                     </div>
 

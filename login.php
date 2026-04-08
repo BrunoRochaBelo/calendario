@@ -18,6 +18,7 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ensureUserPhotoColumn($conn);
+    ensureUserLastLoginColumn($conn);
     $email = trim($_POST['email'] ?? '');
     $senha = $_POST['senha'] ?? '';
     
@@ -38,6 +39,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['usuario_foto'] = $u['foto_perfil'] ?? '';
                 
                 $_SESSION['perms'] = loadPermissions($conn, $u['id']);
+                $stmtLogin = $conn->prepare("UPDATE usuarios SET ultimo_login = NOW() WHERE id = ?");
+                if ($stmtLogin) {
+                    $uid = (int)$u['id'];
+                    $stmtLogin->bind_param('i', $uid);
+                    $stmtLogin->execute();
+                }
                 logAction($conn, 'LOGIN', 'usuarios', $u['id'], 'Autenticação bem-sucedida');
                 
                 header('Location: index.php');
