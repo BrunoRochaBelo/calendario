@@ -54,9 +54,15 @@ $error = '';
 // 2. Handle Update
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = sanitize_post($_POST);
+    $novaSenha = (string)($data['nova_senha'] ?? '');
+    $confirmarNovaSenha = (string)($data['confirmar_nova_senha'] ?? '');
     
     if (empty($data['nome']) || empty($data['email'])) {
         $error = 'Nome e e-mail são obrigatórios.';
+    } elseif (($novaSenha !== '' || $confirmarNovaSenha !== '') && strlen($novaSenha) < 6) {
+        $error = 'A nova senha precisa ter no minimo 6 caracteres.';
+    } elseif ($novaSenha !== '' && $novaSenha !== $confirmarNovaSenha) {
+        $error = 'As senhas informadas nao coincidem.';
     } else {
         $oldResult = $conn->query("SELECT * FROM usuarios WHERE id = $id");
         $oldState = $oldResult->fetch_assoc();
@@ -76,20 +82,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $p_adm_usu = isset($_POST['perm_admin_usuarios']) ? 1 : 0;
         $p_adm_sis = isset($_POST['perm_admin_sistema']) ? 1 : 0;
         $p_ver_log = isset($_POST['perm_ver_logs']) ? 1 : 0;
+        $p_ger_cat = isset($_POST['perm_gerenciar_catalogo']) ? 1 : 0;
         
         $sql = "UPDATE usuarios SET 
                 nome = ?, email = ?, sexo = ?, telefone = ?, data_nascimento = ?, 
                 paroquia_id = ?, perfil_id = ?, 
                 perm_ver_calendario = ?, perm_criar_eventos = ?, perm_editar_eventos = ?, perm_excluir_eventos = ?,
-                perm_ver_restritos = ?, perm_cadastrar_usuario = ?, perm_admin_usuarios = ?, perm_admin_sistema = ?, perm_ver_logs = ? 
+                perm_ver_restritos = ?, perm_cadastrar_usuario = ?, perm_admin_usuarios = ?, perm_admin_sistema = ?, perm_ver_logs = ?,
+                perm_gerenciar_catalogo = ?
                 WHERE id = ?";
                 
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param('sssssiiiiiiiiiiii', 
+        $stmt->bind_param('sssssiiiiiiiiiiiii', 
             $data['nome'], $data['email'], $data['sexo'], $data['telefone'], $dt_nasc, 
             $data['paroquia_id'], $perfil_id,
             $p_ver_cal, $p_cri_evt, $p_edi_evt, $p_exc_evt,
             $p_ver_res, $p_cad_usu, $p_adm_usu, $p_adm_sis, $p_ver_log,
+            $p_ger_cat,
             $id
         );
         
@@ -174,8 +183,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             // Optional: Password update logic
-            if (!empty($data['nova_senha'])) {
-                $hash = password_hash($data['nova_senha'], PASSWORD_DEFAULT);
+            if ($novaSenha !== '') {
+                $hash = password_hash($novaSenha, PASSWORD_DEFAULT);
                 $conn->query("UPDATE usuarios SET senha = '$hash' WHERE id = $id");
             }
             
@@ -224,6 +233,20 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
             width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;
         }
         .apply-btn { font-size: 0.75rem; padding: 0.4rem 0.8rem; border-radius: 8px; flex-shrink: 0; }
+        .field-wrap { position: relative; }
+        .toggle-pass {
+            position: absolute;
+            right: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: 0;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            font-weight: 800;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -310,12 +333,24 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                             <label class="perm-item"><input type="checkbox" name="perm_admin_usuarios" id="pm_admin_usuarios" <?= $user['perm_admin_usuarios'] ? 'checked' : '' ?>> Gerenciar Usuários</label>
                             <label class="perm-item"><input type="checkbox" name="perm_admin_sistema" id="pm_admin_sistema" <?= $user['perm_admin_sistema'] ? 'checked' : '' ?>> Setup de Sistema (Paróquias)</label>
                             <label class="perm-item"><input type="checkbox" name="perm_ver_logs" id="pm_ver_logs" <?= $user['perm_ver_logs'] ? 'checked' : '' ?>> Acesso a Logs</label>
+                            <label class="perm-item"><input type="checkbox" name="perm_gerenciar_catalogo" id="pm_gerenciar_catalogo" <?= ($user['perm_gerenciar_catalogo'] ?? 0) ? 'checked' : '' ?>> Gerenciar Catálogo</label>
                         </div>
                     </div>
 
                     <div class="form-group" style="grid-column: span 2; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 2rem;">
                         <label>REDEFINIR SENHA (OPCIONAL)</label>
-                        <input type="password" name="nova_senha" placeholder="Deixe em branco para manter a atual">
+                        <div class="field-wrap">
+                            <input type="password" name="nova_senha" id="editNovaSenha" placeholder="Deixe em branco para manter a atual" autocomplete="new-password">
+                            <button type="button" class="toggle-pass" data-target="editNovaSenha">Mostrar</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>CONFIRMAR NOVA SENHA</label>
+                        <div class="field-wrap">
+                            <input type="password" name="confirmar_nova_senha" id="editConfirmarNovaSenha" placeholder="Repita a nova senha" autocomplete="new-password">
+                            <button type="button" class="toggle-pass" data-target="editConfirmarNovaSenha">Mostrar</button>
+                        </div>
                     </div>
 
                     <?php if ($can_edit_photo_for_target): ?>
@@ -337,7 +372,10 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     <?php if ($is_self): ?>
                     <div class="form-group" style="grid-column: span 2;">
                         <label>TROCAR PALAVRA-CHAVE (RECUPERAÇÃO)</label>
-                        <input type="text" name="palavra_chave" placeholder="Digite a nova palavra-chave">
+                        <div class="field-wrap">
+                            <input type="password" name="palavra_chave" id="editPalavraChave" placeholder="Digite a nova palavra-chave" autocomplete="new-password">
+                            <button type="button" class="toggle-pass" data-target="editPalavraChave">Mostrar</button>
+                        </div>
                     </div>
                     <?php endif; ?>
 
@@ -351,7 +389,15 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
     </div>
 
     <script>
-    // presets de perfil removidos: permissões vêm apenas da tabela usuarios
+        document.querySelectorAll('.toggle-pass').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const target = document.getElementById(btn.dataset.target);
+                if (!target) return;
+                const hidden = target.type === 'password';
+                target.type = hidden ? 'text' : 'password';
+                btn.textContent = hidden ? 'Ocultar' : 'Mostrar';
+            });
+        });
     </script>
 </body>
 </html>

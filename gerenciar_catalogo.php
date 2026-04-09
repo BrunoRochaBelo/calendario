@@ -1,0 +1,310 @@
+<?php
+/**
+ * ═══════════════════════════════════════════════════════
+ * PASCOM — Catálogo de Atividades Manager (v2.0)
+ * CRUD Completo · Premium UI · Glassmorphism Design
+ * ═══════════════════════════════════════════════════════ */
+
+require_once 'functions.php';
+requireLogin();
+ensureEventActivitiesStructure($conn);
+
+$pid = current_paroquia_id();
+
+// Restrict access: admin or catalog perm
+if (!can('gerenciar_catalogo') && !can('admin_sistema')) {
+    header('Location: index.php?error=unauthorized');
+    exit();
+}
+
+$msg = $_GET['msg'] ?? '';
+$error = $_GET['error'] ?? '';
+
+// ── Handle POST ──
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+    $data = sanitize_post($_POST);
+
+    if ($action === 'create') {
+        $nome = trim($data['nome'] ?? '');
+        $descricao = trim($data['descricao'] ?? '');
+
+        if ($nome === '') {
+            $error = 'O nome da atividade é obrigatório.';
+        } else {
+            $check = $conn->prepare("SELECT id FROM atividades_catalogo WHERE paroquia_id = ? AND nome = ?");
+            $check->bind_param('is', $pid, $nome);
+            $check->execute();
+            if ($check->get_result()->fetch_assoc()) {
+                $error = 'Já existe uma atividade com esse nome.';
+            } else {
+                $stmt = $conn->prepare("INSERT INTO atividades_catalogo (paroquia_id, nome, descricao, ativo) VALUES (?, ?, ?, 1)");
+                $stmt->bind_param('iss', $pid, $nome, $descricao);
+                if ($stmt->execute()) {
+                    logAction($conn, 'CRIAR_CATALOGO', 'atividades_catalogo', $conn->insert_id, $nome);
+                    header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade "' . $nome . '" cadastrada!'));
+                    exit();
+                } else {
+                    $error = 'Erro ao cadastrar: ' . $conn->error;
+                }
+            }
+        }
+    } elseif ($action === 'update') {
+        $id = (int)($data['id'] ?? 0);
+        $nome = trim($data['nome'] ?? '');
+        $descricao = trim($data['descricao'] ?? '');
+
+        if ($nome === '' || $id <= 0) {
+            $error = 'Dados inválidos.';
+        } else {
+            $dup = $conn->prepare("SELECT id FROM atividades_catalogo WHERE paroquia_id = ? AND nome = ? AND id != ?");
+            $dup->bind_param('isi', $pid, $nome, $id);
+            $dup->execute();
+            if ($dup->get_result()->fetch_assoc()) {
+                $error = 'Já existe outra atividade com esse nome.';
+            } else {
+                $stmt = $conn->prepare("UPDATE atividades_catalogo SET nome = ?, descricao = ? WHERE id = ? AND paroquia_id = ?");
+                $stmt->bind_param('ssii', $nome, $descricao, $id, $pid);
+                if ($stmt->execute()) {
+                    logAction($conn, 'EDITAR_CATALOGO', 'atividades_catalogo', $id, $nome);
+                    header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade atualizada!'));
+                    exit();
+                } else {
+                    $error = 'Erro ao atualizar.';
+                }
+            }
+        }
+    } elseif ($action === 'delete') {
+        $id = (int)($data['id'] ?? 0);
+        if ($id > 0) {
+            // Check if used in any event
+            $usageCheck = $conn->prepare("SELECT COUNT(*) as total FROM atividade_evento_itens WHERE atividade_catalogo_id = ?");
+            $usageCheck->bind_param('i', $id);
+            $usageCheck->execute();
+            $usage = $usageCheck->get_result()->fetch_assoc();
+
+            if ((int)($usage['total'] ?? 0) > 0) {
+                // Soft-delete: deactivate instead
+                $stmt = $conn->prepare("UPDATE atividades_catalogo SET ativo = 0 WHERE id = ? AND paroquia_id = ?");
+                $stmt->bind_param('ii', $id, $pid);
+                $stmt->execute();
+                logAction($conn, 'DESATIVAR_CATALOGO', 'atividades_catalogo', $id);
+                header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade desativada (vinculada a eventos existentes).'));
+                exit();
+            } else {
+                $stmt = $conn->prepare("DELETE FROM atividades_catalogo WHERE id = ? AND paroquia_id = ?");
+                $stmt->bind_param('ii', $id, $pid);
+                if ($stmt->execute()) {
+                    logAction($conn, 'EXCLUIR_CATALOGO', 'atividades_catalogo', $id);
+                    header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade removida!'));
+                    exit();
+                }
+            }
+        }
+    } elseif ($action === 'reactivate') {
+        $id = (int)($data['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $conn->prepare("UPDATE atividades_catalogo SET ativo = 1 WHERE id = ? AND paroquia_id = ?");
+            $stmt->bind_param('ii', $id, $pid);
+            $stmt->execute();
+            logAction($conn, 'REATIVAR_CATALOGO', 'atividades_catalogo', $id);
+            header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade reativada!'));
+            exit();
+        }
+    }
+}
+
+// ── Fetch Data ──
+$items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pid ORDER BY ativo DESC, nome ASC");
+?>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <title>Catálogo de Atividades – PASCOM</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .app-shell { display: flex; min-height: 100vh; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
+
+        .header-stack { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem; }
+        .header-stack h1 { font-size: 1.8rem; font-weight: 900; }
+
+        .catalog-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; }
+
+        .catalog-card {
+            padding: 1.8rem; display: flex; flex-direction: column; gap: 1rem;
+            transition: transform 0.3s var(--anim); position: relative;
+        }
+        .catalog-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+        .catalog-card.inactive { opacity: 0.5; border-style: dashed; }
+
+        .card-name { font-size: 1.15rem; font-weight: 800; color: var(--text); }
+        .card-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.5; }
+        .card-status {
+            position: absolute; top: 1rem; right: 1rem;
+            font-size: 0.6rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em;
+            padding: 0.3rem 0.6rem; border-radius: 100px;
+        }
+        .card-status.active { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+        .card-status.inactive { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+        .card-actions {
+            display: flex; gap: 0.8rem; border-top: 1px solid var(--border);
+            padding-top: 1.2rem; margin-top: auto;
+        }
+
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2600; align-items: center; justify-content: center; padding: 2rem; }
+        .modal.active { display: flex; }
+        .modal-card { width: 100%; max-width: 540px; padding: 3rem; }
+
+        @media (max-width: 1024px) {
+            .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .header-stack { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
+            .catalog-grid { grid-template-columns: 1fr; }
+            .btn-primary { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-mesh"></div>
+
+    <div class="app-shell">
+        <?php include 'sidebar.php'; ?>
+
+        <main class="main-content">
+            <?php if ($msg): ?> <?= alert('success', h($msg)) ?> <?php endif; ?>
+            <?php if ($error): ?> <?= alert('error', h($error)) ?> <?php endif; ?>
+
+            <header class="header-stack animate-in">
+                <div>
+                    <p style="font-size: 0.65rem; font-weight: 800; opacity: 0.6; letter-spacing: 0.15em; color: var(--text-ghost);">ADMINISTRAÇÃO</p>
+                    <h1 class="gradient-text">Catálogo de Atividades</h1>
+                    <p style="font-size: 0.85rem; color: var(--text-dim); margin-top: 0.5rem;">
+                        Gerencie as atividades disponíveis para vincular aos eventos da paróquia.
+                    </p>
+                </div>
+                <button onclick="openModal()" class="btn btn-primary shimmer">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    Nova Atividade
+                </button>
+            </header>
+
+            <div class="catalog-grid animate-in" style="animation-delay: 0.1s;">
+                <?php if ($items && $items->num_rows > 0): ?>
+                    <?php while ($item = $items->fetch_assoc()): ?>
+                    <article class="glass-card catalog-card <?= $item['ativo'] ? '' : 'inactive' ?>">
+                        <span class="card-status <?= $item['ativo'] ? 'active' : 'inactive' ?>">
+                            <?= $item['ativo'] ? 'Ativa' : 'Inativa' ?>
+                        </span>
+                        <div>
+                            <div class="card-name"><?= h($item['nome']) ?></div>
+                            <?php if (!empty($item['descricao'])): ?>
+                                <div class="card-desc"><?= h($item['descricao']) ?></div>
+                            <?php endif; ?>
+                        </div>
+                        <div class="card-actions">
+                            <button 
+                                type="button"
+                                class="btn btn-ghost btn-edit" 
+                                data-json="<?= h(json_encode($item, JSON_UNESCAPED_UNICODE)) ?>"
+                                style="flex: 1; font-size: 0.75rem; border-color: rgba(var(--primary-rgb), 0.3); color: var(--primary); cursor: pointer;"
+                                onclick="editByData(this)"
+                            >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: -4px;"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                Editar
+                            </button>
+                            <?php if ($item['ativo']): ?>
+                            <form method="POST" style="flex: 1; margin: 0;">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                <button type="submit" class="btn btn-ghost" style="width: 100%; color: #ef4444; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.2); cursor: pointer;" onclick="return confirm('Remover esta atividade do catálogo?')">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: -4px;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                                    Remover
+                                </button>
+                            </form>
+                            <?php else: ?>
+                            <form method="POST" style="flex: 1; margin: 0;">
+                                <input type="hidden" name="action" value="reactivate">
+                                <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                <button type="submit" class="btn btn-ghost" style="width: 100%; color: #22c55e; font-size: 0.75rem; border-color: rgba(34, 197, 94, 0.2); cursor: pointer;">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: -4px;"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
+                                    Reativar
+                                </button>
+                            </form>
+                            <?php endif; ?>
+                        </div>
+                    </article>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <div style="grid-column: 1/-1; text-align: center; padding: 5rem; background: var(--panel-hi); border-radius: 20px; border: 1px dashed var(--border);">
+                        <p style="color: var(--text-dim); font-weight: 600;">Nenhuma atividade cadastrada no catálogo desta paróquia.</p>
+                        <button onclick="openModal()" class="btn btn-primary" style="margin-top: 1.5rem;">Cadastrar Primeira</button>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </main>
+    </div>
+
+    <div id="catalogModal" class="modal" onclick="if(event.target.id==='catalogModal'){closeModal();}">
+        <form method="POST" class="glass modal-card">
+            <input type="hidden" name="action" id="modalAction" value="create">
+            <input type="hidden" name="id" id="itemId">
+
+            <h2 id="modalTitle" style="margin-bottom: 2rem; font-weight: 900;">Nova Atividade do Catálogo</h2>
+
+            <div style="display: grid; gap: 1.5rem;">
+                <div class="form-group">
+                    <label>Nome da Atividade</label>
+                    <input type="text" name="nome" id="modalNome" placeholder="Ex: Transmissão Instagram, Canto, Leitura..." required>
+                </div>
+                <div class="form-group">
+                    <label>Descrição (Opcional)</label>
+                    <textarea name="descricao" id="modalDescricao" rows="3" placeholder="Breve descrição sobre esta atividade..."></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <button type="submit" class="btn btn-primary shimmer" style="flex: 2;">Confirmar</button>
+                    <button type="button" onclick="closeModal()" class="btn btn-ghost" style="flex: 1;">Cancelar</button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        function openModal() {
+            document.getElementById('modalAction').value = 'create';
+            document.getElementById('modalTitle').textContent = 'Nova Atividade do Catálogo';
+            document.getElementById('itemId').value = '';
+            document.getElementById('modalNome').value = '';
+            document.getElementById('modalDescricao').value = '';
+            document.getElementById('catalogModal').classList.add('active');
+            document.getElementById('modalNome').focus();
+        }
+
+        function editByData(btn) {
+            try {
+                const item = JSON.parse(btn.getAttribute('data-json'));
+                editItem(item);
+            } catch(e) {
+                console.error('Erro ao ler dados do item:', e);
+            }
+        }
+
+        function editItem(item) {
+            console.log('Editando item:', item);
+            document.getElementById('modalAction').value = 'update';
+            document.getElementById('modalTitle').textContent = 'Editar Atividade';
+            document.getElementById('itemId').value = item.id;
+            document.getElementById('modalNome').value = item.nome;
+            document.getElementById('modalDescricao').value = item.descricao || '';
+            document.getElementById('catalogModal').classList.add('active');
+            document.getElementById('modalNome').focus();
+        }
+
+        function closeModal() {
+            document.getElementById('catalogModal').classList.remove('active');
+        }
+    </script>
+</body>
+</html>

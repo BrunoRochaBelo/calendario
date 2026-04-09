@@ -19,11 +19,15 @@ $sql = "
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
     LEFT JOIN usuarios u ON a.criador_id = u.id
     WHERE a.paroquia_id = ?
+      AND (a.restrito = 0 OR ? = 1 OR a.criador_id = ?)
     ORDER BY a.data_inicio DESC, a.hora_inicio DESC
 ";
 
+$userId = (int)($_SESSION['usuario_id'] ?? 0);
+$canVerRestritos = (int)can('ver_restritos');
+
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('i', $pid);
+$stmt->bind_param('iii', $pid, $canVerRestritos, $userId);
 $stmt->execute();
 $activities = $stmt->get_result();
 ?>

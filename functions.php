@@ -115,8 +115,6 @@ function ensureEventActivitiesStructure(mysqli $db): bool {
             nome VARCHAR(150) NOT NULL,
             descricao TEXT NULL,
             ativo TINYINT(1) NOT NULL DEFAULT 1,
-            data_criacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
-            ultima_atualizacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY uniq_atividade_catalogo_nome (paroquia_id, nome),
             KEY fk_atividade_catalogo_paroquia (paroquia_id),
@@ -156,7 +154,19 @@ function ensureEventActivitiesStructure(mysqli $db): bool {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
 
-    return (bool)$db->query($catalogSql) && (bool)$db->query($itemsSql) && (bool)$db->query($enrollSql);
+    $ok = (bool)$db->query($catalogSql) && (bool)$db->query($itemsSql) && (bool)$db->query($enrollSql);
+
+    // Remove timestamp columns from atividades_catalogo if they exist (cleanup)
+    $colCheck = $db->query("SHOW COLUMNS FROM `atividades_catalogo` LIKE 'data_criacao'");
+    if ($colCheck && $colCheck->num_rows > 0) {
+        $db->query("ALTER TABLE `atividades_catalogo` DROP COLUMN `data_criacao`");
+    }
+    $colCheck2 = $db->query("SHOW COLUMNS FROM `atividades_catalogo` LIKE 'ultima_atualizacao'");
+    if ($colCheck2 && $colCheck2->num_rows > 0) {
+        $db->query("ALTER TABLE `atividades_catalogo` DROP COLUMN `ultima_atualizacao`");
+    }
+
+    return $ok;
 }
 
 function seedDefaultEventActivities(mysqli $db, int $paroquiaId): void {
@@ -368,7 +378,7 @@ function getEventActivityItems(mysqli $db, int $eventoId, int $usuarioId = 0): a
 
     $participantIds = implode(',', array_map('intval', $ids));
     $participantsRes = $db->query("
-        SELECT aei.evento_item_id, u.nome
+        SELECT aei.evento_item_id, u.nome, u.foto_perfil
         FROM atividade_evento_inscricoes aei
         INNER JOIN usuarios u ON u.id = aei.usuario_id
         WHERE aei.evento_item_id IN ($participantIds)
@@ -381,6 +391,7 @@ function getEventActivityItems(mysqli $db, int $eventoId, int $usuarioId = 0): a
             if (isset($items[$itemId])) {
                 $items[$itemId]['participants'][] = [
                     'nome' => $participant['nome'],
+                    'foto_perfil' => $participant['foto_perfil'],
                 ];
             }
         }

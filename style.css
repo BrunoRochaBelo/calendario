@@ -165,7 +165,7 @@ body {
 .animate-in { animation: fluidEntrance 0.8s var(--anim) forwards; }
 
 /* ── Typography ────────────────────────────────────────── */
-h1 { font-size: clamp(3rem, 10vw, 5.5rem); font-weight: 900; letter-spacing: -0.04em; line-height: 0.95; }
+h1 { font-size: clamp(1.8rem, 6vw, 2.4rem); font-weight: 900; letter-spacing: -0.04em; line-height: 1.1; }
 h2 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02em; }
 .gradient-text {
   background: linear-gradient(to right, #fff, rgba(255,255,255,0.7));
@@ -184,10 +184,10 @@ h2 { font-size: clamp(2rem, 5vw, 3rem); font-weight: 800; letter-spacing: -0.02e
 }
 .hero-badge {
   display: inline-flex; align-items: center; gap: 0.6rem;
-  padding: 0.6rem 1.2rem; background: var(--panel);
+  padding: 0.5rem 1rem; background: var(--panel);
   border: 1px solid var(--border); border-radius: 100px;
-  font-size: 0.75rem; font-weight: 700; text-transform: uppercase;
-  letter-spacing: 0.1em; color: var(--primary); margin-bottom: 2.5rem;
+  font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.12em; color: var(--primary); margin-bottom: 2rem;
 }
 
 .news-grid {

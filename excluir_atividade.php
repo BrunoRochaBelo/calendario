@@ -15,7 +15,7 @@ if ($id <= 0) {
     exit();
 }
 
-$stmt = $conn->prepare("SELECT nome, data_inicio FROM atividades WHERE id = ? AND paroquia_id = ? LIMIT 1");
+$stmt = $conn->prepare("SELECT nome, data_inicio, restrito, criador_id FROM atividades WHERE id = ? AND paroquia_id = ? LIMIT 1");
 $stmt->bind_param('ii', $id, $pid);
 $stmt->execute();
 $act = $stmt->get_result()->fetch_assoc();
@@ -23,6 +23,14 @@ $act = $stmt->get_result()->fetch_assoc();
 if (!$act) {
     header('Location: atividades.php?error=not_found');
     exit();
+}
+
+if ($act['restrito']) {
+    $userId = (int)($_SESSION['usuario_id'] ?? 0);
+    if (!can('ver_restritos') && $act['criador_id'] != $userId) {
+        header('Location: atividades.php?error=unauthorized_restricted');
+        exit();
+    }
 }
 
 $del = $conn->prepare("DELETE FROM atividades WHERE id = ? AND paroquia_id = ?");

@@ -56,12 +56,14 @@ $baseSql = "
     LEFT JOIN locais_paroquia l ON a.local_id = l.id
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
     WHERE a.paroquia_id = ?
+      AND (a.restrito = 0 OR ? = 1 OR a.criador_id = ?)
 ";
 
 if ($activityId > 0) {
     $sql = $baseSql . " AND a.id = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param('iiii', $userId, $userId, $pid, $activityId);
+    $canRestritos = (int)can('ver_restritos');
+    $stmt->bind_param('iiiiii', $userId, $userId, $pid, $canRestritos, $userId, $activityId);
     $stmt->execute();
     $activity = $stmt->get_result()->fetch_assoc();
 
@@ -123,7 +125,8 @@ $sql = $baseSql . "
 ";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('iiiiiii', $userId, $userId, $pid, $month, $year, $month, $year);
+$canRestritos = (int)can('ver_restritos');
+$stmt->bind_param('iiiiiiiii', $userId, $userId, $pid, $canRestritos, $userId, $month, $year, $month, $year);
 $stmt->execute();
 $res = $stmt->get_result();
 

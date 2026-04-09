@@ -1,0 +1,91 @@
+{\rtf1\ansi\deff0
+{\fonttbl{\f0 Arial;}}
+\viewkind4\uc1
+\pard\fs28\b Analise detalhada do sistema PASCOM\b0\par
+\pard\fs22 Base da analise: leitura do codigo e teste real no browser em 09/04/2026 com XAMPP ativo.\par
+\pard\fs22 Fluxos validados: login, cadastro, logout, recuperacao de senha, novo login, lista de usuarios, edicao de usuario e navegacao mobile.\par
+\par
+\pard\fs24\b 1. Cobertura atual do sistema\b0\par
+\pard\fs22 - Autenticacao: login.php, logout.php, recuperar_senha.php e nova_senha.php.\par
+\pard\fs22 - Usuarios: register.php, usuarios.php e editar_usuario.php.\par
+\pard\fs22 - Calendario e eventos: index.php, atividades.php, novaatividade.php, editar_atividade.php, excluir_atividade.php e atividade_json.php.\par
+\pard\fs22 - Participacao: inscrever.php e ver_atividade.php.\par
+\pard\fs22 - Estrutura: locais_paroquia.php, tipos_atividade.php, gerenciar_catalogo.php, paroquias.php e select_paroquia.php.\par
+\pard\fs22 - Auditoria e relatorios: logs.php e gerar_pdf.php.\par
+\par
+\pard\fs24\b 2. Validações no browser\b0\par
+\pard\fs22 - O login de master abriu o calendario corretamente.\par
+\pard\fs22 - O cadastro de novo usuario foi concluido com sucesso.\par
+\pard\fs22 - O logout levou de volta para a tela de login.\par
+\pard\fs22 - A recuperacao de senha por palavra-chave abriu a tela de nova senha e atualizou a credencial.\par
+\pard\fs22 - O relogin com a nova senha funcionou.\par
+\pard\fs22 - A tela de usuarios exibiu os tres modos de visualizacao em sessao de master.\par
+\pard\fs22 - A edicao de usuario exibiu o campo de redefinicao de senha e a matriz de permissoes.\par
+\pard\fs22 - No mobile, o menu lateral ficou acessivel e o calendario continuou funcionando.\par
+\par
+\pard\fs24\b 3. Observacoes por modulo\b0\par
+\pard\fs22\b Login e recuperacao\b0\par
+\pard\fs22 - O fluxo e funcional, mas a recuperacao depende de palavra-chave fixa.\par
+\pard\fs22 - Faltam token temporario, expiracao e limite de tentativas.\par
+\pard\fs22 - Os campos de senha nao tem confirmar senha nem mostrar/ocultar.\par
+\pard\fs22 - As mensagens estao corretas, mas a protecao contra abuso e fraca.\par
+\par
+\pard\fs22\b Usuarios e permissoes\b0\par
+\pard\fs22 - A lista de usuarios tem boa base visual, mas os botoes ficam pequenos em densidade alta.\par
+\pard\fs22 - A edicao concentra muitos checkboxes e pode ser dividida em blocos.\par
+\pard\fs22 - O campo de redefinicao de senha esta no fim do formulario e perde destaque.\par
+\pard\fs22 - Ha mistura entre perfil_id, nivel_acesso e flags individuais.\par
+\pard\fs22 - O cadastro fixa perfil padrao e nao oferece escolha clara de perfil no formulario.\par
+\pard\fs22 - Existe incongruencia entre o botao de cadastro e a permissao exigida na pagina.\par
+\par
+\pard\fs22\b Calendario e eventos\b0\par
+\pard\fs22 - O calendario principal tem visual forte e moderno, com modal, cards e destaque de eventos.\par
+\pard\fs22 - No mobile ele cresce muito em altura e pede uma visao alternativa em lista ou semana.\par
+\pard\fs22 - O JSON de eventos usa varias subconsultas correlacionadas para contagem de inscritos.\par
+\pard\fs22 - O sistema ja suporta evento restrito, inscricao, desistir e itens de evento com inscricao multipla.\par
+\pard\fs22 - A tela de nova e edicao de atividade e funcional, mas a lista de atividades do evento pode precisar de busca, filtro ou chips menores.\par
+\par
+\pard\fs22\b Catalogo, locais e paroquias\b0\par
+\pard\fs22 - locais_paroquia.php, tipos_atividade.php e gerenciar_catalogo.php estao completos em CRUD.\par
+\pard\fs22 - O catalogo mistura emoji, upload de imagem e modal longa, o que pode ser simplificado.\par
+\pard\fs22 - paroquias.php e select_paroquia.php funcionam para troca de contexto, mas alterar paroquia no cadastro de usuario pode confundir.\par
+\pard\fs22 - O modulo legado de cores existe em outro padrao visual e depende de tabelas que nao estao no banco atual.\par
+\par
+\pard\fs22\b Logs e relatorios\b0\par
+\pard\fs22 - logs.php tem base boa, mas mostra apenas os 100 ultimos registros e nao pagina.\par
+\pard\fs22 - Falta filtro por data, tipo de acao e exportacao direta.\par
+\pard\fs22 - gerar_pdf.php depende de libs/fpdf/fpdf.php, que nao esta presente no checkout atual.\par
+\par
+\pard\fs24\b 4. Falhas reais e riscos\b0\par
+\pard\fs22 - Alto: scripts de manutencao estao na raiz do projeto e podem ficar expostos por URL.\par
+\pard\fs22 - Alto: recuperacao de senha por palavra-chave fixa nao e segura para uso moderno.\par
+\pard\fs22 - Medio: o sistema usa auto-migracao em config.php e altera estrutura no tempo de requisicao.\par
+\pard\fs22 - Medio: existe mistura de regras entre perfil, nivel e permissao individual.\par
+\pard\fs22 - Medio: mysqli::ping() gera deprecacao no PHP 8.4.\par
+\pard\fs22 - Medio: a resposta de erro de banco em conexao.php retorna JSON mesmo em pagina HTML.\par
+\par
+\pard\fs24\b 5. Melhorias de interface e organizacao\b0\par
+\pard\fs22 - Separar as telas em blocos: dados basicos, seguranca, permissoes e acoes.\par
+\pard\fs22 - Reorganizar checkboxes de permissao em grupos por tema.\par
+\pard\fs22 - Destacar melhor o botao primario e reduzir o peso visual dos botoes secundarios.\par
+\pard\fs22 - Colocar labels textuais no modo de visualizacao da lista de usuarios.\par
+\pard\fs22 - Levar o reset de senha para uma area propria e mais visivel.\par
+\pard\fs22 - Criar busca global no topo das telas administrativas.\par
+\pard\fs22 - Reduzir a altura do calendario mobile com visao de agenda ou semana.\par
+\par
+\pard\fs24\b 6. Novas abas e funcionalidades recomendadas\b0\par
+\pard\fs22 - Dashboard com proximos eventos, inscritos, logs recentes e acessos pendentes.\par
+\pard\fs22 - Area de seguranca com reset de senha, palavra-chave e historico de login.\par
+\pard\fs22 - Busca global por usuario, evento, local, paroquia e log.\par
+\pard\fs22 - Visao de calendario por semana e por lista.\par
+\pard\fs22 - Central de relatorios com PDF, CSV e filtros de periodo.\par
+\pard\fs22 - Perfil do usuario com foto, dados pessoais, status e preferencias.\par
+\pard\fs22 - Notificacoes e lembretes para eventos e inscricoes.\par
+\par
+\pard\fs24\b 7. Prioridade sugerida\b0\par
+\pard\fs22 1. Corrigir a recuperacao de senha e separar seguranca do restante do cadastro.\par
+\pard\fs22 2. Unificar o modelo de permissao.\par
+\pard\fs22 3. Remover scripts de manutencao da raiz publica.\par
+\pard\fs22 4. Melhorar mobile do calendario e da edicao de usuario.\par
+\pard\fs22 5. Padronizar o visual legado e o visual moderno.\par
+}

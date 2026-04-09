@@ -23,15 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($data['nome']) || empty($data['data_inicio'])) {
         $error = 'Nome e data de início são obrigatórios.';
     } else {
-        $sql = "INSERT INTO atividades (nome, paroquia_id, local_id, tipo_atividade_id, descricao, data_inicio, hora_inicio, criador_id) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
-        $stmt = $conn->prepare($sql);
         $local = !empty($data['local_id']) ? (int)$data['local_id'] : null;
         $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
+        $restrito = isset($data['restrito']) ? 1 : 0;
         $uid = $_SESSION['usuario_id'];
         
-        $stmt->bind_param('siiisssi', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $data['hora_inicio'], $uid);
+        $sql = "INSERT INTO atividades (nome, paroquia_id, local_id, tipo_atividade_id, descricao, data_inicio, hora_inicio, criador_id, restrito) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($sql);
+        $stmt->bind_param('siiisssii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $data['hora_inicio'], $uid, $restrito);
         
         if ($stmt->execute()) {
             $newEventId = (int)$conn->insert_id;
@@ -166,6 +166,13 @@ if (!$selectedActivities) {
                             <label>Notas Adicionais</label>
                             <textarea name="descricao" rows="4" placeholder="Descreva os detalhes ou objetivos deste evento..."></textarea>
                         </div>
+
+                        <?php if (can('ver_restritos')): ?>
+                        <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.8rem; background: rgba(239, 68, 68, 0.05); padding: 1rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.1);">
+                            <input type="checkbox" name="restrito" id="restrito" style="width: 20px; height: 20px; cursor: pointer;">
+                            <label for="restrito" style="margin: 0; cursor: pointer; color: #ef4444;">Evento Restrito (Privado)</label>
+                        </div>
+                        <?php endif; ?>
 
                         <div class="form-group">
                             <label>Atividades do Evento</label>

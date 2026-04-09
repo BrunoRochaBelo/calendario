@@ -19,11 +19,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ensureUserPermissionsMaterialized($conn);
     ensurePermissionColumns($conn);
     $data = sanitize_post($_POST);
+    $senha = (string)($data['senha'] ?? '');
+    $confirmarSenha = (string)($data['confirmar_senha'] ?? '');
+    $palavraChave = trim((string)($data['palavra_chave'] ?? ''));
     
-    if (empty($data['nome']) || empty($data['email']) || empty($data['senha']) || empty($data['palavra_chave'])) {
-        $error = 'Por favor, preencha nome, e-mail, senha e palavra-chave.';
+    if (empty($data['nome']) || empty($data['email']) || $senha === '' || $confirmarSenha === '' || $palavraChave === '') {
+        $error = 'Por favor, preencha nome, e-mail, senha, confirmacao e palavra-chave.';
+    } elseif (strlen($senha) < 6) {
+        $error = 'A senha precisa ter no minimo 6 caracteres.';
+    } elseif ($senha !== $confirmarSenha) {
+        $error = 'As senhas nao coincidem.';
     } else {
-        $hash = password_hash($data['senha'], PASSWORD_DEFAULT);
+        $hash = password_hash($senha, PASSWORD_DEFAULT);
         $perfil_id = 9; // Força Visitante padrão
         $target_pid = (int)($data['paroquia_id'] ?: $pid);
         $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
@@ -62,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare($sql);
         $stmt->bind_param(
             'sssssssiisiiiiiiiii',
-            $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $dt_nasc, $data['palavra_chave'],
+            $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $dt_nasc, $palavraChave,
             $target_pid, $perfil_id, $perfilNome,
             $perfilPerms['perm_ver_calendario'],
             $perfilPerms['perm_criar_eventos'],
@@ -152,6 +159,20 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
 
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
         .full-row { grid-column: span 2; }
+        .field-wrap { position: relative; }
+        .toggle-pass {
+            position: absolute;
+            right: 0.8rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: 0;
+            color: var(--text-dim);
+            font-size: 0.75rem;
+            font-weight: 800;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+        }
 
         @media (max-width: 768px) {
             .form-grid { grid-template-columns: 1fr; }
@@ -225,13 +246,27 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                     </div>
 
                     <div class="form-group full-row" style="margin-bottom: 1rem;">
-                        <label>SENHA TEMPORÁRIA</label>
-                        <input type="password" name="senha" placeholder="••••••••" required>
+                        <label>SENHA TEMPORARIA</label>
+                        <div class="field-wrap">
+                            <input type="password" name="senha" id="regSenha" placeholder="••••••••" required autocomplete="new-password">
+                            <button type="button" class="toggle-pass" data-target="regSenha">Mostrar</button>
+                        </div>
                     </div>
 
                     <div class="form-group full-row">
-                        <label>PALAVRA-CHAVE (RECUPERAÇÃO)</label>
-                        <input type="text" name="palavra_chave" placeholder="Defina uma palavra-chave de recuperação" required>
+                        <label>CONFIRMAR SENHA TEMPORARIA</label>
+                        <div class="field-wrap">
+                            <input type="password" name="confirmar_senha" id="regConfirmarSenha" placeholder="Repita a senha" required autocomplete="new-password">
+                            <button type="button" class="toggle-pass" data-target="regConfirmarSenha">Mostrar</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-row">
+                        <label>PALAVRA-CHAVE (RECUPERACAO)</label>
+                        <div class="field-wrap">
+                            <input type="password" name="palavra_chave" id="regPalavraChave" placeholder="Defina uma palavra-chave de recuperacao" required autocomplete="new-password">
+                            <button type="button" class="toggle-pass" data-target="regPalavraChave">Mostrar</button>
+                        </div>
                     </div>
 
                     <div class="full-row" style="display: flex; gap: 1rem; margin-top: 1rem;">
@@ -242,5 +277,16 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
             </section>
         </main>
     </div>
+    <script>
+    document.querySelectorAll('.toggle-pass').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const target = document.getElementById(btn.dataset.target);
+            if (!target) return;
+            const hidden = target.type === 'password';
+            target.type = hidden ? 'text' : 'password';
+            btn.textContent = hidden ? 'Ocultar' : 'Mostrar';
+        });
+    });
+    </script>
 </body>
 </html>

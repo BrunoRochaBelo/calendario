@@ -36,6 +36,14 @@ if (!$activity) {
     exit();
 }
 
+if ($activity['restrito']) {
+    $userId = (int)($_SESSION['usuario_id'] ?? 0);
+    if (!can('ver_restritos') && $activity['criador_id'] != $userId) {
+        header('Location: index.php?error=unauthorized_restricted');
+        exit();
+    }
+}
+
 // 2. Fetch Participants (Inscrições)
 $parts_sql = "
     SELECT u.nome, u.email, u.foto_perfil, i.data_inscricao 
@@ -90,8 +98,8 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
         .event-items-grid { display: grid; gap: 1rem; }
         .event-item-card { padding: 1.1rem; border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
         .event-item-header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap; }
-        .event-item-participants { display: grid; gap: 0.5rem; margin-top: 0.9rem; }
-        .event-item-chip { padding: 0.55rem 0.75rem; border-radius: 12px; background: var(--panel-hi); border: 1px solid var(--border); font-size: 0.85rem; }
+        .event-item-participants { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.9rem; }
+        .event-item-chip { padding: 0.4rem 0.6rem; border-radius: 10px; background: var(--panel-hi); border: 1px solid var(--border); font-size: 0.8rem; }
 
         @media (max-width: 1100px) {
             .info-grid { grid-template-columns: 1fr; }
@@ -107,10 +115,17 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
         <main class="main-content">
             <?php if ($msg): ?><?= alert('success', h($msg)) ?><?php endif; ?>
             <?php if ($error): ?><?= alert('error', h($error)) ?><?php endif; ?>
+            
             <header class="detail-header animate-in">
                 <div>
                     <span class="type-badge" style="background:var(--panel-hi);"><?= h($activity['nome_tipo'] ?: 'Evento') ?></span>
                     <h1 class="gradient-text"><?= h($activity['nome']) ?></h1>
+                    <?php if ($activity['restrito']): ?>
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem; color: #ef4444; font-size: 0.8rem; font-weight: 800; text-transform: uppercase;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            Evento Restrito (Privado)
+                        </div>
+                    <?php endif; ?>
                 </div>
                 <div style="display: flex; gap: 1rem;">
                     <?php if (can('editar_eventos')): ?>
@@ -167,7 +182,7 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
                 </section>
 
                 <section class="glass info-card">
-                    <h3>Participantes Confimados</h3>
+                    <h3>Participantes Confirmados</h3>
                     <div class="participants-list">
                         <?php if ($participants->num_rows > 0): ?>
                             <?php while ($p = $participants->fetch_assoc()): ?>
@@ -231,7 +246,16 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
                         <div class="event-item-participants">
                             <?php if (!empty($item['participants'])): ?>
                                 <?php foreach ($item['participants'] as $participant): ?>
-                                    <div class="event-item-chip"><?= h($participant['nome']) ?></div>
+                                    <div class="event-item-chip" style="display: inline-flex; align-items: center; gap: 0.5rem;">
+                                        <div class="p-avatar" style="width: 20px; height: 20px; font-size: 0.5rem; border-radius: 50%;">
+                                            <?php if (!empty($participant['foto_perfil']) && file_exists(__DIR__ . '/' . $participant['foto_perfil'])): ?>
+                                                <img src="<?= h($participant['foto_perfil']) ?>?v=<?= time() ?>" alt="">
+                                            <?php else: ?>
+                                                <?= mb_substr($participant['nome'], 0, 1) ?>
+                                            <?php endif; ?>
+                                        </div>
+                                        <span style="font-weight: 600;"><?= h($participant['nome']) ?></span>
+                                    </div>
                                 <?php endforeach; ?>
                             <?php else: ?>
                                 <div class="event-item-chip">Nenhum inscrito nesta atividade.</div>

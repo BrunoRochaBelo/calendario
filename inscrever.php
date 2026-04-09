@@ -30,7 +30,7 @@ if ($aid <= 0 || !in_array($action, ['join', 'leave'], true)) {
 }
 
 $stmt = $conn->prepare("
-    SELECT a.id, a.nome, a.data_inicio, a.hora_inicio, a.paroquia_id
+    SELECT a.id, a.nome, a.data_inicio, a.hora_inicio, a.paroquia_id, a.restrito, a.criador_id
     FROM atividades a
     WHERE a.id = ? AND a.paroquia_id = ?
     LIMIT 1
@@ -45,6 +45,16 @@ if (!$activity) {
     }
     header('Location: index.php?error=activity_not_found');
     exit();
+}
+
+if ($activity['restrito']) {
+    if (!can('ver_restritos') && $activity['criador_id'] != $userId) {
+        if ($isAjax) {
+            json_response(false, 'Você não tem permissão para interagir com este evento restrito.');
+        }
+        header('Location: index.php?error=unauthorized_restricted');
+        exit();
+    }
 }
 
 $targetTable = 'inscricoes';

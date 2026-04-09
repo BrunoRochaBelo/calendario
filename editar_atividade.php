@@ -26,11 +26,21 @@ if (!$activity) {
     exit();
 }
 
+if ($activity['restrito']) {
+    $userId = (int)($_SESSION['usuario_id'] ?? 0);
+    if (!can('ver_restritos') && $activity['criador_id'] != $userId) {
+        header('Location: atividades.php?error=unauthorized_restricted');
+        exit();
+    }
+}
+
 $existingEventActivities = array_map(
     static fn(array $item): int => (int)$item['atividade_catalogo_id'],
     getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ?? 0))
 );
 $selectedActivities = normalizeEventActivityCatalogIds($_POST['atividades_evento'] ?? $existingEventActivities);
+
+// 2. Handle Update Submission
 
 // 2. Handle Update Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -41,22 +51,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $sql = "UPDATE atividades SET 
                 nome = ?, local_id = ?, tipo_atividade_id = ?, 
-                descricao = ?, data_inicio = ?, hora_inicio = ? 
+                descricao = ?, data_inicio = ?, hora_inicio = ?, 
+                restrito = ?
                 WHERE id = ? AND paroquia_id = ?";
         
         $stmt = $conn->prepare($sql);
         $local = !empty($data['local_id']) ? (int)$data['local_id'] : null;
         $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
+        $restrito = isset($data['restrito']) ? 1 : 0;
         
-        $stmt->bind_param('siisssii', 
+        $stmt->bind_param('siisssiii', 
             $data['nome'], $local, $tipo, 
             $data['descricao'], $data['data_inicio'], $data['hora_inicio'], 
-            $id, $pid
+            $restrito, $id, $pid
         );
         
         if ($stmt->execute()) {
             saveEventActivityItems($conn, $id, $pid, $data['atividades_evento'] ?? []);
-            logAction($conn, 'EDITAR_ATIVIDADE', 'atividades', $id, $data['nome']);
             header('Location: atividades.php?msg=Alterações salvas com sucesso!');
             exit();
         } else {
@@ -189,6 +200,13 @@ if (!$selectedActivities) {
                             <label>Notas Adicionais</label>
                             <textarea name="descricao" rows="4"><?= h($activity['descricao']) ?></textarea>
                         </div>
+
+                        <?php if (can('ver_restritos')): ?>
+                        <div class="form-group" style="flex-direction: row; align-items: center; gap: 0.8rem; background: rgba(239, 68, 68, 0.05); padding: 1rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.1);">
+                            <input type="checkbox" name="restrito" id="restrito" style="width: 20px; height: 20px; cursor: pointer;" <?= $activity['restrito'] ? 'checked' : '' ?>>
+                            <label for="restrito" style="margin: 0; cursor: pointer; color: #ef4444;">Evento Restrito (Privado)</label>
+                        </div>
+                        <?php endif; ?>
 
                         <div class="form-group">
                             <label>Atividades do Evento</label>

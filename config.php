@@ -77,6 +77,7 @@ function ensureUserPermissionColumns(mysqli $db): void {
         'perm_admin_usuarios' => "TINYINT(1) NULL DEFAULT NULL",
         'perm_admin_sistema' => "TINYINT(1) NULL DEFAULT NULL",
         'perm_ver_logs' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_gerenciar_catalogo' => "TINYINT(1) NULL DEFAULT NULL",
     ];
 
     foreach ($cols as $col => $def) {
@@ -125,7 +126,8 @@ function ensureUserPermissionsMaterialized(mysqli $db): void {
             perm_cadastrar_usuario = COALESCE(perm_cadastrar_usuario, 0),
             perm_admin_usuarios = COALESCE(perm_admin_usuarios, 0),
             perm_admin_sistema  = COALESCE(perm_admin_sistema, 0),
-            perm_ver_logs       = COALESCE(perm_ver_logs, 0)
+            perm_ver_logs       = COALESCE(perm_ver_logs, 0),
+            perm_gerenciar_catalogo = COALESCE(perm_gerenciar_catalogo, 0)
     ");
 }
 
@@ -188,7 +190,8 @@ function loadPermissions(mysqli $db, int $userId): array {
             COALESCE(u.perm_cadastrar_usuario, 0) as cadastrar_usuario,
             COALESCE(u.perm_admin_usuarios, 0) as admin_usuarios,
             COALESCE(u.perm_admin_sistema, 0) as admin_sistema,
-            COALESCE(u.perm_ver_logs, 0) as ver_logs
+            COALESCE(u.perm_ver_logs, 0) as ver_logs,
+            COALESCE(u.perm_gerenciar_catalogo, 0) as gerenciar_catalogo
         FROM usuarios u
         WHERE u.id = ?
     ";
@@ -202,6 +205,9 @@ function loadPermissions(mysqli $db, int $userId): array {
 }
 
 function can(string $permission): bool {
+    if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
+        return true;
+    }
     return isset($_SESSION['perms'][$permission]) && (bool)$_SESSION['perms'][$permission] === true;
 }
 
@@ -249,6 +255,157 @@ function logAction(mysqli $db, string $acao, string $tabela = '', int $regId = 0
     $stmt = $db->prepare($sql);
     if ($stmt) {
         $stmt->bind_param('issisis', $uid, $acao, $tabela, $regId, $detalhes, $parish_id, $ip);
+        $stmt->execute();
+    }
+}
+
+function ensureAuthThrottleTable(mysqli $db): void {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
+    $db->query("
+        CREATE TABLE IF NOT EXISTS auth_throttle (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            scope VARCHAR(50) NOT NULL,
+            identifier VARCHAR(191) NOT NULL,
+            attempts TINYINT(3) UNSIGNED NOT NULL DEFAULT 0,
+            locked_until DATETIME NULL DEFAULT NULL,
+            last_attempt_at DATETIME NULL DEFAULT NULL,
+            created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_scope_identifier (scope, identifier)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}
+
+function authThrottleIdentifier(string $value): string {
+    $normalized = mb_strtolower(trim($value));
+    return $normalized !== '' ? $normalized : 'unknown';
+}
+
+function authThrottleKey(string $scope, string $identifier): string {
+    $ip = $_SERVER['REMOTE_ADDR'] ?? 'CLI';
+    return authThrottleIdentifier($scope) . '|' . authThrottleIdentifier($identifier) . '|' . $ip;
+}
+
+function authThrottleSecondsLeft(?string $lockedUntil): int {
+    if (empty($lockedUntil)) {
+        return 0;
+    }
+    $ts = strtotime((string)$lockedUntil);
+    if ($ts === false) {
+        return 0;
+    }
+    $diff = $ts - time();
+    return $diff > 0 ? $diff : 0;
+}
+
+function authThrottleState(mysqli $db, string $scope, string $identifier, int $maxAttempts = 3): array {
+    ensureAuthThrottleTable($db);
+
+    $scope = authThrottleIdentifier($scope);
+    $identifier = authThrottleIdentifier($identifier);
+    $stmt = $db->prepare('SELECT attempts, locked_until FROM auth_throttle WHERE scope = ? AND identifier = ? LIMIT 1');
+    if (!$stmt) {
+        return ['allowed' => true, 'attempts' => 0, 'remaining' => $maxAttempts, 'locked_until' => null, 'seconds_left' => 0];
+    }
+
+    $stmt->bind_param('ss', $scope, $identifier);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    if (!$row) {
+        return ['allowed' => true, 'attempts' => 0, 'remaining' => $maxAttempts, 'locked_until' => null, 'seconds_left' => 0];
+    }
+
+    $attempts = (int)($row['attempts'] ?? 0);
+    $lockedUntil = trim((string)($row['locked_until'] ?? ''));
+    $secondsLeft = authThrottleSecondsLeft($lockedUntil ?: null);
+
+    if ($secondsLeft > 0) {
+        return [
+            'allowed' => false,
+            'attempts' => $attempts,
+            'remaining' => 0,
+            'locked_until' => $lockedUntil,
+            'seconds_left' => $secondsLeft,
+        ];
+    }
+
+    return [
+        'allowed' => true,
+        'attempts' => $attempts,
+        'remaining' => max(0, $maxAttempts - $attempts),
+        'locked_until' => null,
+        'seconds_left' => 0,
+    ];
+}
+
+function authThrottleRegisterFailure(mysqli $db, string $scope, string $identifier, int $maxAttempts = 3, int $lockMinutes = 5): array {
+    ensureAuthThrottleTable($db);
+
+    $scope = authThrottleIdentifier($scope);
+    $identifier = authThrottleIdentifier($identifier);
+    $state = authThrottleState($db, $scope, $identifier, $maxAttempts);
+
+    if (!$state['allowed']) {
+        return $state;
+    }
+
+    $attempts = min($maxAttempts, ((int)$state['attempts']) + 1);
+    $lockedUntil = null;
+    if ($attempts >= $maxAttempts) {
+        $lockedUntil = date('Y-m-d H:i:s', time() + ($lockMinutes * 60));
+    }
+
+    $stmt = $db->prepare('SELECT id FROM auth_throttle WHERE scope = ? AND identifier = ? LIMIT 1');
+    if (!$stmt) {
+        return [
+            'allowed' => $attempts < $maxAttempts,
+            'attempts' => $attempts,
+            'remaining' => max(0, $maxAttempts - $attempts),
+            'locked_until' => $lockedUntil,
+            'seconds_left' => authThrottleSecondsLeft($lockedUntil),
+        ];
+    }
+
+    $stmt->bind_param('ss', $scope, $identifier);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+
+    $scopeEsc = $db->real_escape_string($scope);
+    $identifierEsc = $db->real_escape_string($identifier);
+
+    if ($row) {
+        $id = (int)$row['id'];
+        $lockedSql = $lockedUntil ? "'" . $db->real_escape_string($lockedUntil) . "'" : 'NULL';
+        $db->query("UPDATE auth_throttle SET attempts = {$attempts}, locked_until = {$lockedSql}, last_attempt_at = NOW() WHERE id = {$id}");
+    } else {
+        $lockedSql = $lockedUntil ? "'" . $db->real_escape_string($lockedUntil) . "'" : 'NULL';
+        $db->query("INSERT INTO auth_throttle (scope, identifier, attempts, locked_until, last_attempt_at) VALUES ('{$scopeEsc}', '{$identifierEsc}', {$attempts}, {$lockedSql}, NOW())");
+    }
+
+    return [
+        'allowed' => $attempts < $maxAttempts,
+        'attempts' => $attempts,
+        'remaining' => max(0, $maxAttempts - $attempts),
+        'locked_until' => $lockedUntil,
+        'seconds_left' => authThrottleSecondsLeft($lockedUntil),
+    ];
+}
+
+function authThrottleReset(mysqli $db, string $scope, string $identifier): void {
+    ensureAuthThrottleTable($db);
+
+    $scope = authThrottleIdentifier($scope);
+    $identifier = authThrottleIdentifier($identifier);
+    $stmt = $db->prepare('DELETE FROM auth_throttle WHERE scope = ? AND identifier = ?');
+    if ($stmt) {
+        $stmt->bind_param('ss', $scope, $identifier);
         $stmt->execute();
     }
 }

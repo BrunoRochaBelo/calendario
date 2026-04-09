@@ -123,6 +123,13 @@ function is_active(string $page): string {
                 <span>Categorias</span>
             </a>
             <?php endif; ?>
+
+            <?php if (can('gerenciar_catalogo') || can('admin_sistema')): ?>
+            <a href="gerenciar_catalogo.php" class="<?= is_active('gerenciar_catalogo.php') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect width="6" height="4" x="9" y="3" rx="1"/><path d="M9 14l2 2 4-4"/></svg>
+                <span>Catálogo de Atividades</span>
+            </a>
+            <?php endif; ?>
             
             <?php if (can('admin_usuarios')): ?>
             <a href="usuarios.php" class="<?= is_active('usuarios.php') ?>">
@@ -139,6 +146,10 @@ function is_active(string $page): string {
             <a href="logs.php" class="<?= is_active('logs.php') ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 <span>Logs do Sistema</span>
+            </a>
+            <a href="/calender/documentos.php" class="<?= is_active('documentos.php') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
+                <span>Documentos</span>
             </a>
         </div>
         <?php endif; ?>

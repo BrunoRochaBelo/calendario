@@ -66,11 +66,17 @@ $sql = "
         ) AS total_inscritos
     FROM atividades a
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
-    WHERE a.paroquia_id = ? AND a.data_inicio BETWEEN ? AND ?
+    WHERE a.paroquia_id = ? 
+      AND a.data_inicio BETWEEN ? AND ?
+      AND (a.restrito = 0 OR ? = 1 OR a.criador_id = ?)
     ORDER BY a.hora_inicio ASC
 ";
+
+$userId = (int)($_SESSION['usuario_id'] ?? 0);
+$canVerRestritos = (int)can('ver_restritos');
+
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('iss', $pid, $startMonth, $endMonth);
+$stmt->bind_param('issii', $pid, $startMonth, $endMonth, $canVerRestritos, $userId);
 $stmt->execute();
 $res = $stmt->get_result();
 
