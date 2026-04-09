@@ -4,4 +4,12 @@
 
 -na tabela atividades_catalogo vai exluir as colunas data_criação e ultima_atualização
 
-- voce irá criar um novo botao para editar esta tabela e inserir uma coluna na tabela usuario como fleg e tambem colocar na caixa de seleção no perfil de edição do usuario
+- voce irá criar um novo botao para editar esta tabela e inserir uma coluna 
+na tabela usuario como fleg e tambem colocar na caixa de seleção no perfil de edição do usuario
+
+
+quando houver o cadastro de um novo evento 
+aparecerá a opção Atividades do Evento > vai bulscar para aparecer na 
+lista os itens da tabela catalogos de atividades na coluna nomes, e irá inserir.
+ e o usuario quando tiver habilitado para se inscrever ele vai escolher qual atividade
+ ele irá escolher ou apenas se inscrever, pode se increver em mais de uma ativiade
