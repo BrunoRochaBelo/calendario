@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->bind_param('s', $nome);
             if ($stmt->execute()) {
                 $target_id = $conn->insert_id;
-                logAction($conn, 'CRIAR_PAROQUIA', 'paroquias', $target_id, ['novo' => escapeshellarg($nome)]);
+                logAction($conn, 'CRIAR_PAROQUIA', 'paroquias', $target_id, ['novo' => $nome]);
                 
                 // Set to self context if master uses it
                 if (empty($_SESSION['paroquia_id'])) $_SESSION['paroquia_id'] = $target_id;
@@ -109,12 +109,24 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
         .header-flex { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; margin-bottom: 3rem; }
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1.5rem; }
 
-        .pq-card { 
-            padding: 1.5rem; border-radius: 24px; position: relative; 
-            overflow: hidden; display: flex; align-items: center; gap: 1.5rem; 
+        .pq-card {
+            padding: 1.5rem; border-radius: 24px; position: relative;
+            overflow: hidden; display: flex; align-items: center; gap: 1.5rem;
         }
         @media (max-width: 768px) {
             .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
+            .header-flex { flex-direction: column; align-items: flex-start; }
+            .grid { grid-template-columns: 1fr; }
+            .pq-card { flex-direction: column; align-items: flex-start; text-align: left; }
+            .pq-card > div:last-child { width: 100%; flex-direction: row; justify-content: space-between; }
+        }
+        /* The previous diff added these media queries, so they should be removed */
+        /*
+        @media (max-width: 991px) {
+            .header-flex { flex-direction: column; align-items: flex-start; }
+        }
+        @media (max-width: 576px) {
+            .main-content { padding: 1rem; }
             .header-flex { flex-direction: column; align-items: flex-start; }
             .grid { grid-template-columns: 1fr; }
             .pq-card { flex-direction: column; align-items: flex-start; text-align: left; }
@@ -124,7 +136,7 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
 </head>
 <body>
     <div class="bg-mesh"></div>
-
+    
     <div class="app-shell">
         <?php include 'sidebar.php'; ?>
 

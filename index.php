@@ -9,9 +9,12 @@ require_once 'functions.php';
 requireLogin();
 ensureInscricoesTable($conn);
 ensureUserPhotoColumn($conn);
+ensureEventActivitiesStructure($conn);
 
 $pid = current_paroquia_id();
 $canInteractActivities = canInteractWithActivity();
+$msg = $_GET['msg'] ?? '';
+$autoRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
 
 // 1. Date Navigation Logic
 $month = isset($_GET['m']) ? (int)$_GET['m'] : (int)date('m');
@@ -55,6 +58,11 @@ $sql = "
             SELECT COUNT(*)
             FROM inscricoes i
             WHERE i.atividade_id = a.id
+        ) + (
+            SELECT COUNT(*)
+            FROM atividade_evento_inscricoes aei
+            INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
+            WHERE ei.evento_id = a.id
         ) AS total_inscritos
     FROM atividades a
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
@@ -347,6 +355,22 @@ foreach ($holidays as $mmdd => $hName) {
             border: 1px solid var(--border); font-size: 0.85rem; color: var(--text);
             width: 100%;
         }
+        .event-items-wrap { margin-top: 1rem; display: none; }
+        .event-items-wrap.show { display: block; }
+        .event-items-list { display: grid; gap: 0.75rem; margin-top: 1rem; }
+        .event-item-card {
+            border: 1px solid var(--border); background: rgba(255,255,255,0.03);
+            border-radius: 16px; padding: 0.9rem;
+        }
+        .event-item-head {
+            display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+        .event-item-title { font-size: 0.95rem; font-weight: 800; color: var(--text); }
+        .event-item-count { font-size: 0.78rem; color: var(--text-dim); }
+        .event-item-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
+        .event-item-participants { display: grid; gap: 0.4rem; margin-top: 0.8rem; }
+        .event-item-note { margin-top: 0.8rem; font-size: 0.78rem; color: #fbbf24; }
         .event-modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap; }
         .modal-note {
             margin-top: 1rem; padding: 0.8rem 1rem; border-radius: 14px;
@@ -368,6 +392,9 @@ foreach ($holidays as $mmdd => $hName) {
         <?php include 'sidebar.php'; ?>
 
         <main class="main-content">
+            <?php if ($msg): ?>
+                <div class="animate-in" style="margin-bottom: 1rem;"><?= alert('success', h($msg)) ?></div>
+            <?php endif; ?>
             <header class="calendar-header animate-in">
                 <div class="month-display">
                     <h1 class="gradient-text" style="background: linear-gradient(to bottom, var(--primary), var(--accent)); -webkit-background-clip: text;"><?= $displayMonth ?></h1>
@@ -513,7 +540,12 @@ foreach ($holidays as $mmdd => $hName) {
 
             <p id="eventModalDescription" style="color: var(--text); line-height: 1.6; margin: 0;"></p>
 
-            <div style="margin-top: 1rem;">
+            <div id="eventModalItemsWrap" class="event-items-wrap">
+                <strong style="font-size: 0.85rem;">Atividades do evento</strong>
+                <div id="eventModalItems" class="event-items-list"></div>
+            </div>
+
+            <div id="eventModalParticipantsWrap" style="margin-top: 1rem;">
                 <strong style="font-size: 0.85rem;">Participantes</strong>
                 <div id="eventModalParticipants" class="participant-chips"></div>
             </div>
@@ -538,6 +570,9 @@ foreach ($holidays as $mmdd => $hName) {
             const viewButton = document.getElementById('eventViewButton');
             const noteBox = document.getElementById('eventModalNote');
             const feedbackBox = document.getElementById('eventModalFeedback');
+            const itemsWrap = document.getElementById('eventModalItemsWrap');
+            const itemsContainer = document.getElementById('eventModalItems');
+            const participantsWrap = document.getElementById('eventModalParticipantsWrap');
             let currentActivityId = null;
 
             function setFeedback(type, message) {
@@ -562,6 +597,9 @@ foreach ($holidays as $mmdd => $hName) {
                 setFeedback('', '');
                 noteBox.style.display = 'none';
                 noteBox.textContent = '';
+                itemsWrap.classList.remove('show');
+                itemsContainer.innerHTML = '';
+                participantsWrap.style.display = 'block';
             }
 
             async function loadActivity(id) {
@@ -584,7 +622,48 @@ foreach ($holidays as $mmdd => $hName) {
                 )).join('');
             }
 
+            function renderEventItems(activity) {
+                const items = Array.isArray(activity.event_items) ? activity.event_items : [];
+                if (!items.length) {
+                    itemsWrap.classList.remove('show');
+                    itemsContainer.innerHTML = '';
+                    participantsWrap.style.display = 'block';
+                    return false;
+                }
+
+                participantsWrap.style.display = 'none';
+                itemsWrap.classList.add('show');
+                itemsContainer.innerHTML = items.map((item) => {
+                    const participants = Array.isArray(item.participants) && item.participants.length
+                        ? item.participants.map((participant) => `<div class="participant-chip">${participant.nome}</div>`).join('')
+                        : '<div class="participant-chip">Nenhum inscrito nesta atividade</div>';
+                    const joinAction = activity.can_interact && !item.usuario_inscrito
+                        ? `<button type="button" class="btn btn-primary shimmer event-item-action" data-action="join" data-item-id="${item.id}">Inscrever-me</button>`
+                        : '';
+                    const leaveAction = activity.can_interact && item.usuario_inscrito && activity.can_cancel_now
+                        ? `<button type="button" class="btn btn-ghost event-item-action" data-action="leave" data-item-id="${item.id}">Desistir</button>`
+                        : '';
+                    const note = item.usuario_inscrito && !activity.can_cancel_now
+                        ? `<div class="event-item-note">${activity.deadline_message}</div>`
+                        : '';
+
+                    return `
+                        <div class="event-item-card">
+                            <div class="event-item-head">
+                                <div class="event-item-title">${item.nome}</div>
+                                <div class="event-item-count">${item.total_inscritos} inscrito(s)</div>
+                            </div>
+                            <div class="event-item-actions">${joinAction}${leaveAction}</div>
+                            <div class="event-item-participants">${participants}</div>
+                            ${note}
+                        </div>
+                    `;
+                }).join('');
+                return true;
+            }
+
             function fillModal(activity) {
+                const hasEventItems = renderEventItems(activity);
                 currentActivityId = activity.id;
                 document.getElementById('eventModalType').textContent = activity.nome_tipo || 'Evento';
                 document.getElementById('eventModalTitle').textContent = activity.nome;
@@ -592,13 +671,15 @@ foreach ($holidays as $mmdd => $hName) {
                 document.getElementById('eventModalLocation').textContent = activity.local_nome || 'Local não definido';
                 document.getElementById('eventModalDescription').textContent = activity.descricao || 'Sem descrição.';
                 viewButton.href = `ver_atividade.php?id=${activity.id}`;
-                renderParticipants(activity.participants || []);
+                if (!hasEventItems) {
+                    renderParticipants(activity.participants || []);
+                }
 
-                joinButton.style.display = activity.can_interact && !activity.usuario_inscrito ? 'inline-flex' : 'none';
-                leaveButton.style.display = activity.can_interact && activity.usuario_inscrito ? 'inline-flex' : 'none';
+                joinButton.style.display = !hasEventItems && activity.can_interact && !activity.usuario_inscrito ? 'inline-flex' : 'none';
+                leaveButton.style.display = !hasEventItems && activity.can_interact && activity.usuario_inscrito ? 'inline-flex' : 'none';
 
-                noteBox.style.display = (!activity.can_cancel_now && activity.usuario_inscrito) ? 'block' : 'none';
-                noteBox.textContent = (!activity.can_cancel_now && activity.usuario_inscrito) ? activity.deadline_message : '';
+                noteBox.style.display = !hasEventItems && !activity.can_cancel_now && activity.usuario_inscrito ? 'block' : 'none';
+                noteBox.textContent = !hasEventItems && !activity.can_cancel_now && activity.usuario_inscrito ? activity.deadline_message : '';
                 setFeedback('', '');
             }
 
@@ -608,7 +689,7 @@ foreach ($holidays as $mmdd => $hName) {
                 fillModal(activity);
             }
 
-            async function submitEnrollment(action) {
+            async function submitEnrollment(action, itemId = null) {
                 if (!currentActivityId) return;
                 const response = await fetch('inscrever.php', {
                     method: 'POST',
@@ -617,12 +698,17 @@ foreach ($holidays as $mmdd => $hName) {
                         'Accept': 'application/json',
                         'X-Requested-With': 'XMLHttpRequest'
                     },
-                    body: new URLSearchParams({ id: String(currentActivityId), action })
+                    body: new URLSearchParams({
+                        id: String(currentActivityId),
+                        action,
+                        item_id: itemId ? String(itemId) : ''
+                    })
                 });
                 const payload = await response.json();
                 setFeedback(payload.success ? 'success' : 'error', payload.message || '');
                 if (payload.success) {
                     await refreshModal();
+                    setTimeout(() => window.location.reload(), 1000);
                 }
             }
 
@@ -646,6 +732,21 @@ foreach ($holidays as $mmdd => $hName) {
             });
             joinButton.addEventListener('click', () => submitEnrollment('join'));
             leaveButton.addEventListener('click', () => submitEnrollment('leave'));
+            itemsContainer.addEventListener('click', (event) => {
+                const button = event.target.closest('.event-item-action');
+                if (!button) {
+                    return;
+                }
+                submitEnrollment(button.dataset.action, button.dataset.itemId);
+            });
+
+            <?php if ($autoRefresh): ?>
+            setTimeout(() => {
+                const url = new URL(window.location.href);
+                url.searchParams.delete('refresh');
+                window.location.replace(url.toString());
+            }, 1000);
+            <?php endif; ?>
         })();
     </script>
 </body>

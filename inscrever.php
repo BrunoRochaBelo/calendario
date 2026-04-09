@@ -6,7 +6,12 @@ if (!ensureInscricoesTable($conn)) {
     json_response(false, 'Não foi possível preparar a estrutura de inscrições.');
 }
 
+if (!ensureEventActivitiesStructure($conn)) {
+    json_response(false, 'Não foi possível preparar as atividades do evento.');
+}
+
 $aid = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
+$itemId = (int)($_POST['item_id'] ?? $_GET['item_id'] ?? 0);
 $action = strtolower(trim($_POST['action'] ?? $_GET['action'] ?? ''));
 $userId = (int)($_SESSION['usuario_id'] ?? 0);
 $pid = current_paroquia_id();
@@ -42,24 +47,74 @@ if (!$activity) {
     exit();
 }
 
-if ($action === 'join') {
-    $insert = $conn->prepare("
-        INSERT INTO inscricoes (atividade_id, usuario_id, data_inscricao)
+$targetTable = 'inscricoes';
+$targetRecordId = $aid;
+$targetName = $activity['nome'];
+$checkSql = "SELECT id FROM inscricoes WHERE atividade_id = ? AND usuario_id = ? LIMIT 1";
+$insertSql = "
+    INSERT INTO inscricoes (atividade_id, usuario_id, data_inscricao)
+    VALUES (?, ?, NOW())
+    ON DUPLICATE KEY UPDATE data_inscricao = data_inscricao
+";
+$deleteSql = "DELETE FROM inscricoes WHERE atividade_id = ? AND usuario_id = ?";
+$bindId = $aid;
+$logAction = 'INSCREVER_ATIVIDADE';
+$cancelLogAction = 'CANCELAR_INSCRICAO_ATIVIDADE';
+
+if ($itemId > 0) {
+    $itemStmt = $conn->prepare("
+        SELECT ei.id, ac.nome
+        FROM atividade_evento_itens ei
+        INNER JOIN atividades_catalogo ac ON ac.id = ei.atividade_catalogo_id
+        INNER JOIN atividades a ON a.id = ei.evento_id
+        WHERE ei.id = ? AND ei.evento_id = ? AND a.paroquia_id = ?
+        LIMIT 1
+    ");
+    $itemStmt->bind_param('iii', $itemId, $aid, $pid);
+    $itemStmt->execute();
+    $eventItem = $itemStmt->get_result()->fetch_assoc();
+
+    if (!$eventItem) {
+        if ($isAjax) {
+            json_response(false, 'Atividade do evento não encontrada.');
+        }
+        header('Location: ver_atividade.php?id=' . $aid . '&error=' . urlencode('Atividade do evento não encontrada.'));
+        exit();
+    }
+
+    $targetTable = 'atividade_evento_inscricoes';
+    $targetRecordId = (int)$eventItem['id'];
+    $targetName = $eventItem['nome'];
+    $checkSql = "SELECT id FROM atividade_evento_inscricoes WHERE evento_item_id = ? AND usuario_id = ? LIMIT 1";
+    $insertSql = "
+        INSERT INTO atividade_evento_inscricoes (evento_item_id, usuario_id, data_inscricao)
         VALUES (?, ?, NOW())
         ON DUPLICATE KEY UPDATE data_inscricao = data_inscricao
-    ");
-    $insert->bind_param('ii', $aid, $userId);
+    ";
+    $deleteSql = "DELETE FROM atividade_evento_inscricoes WHERE evento_item_id = ? AND usuario_id = ?";
+    $bindId = (int)$eventItem['id'];
+    $logAction = 'INSCREVER_ATIVIDADE_EVENTO';
+    $cancelLogAction = 'CANCELAR_INSCRICAO_ATIVIDADE_EVENTO';
+}
+
+if ($action === 'join') {
+    $insert = $conn->prepare($insertSql);
+    $insert->bind_param('ii', $bindId, $userId);
     $ok = $insert->execute();
 
     if ($ok) {
-        logAction($conn, 'INSCREVER_ATIVIDADE', 'inscricoes', $aid, [
+        logAction($conn, $logAction, $targetTable, $targetRecordId, [
             'atividade_id' => $aid,
+            'evento_item_id' => $itemId > 0 ? $bindId : null,
             'usuario_id' => $userId,
         ]);
+        $message = $itemId > 0
+            ? "Inscrição realizada em {$targetName}."
+            : 'Inscrição realizada com sucesso.';
         if ($isAjax) {
-            json_response(true, 'Inscrição realizada com sucesso.');
+            json_response(true, $message);
         }
-        header('Location: ver_atividade.php?id=' . $aid . '&msg=' . urlencode('Inscrição realizada com sucesso.'));
+        header('Location: ver_atividade.php?id=' . $aid . '&msg=' . urlencode($message));
         exit();
     }
 
@@ -70,16 +125,19 @@ if ($action === 'join') {
     exit();
 }
 
-$check = $conn->prepare("SELECT id FROM inscricoes WHERE atividade_id = ? AND usuario_id = ? LIMIT 1");
-$check->bind_param('ii', $aid, $userId);
+$check = $conn->prepare($checkSql);
+$check->bind_param('ii', $bindId, $userId);
 $check->execute();
 $existing = $check->get_result()->fetch_assoc();
 
 if (!$existing) {
+    $message = $itemId > 0
+        ? 'Você não está inscrito nesta atividade do evento.'
+        : 'Você não está inscrito nesta atividade.';
     if ($isAjax) {
-        json_response(false, 'Você não está inscrito nesta atividade.');
+        json_response(false, $message);
     }
-    header('Location: ver_atividade.php?id=' . $aid . '&error=' . urlencode('Você não está inscrito nesta atividade.'));
+    header('Location: ver_atividade.php?id=' . $aid . '&error=' . urlencode($message));
     exit();
 }
 
@@ -93,19 +151,23 @@ if (time() > $deadlineTs && !canBypassEnrollmentDeadline()) {
     exit();
 }
 
-$delete = $conn->prepare("DELETE FROM inscricoes WHERE atividade_id = ? AND usuario_id = ?");
-$delete->bind_param('ii', $aid, $userId);
+$delete = $conn->prepare($deleteSql);
+$delete->bind_param('ii', $bindId, $userId);
 $ok = $delete->execute();
 
 if ($ok) {
-    logAction($conn, 'CANCELAR_INSCRICAO_ATIVIDADE', 'inscricoes', $aid, [
+    logAction($conn, $cancelLogAction, $targetTable, $targetRecordId, [
         'atividade_id' => $aid,
+        'evento_item_id' => $itemId > 0 ? $bindId : null,
         'usuario_id' => $userId,
     ]);
+    $message = $itemId > 0
+        ? "Participação cancelada em {$targetName}."
+        : 'Participação cancelada com sucesso.';
     if ($isAjax) {
-        json_response(true, 'Participação cancelada com sucesso.');
+        json_response(true, $message);
     }
-    header('Location: ver_atividade.php?id=' . $aid . '&msg=' . urlencode('Participação cancelada com sucesso.'));
+    header('Location: ver_atividade.php?id=' . $aid . '&msg=' . urlencode($message));
     exit();
 }
 

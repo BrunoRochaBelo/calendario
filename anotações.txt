@@ -1,0 +1,7 @@
+-quando clicar num evento e abrir eu clicar em inscrever vai abir uma lista de atividades que eu posso fazer, e será inserida e mostrada que eu estou a disposição 
+
+-ao clicar par criar um novo evento, ao abrir vou preencher os campos, na atividades do evento, na lista suspensa irá buscar na tabela atividades_catalogo  a coluna  nome e listar.
+
+-na tabela atividades_catalogo vai exluir as colunas data_criação e ultima_atualização
+
+- voce irá criar um novo botao para editar esta tabela e inserir uma coluna na tabela usuario como fleg e tambem colocar na caixa de seleção no perfil de edição do usuario

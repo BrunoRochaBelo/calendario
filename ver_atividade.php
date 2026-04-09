@@ -9,6 +9,7 @@ require_once 'functions.php';
 requireLogin();
 ensureInscricoesTable($conn);
 ensureUserPhotoColumn($conn);
+ensureEventActivitiesStructure($conn);
 
 $pid = current_paroquia_id();
 $id = (int)($_GET['id'] ?? 0);
@@ -47,6 +48,7 @@ $stmt_p = $conn->prepare($parts_sql);
 $stmt_p->bind_param('i', $id);
 $stmt_p->execute();
 $participants = $stmt_p->get_result();
+$eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ?? 0));
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -84,6 +86,12 @@ $participants = $stmt_p->get_result();
         .participant-item { display: flex; align-items: center; gap: 1rem; padding: 1rem; background: rgba(255,255,255,0.02); border-radius: 12px; border: 1px solid var(--border); }
         .p-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; color: var(--accent); overflow: hidden; }
         .p-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .event-items-board { margin-bottom: 2rem; padding: 2rem; }
+        .event-items-grid { display: grid; gap: 1rem; }
+        .event-item-card { padding: 1.1rem; border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
+        .event-item-header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap; }
+        .event-item-participants { display: grid; gap: 0.5rem; margin-top: 0.9rem; }
+        .event-item-chip { padding: 0.55rem 0.75rem; border-radius: 12px; background: var(--panel-hi); border: 1px solid var(--border); font-size: 0.85rem; }
 
         @media (max-width: 1100px) {
             .info-grid { grid-template-columns: 1fr; }
@@ -190,6 +198,53 @@ $participants = $stmt_p->get_result();
                     <?php endif; ?>
                 </section>
             </div>
+
+            <?php if (!empty($eventItems)): ?>
+            <section class="glass event-items-board animate-in" style="animation-delay: 0.15s;">
+                <h3 style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-ghost); letter-spacing: 0.1em; margin-bottom: 1.5rem;">Atividades do Evento</h3>
+                <div class="event-items-grid">
+                    <?php foreach ($eventItems as $item): ?>
+                    <div class="event-item-card">
+                        <div class="event-item-header">
+                            <div>
+                                <div style="font-size: 1rem; font-weight: 800;"><?= h($item['nome']) ?></div>
+                                <div style="font-size: 0.8rem; color: var(--text-dim);"><?= (int)$item['total_inscritos'] ?> inscrito(s)</div>
+                            </div>
+                            <?php if (canInteractWithActivity()): ?>
+                                <?php if (!$item['usuario_inscrito']): ?>
+                                    <form method="POST" action="inscrever.php" style="margin: 0;">
+                                        <input type="hidden" name="id" value="<?= $id ?>">
+                                        <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="action" value="join">
+                                        <button type="submit" class="btn btn-primary shimmer">Inscrever-me</button>
+                                    </form>
+                                <?php elseif (activityStartTimestamp($activity) - 86400 >= time() || canBypassEnrollmentDeadline()): ?>
+                                    <form method="POST" action="inscrever.php" style="margin: 0;">
+                                        <input type="hidden" name="id" value="<?= $id ?>">
+                                        <input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>">
+                                        <input type="hidden" name="action" value="leave">
+                                        <button type="submit" class="btn btn-ghost">Desistir</button>
+                                    </form>
+                                <?php endif; ?>
+                            <?php endif; ?>
+                        </div>
+                        <div class="event-item-participants">
+                            <?php if (!empty($item['participants'])): ?>
+                                <?php foreach ($item['participants'] as $participant): ?>
+                                    <div class="event-item-chip"><?= h($participant['nome']) ?></div>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <div class="event-item-chip">Nenhum inscrito nesta atividade.</div>
+                            <?php endif; ?>
+                        </div>
+                        <?php if ($item['usuario_inscrito'] && !(activityStartTimestamp($activity) - 86400 >= time() || canBypassEnrollmentDeadline())): ?>
+                            <div style="margin-top: 0.9rem; font-size: 0.8rem; color: #fbbf24;">Somente usuários de nível 3 ou superior podem desistir com menos de 24 horas de antecedência.</div>
+                        <?php endif; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </section>
+            <?php endif; ?>
         </main>
     </div>
 </body>

@@ -8,6 +8,10 @@ if (!ensureInscricoesTable($conn)) {
     json_response(false, 'Não foi possível preparar a estrutura de inscrições.');
 }
 
+if (!ensureEventActivitiesStructure($conn)) {
+    json_response(false, 'Não foi possível preparar as atividades do evento.');
+}
+
 $pid = current_paroquia_id();
 $userId = (int)($_SESSION['usuario_id'] ?? 0);
 $month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('n');
@@ -32,11 +36,21 @@ $baseSql = "
             SELECT COUNT(*)
             FROM inscricoes i_count
             WHERE i_count.atividade_id = a.id
+        ) + (
+            SELECT COUNT(*)
+            FROM atividade_evento_inscricoes aei_count
+            INNER JOIN atividade_evento_itens ei_count ON ei_count.id = aei_count.evento_item_id
+            WHERE ei_count.evento_id = a.id
         ) AS total_inscritos,
         EXISTS(
             SELECT 1
             FROM inscricoes i_user
             WHERE i_user.atividade_id = a.id AND i_user.usuario_id = ?
+        ) OR EXISTS(
+            SELECT 1
+            FROM atividade_evento_inscricoes aei_user
+            INNER JOIN atividade_evento_itens ei_user ON ei_user.id = aei_user.evento_item_id
+            WHERE ei_user.evento_id = a.id AND aei_user.usuario_id = ?
         ) AS usuario_inscrito
     FROM atividades a
     LEFT JOIN locais_paroquia l ON a.local_id = l.id
@@ -47,7 +61,7 @@ $baseSql = "
 if ($activityId > 0) {
     $sql = $baseSql . " AND a.id = ? LIMIT 1";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param('iii', $userId, $pid, $activityId);
+    $stmt->bind_param('iiii', $userId, $userId, $pid, $activityId);
     $stmt->execute();
     $activity = $stmt->get_result()->fetch_assoc();
 
@@ -73,6 +87,7 @@ if ($activityId > 0) {
     $startTs = activityStartTimestamp($activity);
     $deadlineTs = $startTs - 86400;
     $now = time();
+    $eventItems = getEventActivityItems($conn, $activityId, $userId);
 
     json_response(true, '', [
         'activity' => [
@@ -94,6 +109,7 @@ if ($activityId > 0) {
             'can_cancel_now' => $now <= $deadlineTs || canBypassEnrollmentDeadline(),
             'deadline_message' => 'Somente usuários de nível 3 ou superior podem desistir com menos de 24 horas de antecedência.',
             'participants' => $participants,
+            'event_items' => $eventItems,
         ]
     ]);
 }
@@ -107,7 +123,7 @@ $sql = $baseSql . "
 ";
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('iiiiii', $userId, $pid, $month, $year, $month, $year);
+$stmt->bind_param('iiiiiii', $userId, $userId, $pid, $month, $year, $month, $year);
 $stmt->execute();
 $res = $stmt->get_result();
 

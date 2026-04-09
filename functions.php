@@ -99,6 +99,296 @@ function ensureInscricoesTable(mysqli $db): bool {
     return (bool)$db->query($sql);
 }
 
+function ensureEventActivitiesStructure(mysqli $db): bool {
+    static $checked = false;
+
+    if ($checked) {
+        return true;
+    }
+
+    $checked = true;
+
+    $catalogSql = "
+        CREATE TABLE IF NOT EXISTS atividades_catalogo (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            paroquia_id INT(10) UNSIGNED NOT NULL,
+            nome VARCHAR(150) NOT NULL,
+            descricao TEXT NULL,
+            ativo TINYINT(1) NOT NULL DEFAULT 1,
+            data_criacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            ultima_atualizacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_atividade_catalogo_nome (paroquia_id, nome),
+            KEY fk_atividade_catalogo_paroquia (paroquia_id),
+            CONSTRAINT fk_atividade_catalogo_paroquia FOREIGN KEY (paroquia_id) REFERENCES paroquias (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
+    $itemsSql = "
+        CREATE TABLE IF NOT EXISTS atividade_evento_itens (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            evento_id INT(10) UNSIGNED NOT NULL,
+            atividade_catalogo_id INT(10) UNSIGNED NOT NULL,
+            ordem INT(10) UNSIGNED NOT NULL DEFAULT 0,
+            data_criacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            ultima_atualizacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_evento_atividade_catalogo (evento_id, atividade_catalogo_id),
+            KEY fk_atividade_evento_item_evento (evento_id),
+            KEY fk_atividade_evento_item_catalogo (atividade_catalogo_id),
+            CONSTRAINT fk_atividade_evento_item_evento FOREIGN KEY (evento_id) REFERENCES atividades (id) ON DELETE CASCADE,
+            CONSTRAINT fk_atividade_evento_item_catalogo FOREIGN KEY (atividade_catalogo_id) REFERENCES atividades_catalogo (id) ON DELETE RESTRICT
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
+    $enrollSql = "
+        CREATE TABLE IF NOT EXISTS atividade_evento_inscricoes (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            evento_item_id INT(10) UNSIGNED NOT NULL,
+            usuario_id INT(10) UNSIGNED NOT NULL,
+            data_inscricao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY uniq_evento_item_usuario (evento_item_id, usuario_id),
+            KEY fk_atividade_evento_inscricao_item (evento_item_id),
+            KEY fk_atividade_evento_inscricao_usuario (usuario_id),
+            CONSTRAINT fk_atividade_evento_inscricao_item FOREIGN KEY (evento_item_id) REFERENCES atividade_evento_itens (id) ON DELETE CASCADE,
+            CONSTRAINT fk_atividade_evento_inscricao_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
+    return (bool)$db->query($catalogSql) && (bool)$db->query($itemsSql) && (bool)$db->query($enrollSql);
+}
+
+function seedDefaultEventActivities(mysqli $db, int $paroquiaId): void {
+    if ($paroquiaId <= 0 || !ensureEventActivitiesStructure($db)) {
+        return;
+    }
+
+    $check = $db->prepare("SELECT id FROM atividades_catalogo WHERE paroquia_id = ? LIMIT 1");
+    if (!$check) {
+        return;
+    }
+    $check->bind_param('i', $paroquiaId);
+    $check->execute();
+    $exists = $check->get_result()->fetch_assoc();
+    $check->close();
+
+    if ($exists) {
+        return;
+    }
+
+    $defaults = [
+        ['Liturgia', 'Organização litúrgica do evento'],
+        ['Leitura', 'Leitores e proclamadores'],
+        ['Canto', 'Equipe de música e canto'],
+        ['Acolhida', 'Recepção e apoio aos participantes'],
+        ['Comunicação', 'Cobertura, avisos e apoio da PASCOM'],
+    ];
+
+    $insert = $db->prepare("INSERT INTO atividades_catalogo (paroquia_id, nome, descricao) VALUES (?, ?, ?)");
+    if (!$insert) {
+        return;
+    }
+
+    foreach ($defaults as [$nome, $descricao]) {
+        $insert->bind_param('iss', $paroquiaId, $nome, $descricao);
+        $insert->execute();
+    }
+    $insert->close();
+}
+
+function getEventActivityCatalog(mysqli $db, int $paroquiaId): array {
+    if ($paroquiaId <= 0 || !ensureEventActivitiesStructure($db)) {
+        return [];
+    }
+
+    seedDefaultEventActivities($db, $paroquiaId);
+
+    $stmt = $db->prepare("
+        SELECT id, nome, descricao
+        FROM atividades_catalogo
+        WHERE paroquia_id = ? AND ativo = 1
+        ORDER BY nome ASC
+    ");
+    if (!$stmt) {
+        return [];
+    }
+
+    $stmt->bind_param('i', $paroquiaId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $items = [];
+    while ($row = $result->fetch_assoc()) {
+        $items[] = $row;
+    }
+    $stmt->close();
+
+    return $items;
+}
+
+function normalizeEventActivityCatalogIds(mixed $rawIds): array {
+    if (!is_array($rawIds)) {
+        return [];
+    }
+
+    $normalized = [];
+    foreach ($rawIds as $rawId) {
+        $id = (int)$rawId;
+        if ($id > 0) {
+            $normalized[] = $id;
+        }
+    }
+
+    return array_values(array_unique($normalized));
+}
+
+function saveEventActivityItems(mysqli $db, int $eventoId, int $paroquiaId, mixed $rawIds): void {
+    if ($eventoId <= 0 || $paroquiaId <= 0 || !ensureEventActivitiesStructure($db)) {
+        return;
+    }
+
+    $ids = normalizeEventActivityCatalogIds($rawIds);
+
+    $delete = $db->prepare("DELETE FROM atividade_evento_itens WHERE evento_id = ?");
+    if ($delete) {
+        $delete->bind_param('i', $eventoId);
+        $delete->execute();
+        $delete->close();
+    }
+
+    if (!$ids) {
+        return;
+    }
+
+    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+    $types = str_repeat('i', count($ids) + 1);
+    $params = array_merge([$paroquiaId], $ids);
+
+    $sql = "
+        SELECT id
+        FROM atividades_catalogo
+        WHERE paroquia_id = ? AND ativo = 1 AND id IN ($placeholders)
+        ORDER BY nome ASC
+    ";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) {
+        return;
+    }
+
+    $bindValues = [];
+    $bindValues[] = &$types;
+    foreach ($params as $key => $value) {
+        $bindValues[] = &$params[$key];
+    }
+    call_user_func_array([$stmt, 'bind_param'], $bindValues);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $validIds = [];
+    while ($row = $result->fetch_assoc()) {
+        $validIds[] = (int)$row['id'];
+    }
+    $stmt->close();
+
+    if (!$validIds) {
+        return;
+    }
+
+    $insert = $db->prepare("
+        INSERT INTO atividade_evento_itens (evento_id, atividade_catalogo_id, ordem)
+        VALUES (?, ?, ?)
+    ");
+    if (!$insert) {
+        return;
+    }
+
+    foreach ($ids as $ordem => $catalogId) {
+        if (!in_array($catalogId, $validIds, true)) {
+            continue;
+        }
+        $posicao = $ordem + 1;
+        $insert->bind_param('iii', $eventoId, $catalogId, $posicao);
+        $insert->execute();
+    }
+    $insert->close();
+}
+
+function getEventActivityItems(mysqli $db, int $eventoId, int $usuarioId = 0): array {
+    if ($eventoId <= 0 || !ensureEventActivitiesStructure($db)) {
+        return [];
+    }
+
+    $stmt = $db->prepare("
+        SELECT
+            ei.id,
+            ei.atividade_catalogo_id,
+            ei.ordem,
+            ac.nome,
+            ac.descricao,
+            (
+                SELECT COUNT(*)
+                FROM atividade_evento_inscricoes aei_count
+                WHERE aei_count.evento_item_id = ei.id
+            ) AS total_inscritos,
+            EXISTS(
+                SELECT 1
+                FROM atividade_evento_inscricoes aei_user
+                WHERE aei_user.evento_item_id = ei.id AND aei_user.usuario_id = ?
+            ) AS usuario_inscrito
+        FROM atividade_evento_itens ei
+        INNER JOIN atividades_catalogo ac ON ac.id = ei.atividade_catalogo_id
+        WHERE ei.evento_id = ?
+        ORDER BY ei.ordem ASC, ac.nome ASC
+    ");
+    if (!$stmt) {
+        return [];
+    }
+
+    $stmt->bind_param('ii', $usuarioId, $eventoId);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $items = [];
+    $ids = [];
+    while ($row = $result->fetch_assoc()) {
+        $row['id'] = (int)$row['id'];
+        $row['atividade_catalogo_id'] = (int)$row['atividade_catalogo_id'];
+        $row['ordem'] = (int)$row['ordem'];
+        $row['total_inscritos'] = (int)$row['total_inscritos'];
+        $row['usuario_inscrito'] = (int)$row['usuario_inscrito'] === 1;
+        $row['participants'] = [];
+        $items[$row['id']] = $row;
+        $ids[] = $row['id'];
+    }
+    $stmt->close();
+
+    if (!$ids) {
+        return [];
+    }
+
+    $participantIds = implode(',', array_map('intval', $ids));
+    $participantsRes = $db->query("
+        SELECT aei.evento_item_id, u.nome
+        FROM atividade_evento_inscricoes aei
+        INNER JOIN usuarios u ON u.id = aei.usuario_id
+        WHERE aei.evento_item_id IN ($participantIds)
+        ORDER BY u.nome ASC
+    ");
+
+    if ($participantsRes) {
+        while ($participant = $participantsRes->fetch_assoc()) {
+            $itemId = (int)$participant['evento_item_id'];
+            if (isset($items[$itemId])) {
+                $items[$itemId]['participants'][] = [
+                    'nome' => $participant['nome'],
+                ];
+            }
+        }
+    }
+
+    return array_values($items);
+}
+
 function activityStartTimestamp(array $activity): int {
     $date = $activity['data_inicio'] ?? date('Y-m-d');
     $time = $activity['hora_inicio'] ?? '00:00:00';

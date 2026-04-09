@@ -11,6 +11,10 @@ requirePerm('criar_eventos');
 $pid = current_paroquia_id();
 $error = '';
 $data_pref = $_GET['data'] ?? date('Y-m-d');
+ensureEventActivitiesStructure($conn);
+seedDefaultEventActivities($conn, $pid);
+$catalogoAtividades = getEventActivityCatalog($conn, $pid);
+$selectedActivities = normalizeEventActivityCatalogIds($_POST['atividades_evento'] ?? []);
 
 // 1. Handle Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,8 +34,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->bind_param('siiisssi', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $data['hora_inicio'], $uid);
         
         if ($stmt->execute()) {
-            logAction($conn, 'CRIAR_ATIVIDADE', 'atividades', $conn->insert_id, $data['nome']);
-            header('Location: atividades.php?msg=Atividade criada com sucesso!');
+            $newEventId = (int)$conn->insert_id;
+            saveEventActivityItems($conn, $newEventId, $pid, $data['atividades_evento'] ?? []);
+            logAction($conn, 'CRIAR_ATIVIDADE', 'atividades', $newEventId, $data['nome']);
+            $eventMonth = (int)date('n', strtotime($data['data_inicio']));
+            $eventYear = (int)date('Y', strtotime($data['data_inicio']));
+            header('Location: index.php?m=' . $eventMonth . '&y=' . $eventYear . '&msg=' . urlencode('Atividade criada com sucesso!') . '&refresh=1');
             exit();
         } else {
             $error = 'Erro interno: ' . $conn->error;
@@ -42,6 +50,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // 2. Fetch Helper Data
 $locais = $conn->query("SELECT id, nome_local FROM locais_paroquia WHERE paroquia_id = $pid ORDER BY nome_local");
 $tipos  = $conn->query("SELECT id, nome_tipo FROM tipos_atividade WHERE paroquia_id = $pid ORDER BY nome_tipo");
+$activityOptionMap = [];
+foreach ($catalogoAtividades as $catalogoItem) {
+    $activityOptionMap[] = [
+        'id' => (int)$catalogoItem['id'],
+        'nome' => $catalogoItem['nome'],
+    ];
+}
+if (!$selectedActivities) {
+    $selectedActivities = [0];
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -65,6 +83,11 @@ $tipos  = $conn->query("SELECT id, nome_tipo FROM tipos_atividade WHERE paroquia
         .form-group label { font-size: 0.7rem; font-weight: 800; text-transform: uppercase; color: var(--text-ghost); letter-spacing: 0.1em; }
         
         .row-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .event-activities-box { display: grid; gap: 0.9rem; }
+        .event-activity-row { display: flex; gap: 0.75rem; align-items: center; }
+        .event-activity-row select { flex: 1; color: #111827 !important; background: #ffffff !important; }
+        .event-activity-remove { min-width: 48px; height: 48px; padding: 0; display: inline-flex; align-items: center; justify-content: center; font-size: 1.2rem; }
+        .event-activities-help { font-size: 0.82rem; color: var(--text-dim); line-height: 1.5; }
         select[name="local_id"],
         select[name="tipo_id"] {
             color: #111827 !important;
@@ -144,6 +167,15 @@ $tipos  = $conn->query("SELECT id, nome_tipo FROM tipos_atividade WHERE paroquia
                             <textarea name="descricao" rows="4" placeholder="Descreva os detalhes ou objetivos deste evento..."></textarea>
                         </div>
 
+                        <div class="form-group">
+                            <label>Atividades do Evento</label>
+                            <div id="eventActivitiesBox" class="event-activities-box"></div>
+                            <button type="button" id="addEventActivity" class="btn btn-ghost" style="width: fit-content;">+ Adicionar atividade</button>
+                            <div class="event-activities-help">
+                                Os administradores podem vincular várias atividades ao mesmo evento. O usuário poderá se inscrever em mais de uma.
+                            </div>
+                        </div>
+
                         <div style="display: flex; gap: 1.2rem; margin-top: 1rem;">
                             <button type="submit" class="btn btn-primary shimmer" style="flex: 2; height: 55px;">Criar Evento</button>
                             <a href="atividades.php" class="btn btn-ghost" style="flex: 1; height: 55px; line-height: 55px; text-align: center;">Voltar</a>
@@ -153,5 +185,46 @@ $tipos  = $conn->query("SELECT id, nome_tipo FROM tipos_atividade WHERE paroquia
             </div>
         </main>
     </div>
+    <script>
+        (() => {
+            const box = document.getElementById('eventActivitiesBox');
+            const addButton = document.getElementById('addEventActivity');
+            const options = <?= json_encode($activityOptionMap, JSON_UNESCAPED_UNICODE) ?>;
+            const initialValues = <?= json_encode($selectedActivities) ?>;
+
+            function buildOptions(selectedValue) {
+                const base = ['<option value="">Selecione uma atividade</option>'];
+                options.forEach((item) => {
+                    const selected = Number(selectedValue) === Number(item.id) ? ' selected' : '';
+                    base.push(`<option value="${item.id}"${selected}>${item.nome}</option>`);
+                });
+                return base.join('');
+            }
+
+            function addRow(selectedValue = '') {
+                const row = document.createElement('div');
+                row.className = 'event-activity-row';
+                row.innerHTML = `
+                    <select name="atividades_evento[]">${buildOptions(selectedValue)}</select>
+                    <button type="button" class="btn btn-ghost event-activity-remove" title="Remover atividade">×</button>
+                `;
+                row.querySelector('.event-activity-remove').addEventListener('click', () => {
+                    row.remove();
+                    if (!box.children.length) {
+                        addRow('');
+                    }
+                });
+                box.appendChild(row);
+            }
+
+            addButton.addEventListener('click', () => addRow(''));
+
+            if (initialValues.length) {
+                initialValues.forEach((value) => addRow(value));
+            } else {
+                addRow('');
+            }
+        })();
+    </script>
 </body>
 </html>

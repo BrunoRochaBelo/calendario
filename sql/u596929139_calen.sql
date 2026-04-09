@@ -115,9 +115,6 @@ INSERT INTO `log_alteracoes` (`id`, `usuario_id`, `acao`, `tabela_afetada`, `reg
 CREATE TABLE `paroquias` (
   `id` int(10) UNSIGNED NOT NULL,
   `nome` varchar(255) NOT NULL,
-  `cidade` varchar(100) DEFAULT NULL,
-  `estado` char(2) DEFAULT NULL,
-  `diocese` varchar(255) DEFAULT NULL,
   `ativo` tinyint(1) DEFAULT 1,
   `data_criacao` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -126,8 +123,8 @@ CREATE TABLE `paroquias` (
 -- Despejando dados para a tabela `paroquias`
 --
 
-INSERT INTO `paroquias` (`id`, `nome`, `cidade`, `estado`, `diocese`, `ativo`, `data_criacao`) VALUES
-(1, 'Paróquia São José', 'São Paulo', 'SP', 'Arquidiocese de São Paulo', 1, '2026-03-12 01:37:29');
+INSERT INTO `paroquias` (`id`, `nome`, `ativo`, `data_criacao`) VALUES
+(1, 'Paróquia São José', 1, '2026-03-12 01:37:29');
 
 -- --------------------------------------------------------
 
