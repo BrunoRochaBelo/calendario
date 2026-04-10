@@ -62,39 +62,35 @@ function is_active(string $page): string {
 
 <aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
-        <button type="button" class="desktop-toggle hide-on-mobile" onclick="toggleDesktopSidebar()" title="Alternar menu">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="toggle-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
-            <span class="toggle-text">Fechar</span>
-        </button>
-        <div class="brand">
-            <!-- ... same brand content ... -->
+        <div class="header-top">
             <div class="brand-logo">
                 <?php 
                 $icon_path = "img/paroquia_{$pid}.png";
                 if ($pid > 0 && file_exists(__DIR__ . '/' . $icon_path)): 
                 ?>
-                    <img src="<?= $icon_path ?>?v=<?= time() ?>" alt="Paróquia" style="width: 100%; height: 100%; border-radius: 12px; object-fit: cover;">
+                    <img src="<?= $icon_path ?>?v=<?= time() ?>" alt="Paróquia" style="width: 100%; height: 100%; border-radius: 10px; object-fit: cover;">
                 <?php else: ?>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                 <?php endif; ?>
             </div>
-            <div class="brand-text">
-                <span class="brand-name">PASCOM</span>
-                <?php if (userCanSwitchParish()): ?>
-                    <select class="brand-sub-select" onchange="window.location.href='select_paroquia.php?id='+this.value">
-                        <?php if ($pid == 0): ?><option value="0" selected>Selecionar...</option><?php endif; ?>
-                        <?php foreach($all_parishes as $p): ?>
-                            <option value="<?= $p['id'] ?>" <?= $p['id'] == $pid ? 'selected' : '' ?>><?= h($p['nome']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                <?php else: ?>
-                    <span class="brand-sub" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; display: block;"><?= h($parish_name) ?></span>
-                <?php endif; ?>
-            </div>
+            <button type="button" class="desktop-toggle hide-on-mobile" onclick="toggleDesktopSidebar()" title="Alternar menu">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" class="toggle-icon"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                <span class="toggle-text">FECHAR</span>
+            </button>
         </div>
-        <button class="close-sidebar" onclick="toggleSidebar()">
-             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
+        <div class="brand-details">
+            <span class="brand-text">Calendário Paroquial</span>
+            <?php if (count($all_parishes) > 1): ?>
+                <select class="brand-sub-select" onchange="window.location.href='select_paroquia.php?id='+this.value">
+                    <?php if ($pid == 0): ?><option value="0" selected>Selecionar...</option><?php endif; ?>
+                    <?php foreach($all_parishes as $p): ?>
+                        <option value="<?= $p['id'] ?>" <?= $p['id'] == $pid ? 'selected' : '' ?>><?= h($p['nome']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            <?php else: ?>
+                <span class="brand-sub"><?= h($parish_name) ?></span>
+            <?php endif; ?>
+        </div>
     </div>
 
     <!-- ... rest of sidebar ... -->
@@ -211,42 +207,34 @@ function is_active(string $page): string {
 }
 .menu-trigger:hover { background: var(--border); transform: scale(1.05); }
 
-.close-sidebar {
-    background: transparent; border: none; color: var(--text-ghost);
-    cursor: pointer; display: none; padding: 0.5rem; transition: 0.2s;
-}
-.close-sidebar:hover { color: #ef4444; }
-
 .desktop-toggle {
     background: var(--primary); border: none; color: #fff;
-    cursor: pointer; display: none; padding: 0.6rem 1.2rem; transition: all 0.3s;
-    border-radius: 12px; align-items: center; justify-content: center;
-    gap: 0.8rem; font-weight: 800; font-size: 0.85rem;
+    cursor: pointer; display: none; padding: 0.5rem 0.8rem; transition: all 0.3s;
+    border-radius: 100px; align-items: center; justify-content: center;
+    flex-shrink: 0; gap: 0.5rem; font-weight: 900; font-size: 0.65rem;
     box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
-    margin-right: 1rem;
 }
-.desktop-toggle:hover { background: var(--accent); transform: translateX(-3px); }
-.toggle-text { display: inline-block; }
+.desktop-toggle:hover { background: var(--accent); transform: scale(1.05); }
+.toggle-text { letter-spacing: 0.05em; }
 
-.sidebar-header { padding: 2rem 1.5rem; display: flex; align-items: center; justify-content: flex-start; }
-.brand { display: flex; align-items: center; gap: 1rem; }
+.sidebar-header { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+.header-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+.brand { display: flex; align-items: center; gap: 0.85rem; }
+.brand-details { display: flex; flex-direction: column; line-height: 1.1; }
+.brand-text { font-weight: 900; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--text); }
+.brand-sub { 
+    font-size: 0.65rem; font-weight: 700; color: var(--text-ghost); 
+    text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px;
+    line-height: 1.3; display: block; white-space: normal; overflow-wrap: break-word;
+}
+.brand-sub-select { background: rgba(var(--primary-rgb), 0.05); border: 1px solid var(--border); font-size: 0.65rem; font-weight: 700; color: var(--primary); cursor: pointer; padding: 0.5rem; outline: none; margin-top: 6px; text-transform: uppercase; width: 100%; border-radius: 8px; }
+.brand-sub-select option { background: var(--bg); color: var(--text); }
 .brand-logo { 
-    width: 42px; height: 42px; border-radius: 12px; 
+    width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
     background: linear-gradient(135deg, var(--primary), var(--accent));
     display: flex; align-items: center; justify-content: center;
-    box-shadow: 0 8px 16px rgba(var(--primary-rgb), 0.2);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.2);
 }
-.brand-text { display: flex; flex-direction: column; }
-.brand-name { font-weight: 900; font-size: 1.1rem; letter-spacing: -0.01em; color: var(--text); }
-.brand-sub { font-size: 0.75rem; color: var(--text-dim); font-weight: 600; }
-.brand-sub-select { 
-    font-size: 0.75rem; color: var(--text-dim); font-weight: 600;
-    background: rgba(255,255,255,0.05); border: 1px solid var(--border);
-    border-radius: 4px; padding: 0.1rem 0.3rem; outline: none;
-    max-width: 140px; cursor: pointer; transition: all 0.2s;
-}
-.brand-sub-select:hover { border-color: var(--primary); background: rgba(var(--primary-rgb), 0.1); }
-.brand-sub-select option { background: #1a1b2e; color: #fff; }
 
 .sidebar-nav { flex: 1; overflow-y: auto; padding: 1rem; }
 /* ... existing nav styles ... */
@@ -304,29 +292,40 @@ function is_active(string $page): string {
 @media (min-width: 1025px) {
     .desktop-toggle { display: flex; }
     
-    .sidebar-mini .sidebar { width: 80px; padding: 1.5rem 0.75rem; overflow: visible; }
+    .sidebar-mini .sidebar { width: 80px; padding: 0; overflow: visible; }
     .sidebar-mini .main-content { margin-left: 80px; }
-    .sidebar-mini .sidebar .brand-text, 
-    .sidebar-mini .sidebar .nav-text, 
-    .sidebar-mini .sidebar .nav-badge,
-    .sidebar-mini .sidebar .user-details,
-    .sidebar-mini .sidebar .logout-btn,
-    .sidebar-mini .sidebar .brand-sub-select { display: none; }
     
-    .sidebar-mini .sidebar .brand { justify-content: center; width: 100%; margin: 0; }
-    .sidebar-mini .sidebar .nav-link { justify-content: center; padding: 0.8rem; border-radius: 12px; }
-    .sidebar-mini .sidebar .nav-link i, .sidebar-mini .sidebar .nav-link svg { margin: 0; font-size: 1.25rem; }
-    .sidebar-mini .sidebar .user-info { justify-content: center; width: 100%; }
-    .sidebar-mini .sidebar .brand-logo { width: 42px; height: 42px; }
-    .sidebar-mini .sidebar .sidebar-header { padding: 1.5rem 0; flex-direction: column; gap: 1.5rem; align-items: center; }
+    .sidebar-mini .sidebar .nav-item { display: flex; align-items: center; justify-content: center; padding: 0; border-radius: 12px; margin: 0 auto; width: 42px; height: 42px; transform: none !important; }
+    .sidebar-mini .sidebar .brand-details,
+    .sidebar-mini .sidebar .nav-item span,
+    .sidebar-mini .sidebar .user-details,
+    .sidebar-mini .sidebar .logout-btn span,
+    .sidebar-mini .sidebar .toggle-text,
+    .sidebar-mini .sidebar .nav-badge { display: none !important; }
+    
+    .sidebar-mini .sidebar .nav-item i, .sidebar-mini .sidebar .nav-item svg { margin: 0; font-size: 1.6rem; opacity: 1 !important; color: var(--text-ghost); width: 28px; height: 28px; }
+    .sidebar-mini .sidebar .nav-item:hover i, .sidebar-mini .sidebar .nav-item:hover svg { color: var(--primary); }
+    .sidebar-mini .sidebar .nav-item.active i, .sidebar-mini .sidebar .nav-item.active svg { color: var(--primary); }
+    
+    .sidebar-mini .sidebar .sidebar-footer { flex-direction: column; gap: 1rem; padding: 1.5rem 0; align-items: center; justify-content: center; border-top-color: rgba(255,255,255,0.03); }
+    .sidebar-mini .sidebar .user-info { justify-content: center; width: 100%; border: 0; padding: 0; }
+    .sidebar-mini .sidebar .logout-btn { padding: 0; width: 38px; height: 38px; justify-content: center; border-radius: 10px; margin: 0 auto; display: flex; align-items: center; }
+    .sidebar-mini .sidebar .logout-btn svg { width: 20px; height: 20px; }
+    
+    .sidebar-mini .sidebar .sidebar-header { padding: 2.5rem 0 1.5rem; flex-direction: column; gap: 1rem; align-items: center; justify-content: center; border-bottom: none; }
+    .sidebar-mini .sidebar .header-top { flex-direction: column-reverse; gap: 1.5rem; align-items: center; justify-content: center; }
+    .sidebar-mini .sidebar .brand { display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; }
+    .sidebar-mini .sidebar .brand-logo { width: 38px; height: 38px; margin: 0; }
+    
     .sidebar-mini .sidebar .desktop-toggle { 
-        width: 42px; height: 42px; padding: 0; margin: 0; 
-        background: rgba(var(--primary-rgb), 0.1); color: var(--primary);
-        box-shadow: none;
+        width: 32px; height: 32px; padding: 0; margin: 0; gap: 0;
+        background: var(--primary); color: #fff;
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.3); display: flex;
     }
-    .sidebar-mini .sidebar .desktop-toggle:hover { transform: none; background: var(--panel-hi); }
-    .sidebar-mini .sidebar .desktop-toggle .toggle-text { display: none; }
     .sidebar-mini .sidebar .desktop-toggle .toggle-icon { transform: rotate(180deg); }
+    .sidebar-mini .sidebar .nav-group { align-items: center; display: flex; flex-direction: column; gap: 0.5rem; padding: 0; width: 100%; }
+    .sidebar-mini .sidebar .nav-label { display: none; }
+    .sidebar-mini .sidebar .sidebar-nav { padding: 1rem 0; }
 }
 </style>
 

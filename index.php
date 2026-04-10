@@ -180,11 +180,19 @@ foreach ($holidays as $mmdd => $hName) {
         }
         .month-display { display: flex; align-items: baseline; gap: 1rem; }
         .month-display h1 { 
-            font-size: clamp(2rem, 5vw, 4rem); color: var(--primary); font-weight: 950; 
+            font-size: clamp(1.5rem, 4vw, 2.5rem); color: var(--primary); font-weight: 950; 
             letter-spacing: -0.05em; margin: 0; line-height: 0.8;
             text-transform: uppercase;
         }
-        .year-label { font-size: clamp(1.5rem, 3vw, 2.5rem); color: var(--text); font-weight: 900; opacity: 0.9; }
+        .year-label { font-size: clamp(1.2rem, 2.5vw, 2rem); color: var(--text); font-weight: 900; opacity: 0.9; }
+        
+        .context-msg {
+            background: rgba(var(--primary-rgb), 0.1); color: var(--primary);
+            font-size: 0.75rem; font-weight: 800; padding: 0.5rem 1rem;
+            border-radius: 100px; text-transform: uppercase; letter-spacing: 0.05em;
+            margin-right: 0.5rem; border: 1px solid rgba(var(--primary-rgb), 0.2);
+            display: inline-flex; align-items: center; justify-content: center;
+        }
 
         .nav-controls { display: flex; gap: 0.5rem; }
         
@@ -398,12 +406,15 @@ foreach ($holidays as $mmdd => $hName) {
         <?php include 'sidebar.php'; ?>
 
         <main class="main-content">
-            <?php if ($msg): ?>
+            <?php if ($msg && strpos(strtolower($msg), 'contexto') === false): ?>
                 <div class="animate-in" style="margin-bottom: 1rem;"><?= alert('success', h($msg)) ?></div>
             <?php endif; ?>
             <header class="calendar-header animate-in">
                 <div class="month-display">
                     <h1 class="gradient-text" style="background: linear-gradient(to bottom, var(--primary), var(--accent)); -webkit-background-clip: text;"><?= $displayMonth ?></h1>
+                    <?php if ($msg && strpos(strtolower($msg), 'contexto') !== false): ?>
+                        <span id="ctxMsg" class="context-msg animate-in"><?= h($msg) ?></span>
+                    <?php endif; ?>
                     <span class="year-label"><?= $year ?></span>
                 </div>
                 <div class="nav-controls">
@@ -774,6 +785,19 @@ foreach ($holidays as $mmdd => $hName) {
             }, 1000);
             <?php endif; ?>
         })();
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const ctxMsg = document.getElementById('ctxMsg');
+            if (ctxMsg) {
+                setTimeout(() => {
+                    ctxMsg.style.transition = 'all 0.5s ease';
+                    ctxMsg.style.opacity = '0';
+                    ctxMsg.style.transform = 'translateX(-10px)';
+                    setTimeout(() => ctxMsg.remove(), 500);
+                }, 4000);
+            }
+        });
     </script>
 </body>
 </html>

@@ -76,15 +76,18 @@ $tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes
         
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
-            .header-flex { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
-            .filter-bar { flex-direction: column; }
+            .header-flex { flex-direction: column; align-items: center; text-align: center; gap: 1.5rem; }
+            .filter-bar { flex-direction: column; align-items: stretch; gap: 1.25rem; }
+            .filter-bar .form-group { flex: 1 1 auto; }
+            .filter-actions { display: flex; flex-direction: column; gap: 0.8rem; width: 100%; }
             .btn { width: 100%; justify-content: center; }
         }
         
         .header-flex { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3.5rem; }
         
-        .filter-bar { display: flex; gap: 1rem; margin-bottom: 2.5rem; }
-        .filter-bar .form-group { flex: 1; }
+        .filter-bar { display: flex; gap: 1.5rem; margin-bottom: 2.5rem; flex-wrap: wrap; align-items: flex-end; }
+        .filter-bar .form-group { flex: 0 1 250px; }
+        .filter-actions { display: flex; gap: 0.5rem; }
 
         .timeline { display: flex; flex-direction: column; gap: 1rem; }
         .log-item { display: grid; grid-template-columns: 180px 150px 100px 1fr 200px; align-items: center; gap: 1.5rem; padding: 1.25rem 2rem; transition: background 0.2s; }
@@ -162,7 +165,7 @@ $tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes
                     <label style="font-size: 0.65rem; margin-bottom: 0.5rem; display: block;">FILTRAR POR USUÁRIO</label>
                     <input type="text" name="usuario" value="<?= h($filter_user) ?>" placeholder="Nome do usuário..." list="usuarios_list" autocomplete="off">
                 </div>
-                <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
+                <div class="filter-actions">
                     <button type="submit" class="btn btn-primary" style="padding: 0.8rem 1.5rem;">Filtrar</button>
                     <a href="logs.php" class="btn btn-ghost" style="padding: 0.8rem 1.5rem;">Limpar</a>
                 </div>
