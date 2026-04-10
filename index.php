@@ -1,7 +1,7 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Parish Calendar (v2.4.3 Ultra Premium)
+ * PASCOM — Parish Calendar (v2.4.4 Ultra Premium)
  * High Performance · Glassmorphism · Dynamic Enrollment
  * ═══════════════════════════════════════════════════════ */
 
@@ -214,13 +214,13 @@ foreach ($holidays as $mmdd => $hName) {
 
 
         /* Desktop Grid */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(160px, auto); }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-template-rows: auto; grid-auto-rows: minmax(160px, auto); }
 
         
         .cal-weekday { 
-            background: var(--bg-darker); padding: 1rem 0.75rem; text-align: center;
-            font-size: 0.85rem; font-weight: 800; text-transform: uppercase;
-            letter-spacing: 0.1em; color: var(--text-ghost);
+            background: var(--bg-darker); padding: 0.4rem 0.5rem; text-align: center;
+            font-size: 0.8rem; font-weight: 800; text-transform: capitalize;
+            letter-spacing: 0.05em; color: var(--text-ghost);
             border-bottom: 1px solid var(--border);
         }
         .cal-weekday.sunday { color: #ef4444; background: rgba(239, 68, 68, 0.05); }
@@ -466,7 +466,7 @@ foreach ($holidays as $mmdd => $hName) {
             <div class="calendar-container animate-in" style="animation-delay: 0.1s;">
                 <div class="cal-grid">
                     <?php 
-                    $weekdays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB'];
+                    $weekdays = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
                     foreach ($weekdays as $i => $day): ?>
                         <div class="cal-weekday <?= $i === 0 ? 'sunday' : '' ?>"><?= $day ?></div>
                     <?php endforeach; ?>
