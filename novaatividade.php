@@ -12,6 +12,7 @@ $pid = current_paroquia_id();
 $error = '';
 $data_pref = $_GET['data'] ?? date('Y-m-d');
 ensureEventActivitiesStructure($conn);
+ensureAtividadeGruposTable($conn);
 seedDefaultEventActivities($conn, $pid);
 $catalogoAtividades = getEventActivityCatalog($conn, $pid);
 $selectedActivities = normalizeEventActivityCatalogIds($_POST['atividades_evento'] ?? []);
@@ -39,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->execute()) {
             $newEventId = (int)$conn->insert_id;
             saveEventActivityItems($conn, $newEventId, $pid, $data['atividades_evento'] ?? []);
+            saveActivityGroups($conn, $newEventId, $data['grupos_evento'] ?? []);
             
             // Recurrence Handling
             if (isset($data['se_repete']) && !empty($data['data_fim_recorrencia'])) {
@@ -74,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     if ($stRepeat->execute()) {
                         $repeatId = (int)$conn->insert_id;
                         saveEventActivityItems($conn, $repeatId, $pid, $data['atividades_evento'] ?? []);
+                        saveActivityGroups($conn, $repeatId, $data['grupos_evento'] ?? []);
                     }
                     $count++;
                 }
@@ -100,6 +103,9 @@ foreach ($catalogoAtividades as $catalogoItem) {
         'nome' => $catalogoItem['nome'],
     ];
 }
+
+$gruposTrabalho = getWorkingGroups($conn, $pid);
+
 if (!$selectedActivities) {
     $selectedActivities = [0];
 }
@@ -317,10 +323,28 @@ if (!$selectedActivities) {
                         <div class="form-group full-width" style="margin-top: 1rem;">
                             <div style="display: flex; align-items: center; gap: 0.8rem; background: rgba(239, 68, 68, 0.05); padding: 1rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.1); width: fit-content;">
                                 <input type="checkbox" name="restrito" id="restrito" style="width: 20px; height: 20px; cursor: pointer;">
-                                <label for="restrito" style="margin: 0; cursor: pointer; color: #ef4444;">Evento Restrito (Privado)</label>
+                                <label for="restrito" style="margin: 0; cursor: pointer; color: #ef4444;">Evento Restrito (Apenas Admin/Nível Elevado)</label>
                             </div>
                         </div>
                         <?php endif; ?>
+
+                        <div class="form-group full-width">
+                            <label>Participação por Grupos de Trabalho</label>
+                            <div class="groups-checkbox-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);">
+                                <?php if (empty($gruposTrabalho)): ?>
+                                    <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0;">Nenhum grupo de trabalho cadastrado na paróquia.</p>
+                                <?php else: ?>
+                                    <?php foreach ($gruposTrabalho as $grp): ?>
+                                        <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.85rem; color: var(--text); padding: 0.4rem; border-radius: 8px; transition: background 0.2s;">
+                                            <input type="checkbox" name="grupos_evento[]" value="<?= $grp['id'] ?>" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+                                            <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:<?= $grp['cor'] ?? '#fff' ?>;"></span>
+                                            <?= h($grp['nome']) ?>
+                                        </label>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </div>
+                            <small style="color: var(--text-dim); font-size: 0.75rem; margin-top: 0.5rem; display: block;">Se nenhum grupo for selecionado, o evento ficará visível para **todos** na paróquia.</small>
+                        </div>
 
                         <div class="form-group full-width">
                             <label>Atividades do Evento</label>
@@ -436,7 +460,7 @@ if (!$selectedActivities) {
                     recurrenceBox.classList.toggle('active', seRepete.checked);
                     if (seRepete.checked && !dataFim.value) {
                         const nextMonth = new Date(dataInicio.value || new Date());
-                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        nextMonth.setDate(nextMonth.getDate() + 1);
                         dataFim.value = nextMonth.toISOString().split('T')[0];
                     }
                 });

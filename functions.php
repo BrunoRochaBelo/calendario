@@ -562,4 +562,70 @@ function saveUserGroupsScoped(mysqli $db, int $userId, array $postGroupIds, arra
     // 6. Aplicar salvamento padrão
     return saveUserGroups($db, $userId, $finalGroupIds);
 }
+
+/**
+ * Garante que a tabela atividade_grupos exista.
+ */
+function ensureAtividadeGruposTable(mysqli $db): void {
+    static $checked = false;
+    if ($checked) return;
+    $checked = true;
+
+    $db->query("
+        CREATE TABLE IF NOT EXISTS atividade_grupos (
+            atividade_id INT(10) UNSIGNED NOT NULL,
+            grupo_id INT(10) UNSIGNED NOT NULL,
+            PRIMARY KEY (atividade_id, grupo_id),
+            KEY fk_ag_atividade (atividade_id),
+            KEY fk_ag_grupo (grupo_id),
+            CONSTRAINT fk_ag_atividade FOREIGN KEY (atividade_id) REFERENCES atividades (id) ON DELETE CASCADE,
+            CONSTRAINT fk_ag_grupo FOREIGN KEY (grupo_id) REFERENCES grupos_trabalho (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+}
+
+/**
+ * Salva a associação de uma atividade com grupos.
+ */
+function saveActivityGroups(mysqli $db, int $atividadeId, array $groupIds): bool {
+    ensureAtividadeGruposTable($db);
+    
+    $stmtDel = $db->prepare("DELETE FROM atividade_grupos WHERE atividade_id = ?");
+    if ($stmtDel) {
+        $stmtDel->bind_param('i', $atividadeId);
+        $stmtDel->execute();
+    }
+
+    if (empty($groupIds)) return true;
+
+    $stmtIns = $db->prepare("INSERT INTO atividade_grupos (atividade_id, grupo_id) VALUES (?, ?)");
+    if (!$stmtIns) return false;
+
+    foreach ($groupIds as $gid) {
+        $gid = (int)$gid;
+        if ($gid > 0) {
+            $stmtIns->bind_param('ii', $atividadeId, $gid);
+            $stmtIns->execute();
+        }
+    }
+    return true;
+}
+
+/**
+ * Retorna os IDs dos grupos associados a uma atividade.
+ */
+function getActivityGroups(mysqli $db, int $atividadeId): array {
+    ensureAtividadeGruposTable($db);
+    $sql = "SELECT grupo_id FROM atividade_grupos WHERE atividade_id = ?";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) return [];
+    $stmt->bind_param('i', $atividadeId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $ids = [];
+    while ($row = $res->fetch_assoc()) {
+        $ids[] = (int)$row['grupo_id'];
+    }
+    return $ids;
+}
 ?>

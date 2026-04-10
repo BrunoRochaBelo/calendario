@@ -69,14 +69,25 @@ $sql = "
     WHERE a.paroquia_id = ? 
       AND a.data_inicio BETWEEN ? AND ?
       AND (a.restrito = 0 OR ? = 1 OR a.criador_id = ?)
+      AND (
+          NOT EXISTS (SELECT 1 FROM atividade_grupos ag WHERE ag.atividade_id = a.id)
+          OR ? = 1
+          OR EXISTS (
+              SELECT 1 FROM atividade_grupos ag 
+              INNER JOIN usuario_grupos ug ON ug.grupo_id = ag.grupo_id 
+              WHERE ag.atividade_id = a.id AND ug.usuario_id = ?
+          )
+      )
     ORDER BY a.hora_inicio ASC
 ";
 
 $userId = (int)($_SESSION['usuario_id'] ?? 0);
 $canVerRestritos = (int)can('ver_restritos');
+$isAdmin = (int)(can('admin_sistema') || ($_SESSION['usuario_nivel'] ?? 99) === 0);
+$bypassGroups = max($canVerRestritos, $isAdmin);
 
 $stmt = $conn->prepare($sql);
-$stmt->bind_param('issii', $pid, $startMonth, $endMonth, $canVerRestritos, $userId);
+$stmt->bind_param('issiiii', $pid, $startMonth, $endMonth, $canVerRestritos, $userId, $bypassGroups, $userId);
 $stmt->execute();
 $res = $stmt->get_result();
 
