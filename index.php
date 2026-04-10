@@ -63,7 +63,12 @@ $sql = "
             FROM atividade_evento_inscricoes aei
             INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
             WHERE ei.evento_id = a.id
-        ) AS total_inscritos
+        ) AS total_inscritos,
+        (
+            SELECT GROUP_CONCAT(ag.grupo_id ORDER BY ag.grupo_id ASC)
+            FROM atividade_grupos ag
+            WHERE ag.atividade_id = a.id
+        ) AS grupo_ids
     FROM atividades a
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
     WHERE a.paroquia_id = ? 
@@ -92,7 +97,25 @@ $stmt->execute();
 $res = $stmt->get_result();
 
 $activitiesByDay = [];
+
+// Session-based group filter (from meus_grupos.php)
+$filtroGrupos = $_SESSION['filtro_grupos'] ?? null; // null = todos ativos
+$filtroGeralAtivo = ($filtroGrupos === null) || in_array(0, $filtroGrupos, true);
+
 while ($row = $res->fetch_assoc()) {
+    // Apply session group filter (admins see everything)
+    if (!$isAdmin && $filtroGrupos !== null) {
+        $grupoIds = $row['grupo_ids'] ?? '';
+        $isGeneral = ($grupoIds === '' || $grupoIds === null);
+        if ($isGeneral) {
+            if (!$filtroGeralAtivo) continue; // user hid general events
+        } else {
+            $eGrupos = array_map('intval', explode(',', $grupoIds));
+            $hasActive = !empty(array_intersect($eGrupos, $filtroGrupos));
+            if (!$hasActive) continue; // all groups of this event are inactive
+        }
+    }
+
     $row['primeiro_inscrito_nome'] = '';
     $row['primeiro_inscrito_foto'] = '';
     $previewRaw = trim((string)($row['primeiro_inscrito'] ?? ''));
