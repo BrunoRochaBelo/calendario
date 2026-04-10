@@ -455,13 +455,23 @@ foreach ($holidays as $mmdd => $hName) {
                                             </div>
                                         <?php else: ?>
                                             <?php if ($canInteractActivities): ?>
+                                            <?php
+                                                $pillClasses = "act-pill button-reset event-trigger";
+                                                if (!empty($act['is_multi_color'])) $pillClasses .= " is-multi";
+                                                if (!empty($act['is_flashing'])) $pillClasses .= " is-flashing";
+                                                
+                                                $pillStyle = "border-left: 3px solid " . ($act['cor'] ?: 'var(--primary)') . ";";
+                                                if (!empty($act['is_multi_color'])) {
+                                                    $pillStyle .= " background: linear-gradient(90deg, " . ($act['cor'] ?: '#8b5cf6') . "22, rgba(255,255,255,0.02)) !important;";
+                                                }
+                                            ?>
                                             <button
                                                     type="button"
-                                                    class="act-pill button-reset event-trigger"
+                                                    class="<?= $pillClasses ?>"
                                                     data-activity-id="<?= (int)$act['id'] ?>"
-                                                    style="border-left: 3px solid <?= h($act['cor'] ?: 'var(--primary)') ?>;"
+                                                    style="<?= $pillStyle ?>"
                                                 >
-                                                    <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
+                                                    <span style="opacity: 0.6;"><?= substr($act['hora_inicio'] ?? '', 0, 5) ?></span>
                                                     <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
                                                     <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
                                                 </button>
@@ -486,8 +496,18 @@ foreach ($holidays as $mmdd => $hName) {
                                                     <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
                                                 </div>
                                             <?php else: ?>
-                                                <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="act-pill" style="border-left: 3px solid <?= h($act['cor'] ?: 'var(--primary)') ?>;">
-                                                    <span style="opacity: 0.6;"><?= substr($act['hora_inicio'], 0, 5) ?></span>
+                                                <?php
+                                                    $pillClasses = "act-pill";
+                                                    if (!empty($act['is_multi_color'])) $pillClasses .= " is-multi";
+                                                    if (!empty($act['is_flashing'])) $pillClasses .= " is-flashing";
+                                                    
+                                                    $pillStyle = "border-left: 3px solid " . ($act['cor'] ?: 'var(--primary)') . ";";
+                                                    if (!empty($act['is_multi_color'])) {
+                                                        $pillStyle .= " background: linear-gradient(90deg, " . ($act['cor'] ?: '#8b5cf6') . "22, rgba(255,255,255,0.02)) !important;";
+                                                    }
+                                                ?>
+                                                <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="<?= $pillClasses ?>" style="<?= $pillStyle ?>">
+                                                    <span style="opacity: 0.6;"><?= substr($act['hora_inicio'] ?? '', 0, 5) ?></span>
                                                     <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
                                                     <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
                                                 </a>
