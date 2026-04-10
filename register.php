@@ -62,10 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         $sql = "INSERT INTO usuarios (
                     nome, email, senha, sexo, telefone, data_nascimento, palavra_chave, foto_perfil,
-                    paroquia_id, perfil_id, perfil_nome, ativo,
+                    paroquia_id, perfil_id, perfil_nome, ativo, nivel_acesso,
                     perm_ver_calendario, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos,
                     perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema, perm_ver_logs
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1, 3, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param(
             'sssssssiisiiiiiiiii',

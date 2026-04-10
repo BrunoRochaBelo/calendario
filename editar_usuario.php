@@ -639,18 +639,12 @@ $adminGroups = $adminGroups_ctx;
                     <div class="actions-row">
                         <button type="submit" class="btn btn-primary shimmer" style="flex: 2;">Confirmar Alteracoes</button>
                         <a href="usuarios.php" class="btn btn-ghost" style="flex: 1;">Cancelar</a>
+                        <?php if ($can_delete_target): ?>
+                            <button type="submit" name="delete_request" value="1" class="btn btn-ghost" style="flex: 1; border-color: rgba(239,68,68,0.5); color: #fca5a5;">Excluir Usuario</button>
+                        <?php endif; ?>
                     </div>
                 </form>
 
-                <?php if ($can_delete_target): ?>
-                    <div class="delete-wrap">
-                        <form method="POST" onsubmit="return confirmForm(this, 'Deseja iniciar a exclusao deste usuario?');">
-                            <button type="submit" name="delete_request" value="1" class="btn btn-ghost" style="width: 100%; border-color: rgba(239,68,68,0.3); color: #fca5a5;">
-                                Excluir usuario
-                            </button>
-                        </form>
-                    </div>
-                <?php endif; ?>
             </section>
         </main>
     </div>

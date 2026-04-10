@@ -244,7 +244,9 @@ foreach ($holidays as $mmdd => $hName) {
             font-size: 1.8rem; font-weight: 950; color: var(--text); 
             line-height: 1; opacity: 0.8; margin-bottom: 0.3rem;
             font-family: 'Outfit', sans-serif;
+            display: flex; align-items: baseline; gap: 2px;
         }
+        .mobile-day-initial { display: none; }
         .sunday .day-number { color: #ef4444; }
 
         .activities-list { display: flex; flex-direction: column; gap: 0.3rem; }
@@ -356,7 +358,8 @@ foreach ($holidays as $mmdd => $hName) {
                 padding: 1rem; margin-bottom: 0.5rem; width: 100%;
             }
             .cal-day.empty { display: none; }
-            .day-number { min-width: 40px; font-size: 1.5rem; text-align: center; }
+            .day-number { min-width: 60px; font-size: 1.5rem; text-align: left; display: flex; align-items: baseline; gap: 2px; }
+            .mobile-day-initial { display: inline; font-size: 1rem; opacity: 0.5; font-weight: 800; color: var(--text-ghost); }
             .activities-list { flex: 1; overflow: visible; }
             .act-pill { white-space: normal; height: auto; padding: 0.6rem; }
             .act-name { white-space: normal; }
@@ -484,7 +487,10 @@ foreach ($holidays as $mmdd => $hName) {
                         $isToday = ($currentDate === $today);
                         ?>
                         <div class="cal-day <?= $isSunday ? 'sunday' : '' ?> <?= $isToday ? 'today' : '' ?>">
-                            <div class="day-number"><?= $dayIdx ?></div>
+                            <div class="day-number">
+                                <?= $dayIdx ?>
+                                <span class="mobile-day-initial"><?= ['D','S','T','Q','Q','S','S'][(int)date('w', strtotime($currentDate))] ?></span>
+                            </div>
                             
                             <div class="activities-list">
                                 <?php if (isset($activitiesByDay[$dayIdx])): ?>
