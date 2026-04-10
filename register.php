@@ -143,14 +143,14 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
     <title>Cadastrar Usuário — PASCOM</title>
     <link rel="stylesheet" href="style.css">
     <style>
-        .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: margin 0.3s; }
+        .app-shell { display: flex; min-height: 100vh; width: 100%; overflow-x: hidden; }
+        .main-content { flex: 1; min-width: 0; width: 100%; margin-left: var(--sidebar-w); padding: 3rem; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: margin 0.3s; }
         
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
             .form-grid { grid-template-columns: 1fr; }
             .full-row { grid-column: span 1; }
-            .form-container { padding: 2.5rem; }
+            .form-container { padding: 2.5rem; width: 100%; max-width: 100%; }
         }
         
         .form-container { width: 100%; max-width: 700px; padding: 4rem; border-radius: 32px; }
@@ -179,6 +179,12 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
             .full-row { grid-column: span 1; }
             .main-content { padding: 1.5rem; }
             .form-container { padding: 2rem; }
+        }
+        .form-actions { display: flex; gap: 1rem; margin-top: 1rem; }
+        @media (max-width: 768px) {
+            .form-actions { flex-direction: column; }
+            .form-actions .btn,
+            .form-actions a { width: 100%; }
         }
     </style>
 </head>
@@ -225,7 +231,6 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                         <select name="sexo">
                             <option value="M">Masculino</option>
                             <option value="F">Feminino</option>
-                            <option value="Outro">Outro</option>
                         </select>
                     </div>
 
@@ -269,7 +274,7 @@ $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
                         </div>
                     </div>
 
-                    <div class="full-row" style="display: flex; gap: 1rem; margin-top: 1rem;">
+                    <div class="full-row form-actions">
                         <button type="submit" class="btn btn-primary shimmer" style="flex: 2;">Finalizar Cadastro</button>
                         <a href="index.php" class="btn btn-ghost" style="flex: 1;">Cancelar</a>
                     </div>

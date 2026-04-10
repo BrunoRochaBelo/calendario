@@ -23,3 +23,29 @@ PARA AQUELES QUE TEM PERMISSAO RESTRITO, ESSES USUARIOS PODEM VER OS EVENTOS
 RESTRITOS, E NA ABA NOVO EVENTO DEVE APARECER PARA EELS UMA CAIXA DE MARCAR
 COMO EVENTO RESTRITO, E OS OUTRO USUARIOS NÃO CONSIGUIRAM VER, E
 QUEM TEM PERMISSAO NA EDIÇÃO PODE DESMARCAR PARA APARECER COMO PUBLICO EVENTO
+
+
+
+
+analise todo o sistema testando via browser, cadastre um novo usuario,
+e liste melhorias, reset senha, e liste melhorias veja o campo do 
+usuario resetar senha liste melhorias, na organização dos botoes,
+web ou dispositivos moveis veja se esta ituivito, e liste as
+sugestoes baseados nos melhores layoutes e mais modernos e simples,
+e ai por diante, tabelas, consultas, permissoes, e tudo que o
+sistema já abranje. crie um documento simples de ler apenas 
+com o que observou de falhas, melhores e o que pode ser 
+ajustado, depois faça a parte consideraçoes de novas abas e 
+implementaçoes. tudo isso em um documento .doc por topicos,
+para que eu de um ok ou um desacordo. não edite nada nos
+arquivos apenas analise tudo, de cabo a rabo pasta por 
+pasta documeno por documento, funcção por funçção. 
+faça dois docuemntos, um simples e outro que se aprofunda 
+seguindo os mesmos parametros acima
+
+sim implemente e tambem corriga aglumas coisas, o botao ativar esta 
+aparecendo exluir e para mostrar as opçoes de visualizao grande media 
+e lista, use padrao aba usarios, e faça isso nas abas catalogo 
+de atividadees categorias locais paroquias e logs do sistema,
+ja em relatorios a letra da lista suspensa ponha prota e usuarios 
+coloqeu um checkbox para selecinar quais informaçeos vou querer para filtrar

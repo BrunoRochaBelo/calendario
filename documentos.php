@@ -2,23 +2,10 @@
 require_once 'functions.php';
 requireLogin();
 
-$documents = [
-    [
-        'id' => 'resumida',
-        'title' => 'Analise Resumida',
-        'description' => 'Versao curta com falhas, melhorias e proximas abas sugeridas.',
-        'filename' => 'analise_sistema_resumida.doc',
-    ],
-    [
-        'id' => 'detalhada',
-        'title' => 'Analise Detalhada',
-        'description' => 'Versao completa com testes em browser, riscos, layout e recomendacoes.',
-        'filename' => 'analise_sistema_detalhada.doc',
-    ],
-];
-
-function document_exists(string $filename): bool {
-    return is_file(__DIR__ . DIRECTORY_SEPARATOR . $filename);
+// Apenas administradores e pascom devem ter acesso aos relatórios completos
+if (!can('admin_sistema') && !can('ver_logs')) {
+    header('Location: index.php?error=unauthorized');
+    exit();
 }
 ?>
 <!DOCTYPE html>
@@ -26,26 +13,33 @@ function document_exists(string $filename): bool {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
-    <title>Documentos de Analise — PASCOM</title>
+    <title>Central de Relatórios — PASCOM</title>
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
         .header-stack { display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; margin-bottom: 2rem; }
-        .doc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.25rem; }
-        .doc-card { padding: 1.75rem; display: flex; flex-direction: column; gap: 1rem; }
-        .doc-title { font-size: 1.15rem; font-weight: 900; }
-        .doc-desc { color: var(--text-dim); font-size: 0.9rem; line-height: 1.5; }
-        .doc-meta { display: flex; align-items: center; justify-content: space-between; gap: 1rem; font-size: 0.78rem; color: var(--text-ghost); padding-top: 0.8rem; border-top: 1px solid var(--border); }
-        .doc-actions { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-        .badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.35rem 0.65rem; border-radius: 999px; background: rgba(var(--primary-rgb), 0.12); color: var(--primary); font-size: 0.7rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
-        .empty-state { padding: 3rem; text-align: center; border: 1px dashed var(--border); border-radius: 20px; background: rgba(255,255,255,0.02); color: var(--text-dim); }
+        
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }
+        .report-card { padding: 2.5rem; display: flex; flex-direction: column; gap: 1.5rem; }
+        
+        .report-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem; }
+        .report-icon { width: 56px; height: 56px; border-radius: 16px; background: rgba(var(--primary-rgb), 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+        
+        .report-title { font-size: 1.3rem; font-weight: 900; }
+        .report-desc { color: var(--text-dim); font-size: 0.95rem; line-height: 1.5; margin-top: 0.5rem; }
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        
+        .export-actions { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; margin-top: 1.5rem; border-top: 1px solid var(--border); padding-top: 1.5rem; }
+        
+        .btn-export { padding: 0.8rem; font-size: 0.8rem; flex-direction: column; gap: 0.4rem; height: 70px; }
+        .btn-export svg { width: 20px; height: 20px; }
 
         @media (max-width: 1024px) {
             .main-content { margin-left: 0; padding: 1.5rem; padding-top: 5rem; }
             .header-stack { flex-direction: column; align-items: flex-start; }
-            .doc-grid { grid-template-columns: 1fr; }
-            .btn { width: 100%; }
+            .report-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -56,39 +50,114 @@ function document_exists(string $filename): bool {
         <main class="main-content">
             <header class="header-stack animate-in">
                 <div>
-                    <p style="font-size:0.75rem; font-weight:800; letter-spacing:0.15em; color:var(--text-ghost);">ARQUIVOS</p>
-                    <h1 class="gradient-text">Documentos de Analise</h1>
-                    <p style="color:var(--text-dim); font-size:0.95rem; margin-top:0.4rem;">Baixe as duas versoes da revisao do sistema para leitura e aprovacao.</p>
+                    <p style="font-size:0.75rem; font-weight:800; letter-spacing:0.15em; color:var(--text-ghost);">ADMINISTRAÇÃO</p>
+                    <h1 class="gradient-text">Central de Relatórios</h1>
+                    <p style="color:var(--text-dim); font-size:0.95rem; margin-top:0.4rem;">Gere e exporte dados da paróquia em múltiplos formatos para análise e arquivamento.</p>
                 </div>
             </header>
 
-            <section class="doc-grid animate-in" style="animation-delay: 0.08s;">
-                <?php foreach ($documents as $doc): ?>
-                    <article class="glass doc-card">
-                        <div style="display:flex; justify-content:space-between; gap:1rem; align-items:flex-start;">
-                            <div>
-                                <div class="badge">DOC</div>
-                                <div class="doc-title" style="margin-top:0.8rem;"><?= h($doc['title']) ?></div>
-                            </div>
-                            <div style="font-size:0.72rem; color:var(--text-ghost); text-align:right;">
-                                <?= document_exists($doc['filename']) ? 'Disponivel' : 'Ausente' ?>
-                            </div>
+            <section class="report-grid animate-in" style="animation-delay: 0.1s;">
+                
+                <!-- RELATÓRIO DE EVENTOS -->
+                <form action="gerar_relatorio.php" method="GET" target="_blank" class="glass report-card">
+                    <input type="hidden" name="tipo" value="eventos">
+                    
+                    <div class="report-header">
+                        <div class="report-icon">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                         </div>
-                        <div class="doc-desc"><?= h($doc['description']) ?></div>
-                        <div class="doc-actions">
-                            <?php if (document_exists($doc['filename'])): ?>
-                                <a class="btn btn-primary shimmer" href="/calender/baixar_documento.php?id=<?= h($doc['id']) ?>">Baixar arquivo</a>
-                                <a class="btn btn-ghost" href="/calender/<?= h($doc['filename']) ?>" target="_blank" rel="noopener">Abrir arquivo</a>
-                            <?php else: ?>
-                                <span class="empty-state" style="width:100%;">Arquivo nao encontrado na raiz do projeto.</span>
-                            <?php endif; ?>
+                        <div>
+                            <div class="report-title">Relatório de Eventos</div>
+                            <div class="report-desc">Filtre eventos da agenda paroquial e exporte a lista de atividades cadastradas.</div>
                         </div>
-                        <div class="doc-meta">
-                            <span><?= h($doc['filename']) ?></span>
-                            <span><?= document_exists($doc['filename']) ? filesize(__DIR__ . DIRECTORY_SEPARATOR . $doc['filename']) . ' bytes' : '-' ?></span>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group" style="margin: 0;">
+                            <label>DATA INICIAL (OPCIONAL)</label>
+                            <input type="date" name="data_inicio">
                         </div>
-                    </article>
-                <?php endforeach; ?>
+                        <div class="form-group" style="margin: 0;">
+                            <label>DATA FINAL (OPCIONAL)</label>
+                            <input type="date" name="data_fim">
+                        </div>
+                    </div>
+
+                    <div class="export-actions">
+                        <button type="submit" name="formato" value="csv" class="btn btn-ghost btn-export">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            CSV
+                        </button>
+                        <button type="submit" name="formato" value="xls" class="btn btn-ghost btn-export">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            XLS
+                        </button>
+                        <button type="submit" name="formato" value="doc" class="btn btn-ghost btn-export">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            DOC
+                        </button>
+                        <button type="submit" name="formato" value="pdf" class="btn btn-primary shimmer btn-export" style="background: #ef4444; border-color: #ef4444; color: white; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13H8v4"/><path d="M14 13h-2v4"/><path d="M18 13h-2v4"/></svg>
+                            PDF
+                        </button>
+                    </div>
+                </form>
+
+                <!-- RELATÓRIO DE CONTATOS -->
+                <form action="gerar_relatorio.php" method="GET" target="_blank" class="glass report-card">
+                    <input type="hidden" name="tipo" value="contatos">
+                    
+                    <div class="report-header">
+                        <div class="report-icon" style="color: #06b6d4; background: rgba(6, 182, 212, 0.1);">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                        </div>
+                        <div>
+                            <div class="report-title">Relatório de Contatos</div>
+                            <div class="report-desc">Exporte os dados dos usuários e membros registrados no sistema da paróquia.</div>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin: 0;">
+                        <label>SITUAÇÃO DO USUÁRIO</label>
+                        <select name="status" style="color: #000;">
+                            <option value="todos">Todos os registros</option>
+                            <option value="1">Apenas Ativos</option>
+                            <option value="0">Apenas Inativos / Bloqueados</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="margin: 0;">
+                        <label>INFORMAÇÕES A EXPORTAR</label>
+                        <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.85rem;">
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Nome" checked> Nome</label>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Email" checked> E-mail</label>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Telefone" checked> Telefone</label>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Sexo" checked> Sexo</label>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Nascimento" checked> Nascimento</label>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Status" checked> Situação</label>
+                        </div>
+                    </div>
+
+                    <div class="export-actions">
+                        <button type="submit" name="formato" value="csv" class="btn btn-ghost btn-export">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            CSV
+                        </button>
+                        <button type="submit" name="formato" value="xls" class="btn btn-ghost btn-export">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                            XLS
+                        </button>
+                        <button type="submit" name="formato" value="doc" class="btn btn-ghost btn-export">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            DOC
+                        </button>
+                        <button type="submit" name="formato" value="pdf" class="btn btn-primary shimmer btn-export" style="background: #ef4444; border-color: #ef4444; color: white; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13H8v4"/><path d="M14 13h-2v4"/><path d="M18 13h-2v4"/></svg>
+                            PDF
+                        </button>
+                    </div>
+                </form>
+
             </section>
         </main>
     </div>

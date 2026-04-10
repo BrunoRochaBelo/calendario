@@ -27,11 +27,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
         $restrito = isset($data['restrito']) ? 1 : 0;
         $uid = $_SESSION['usuario_id'];
+        $cor = sanitize_text($data['cor'] ?? '#3b82f6');
         
-        $sql = "INSERT INTO atividades (nome, paroquia_id, local_id, tipo_atividade_id, descricao, data_inicio, hora_inicio, criador_id, restrito) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        $sql = "INSERT INTO atividades (nome, paroquia_id, local_id, tipo_atividade_id, descricao, data_inicio, hora_inicio, criador_id, restrito, cor) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param('siiisssii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $data['hora_inicio'], $uid, $restrito);
+        $stmt->bind_param('siiisssiis', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $data['hora_inicio'], $uid, $restrito, $cor);
         
         if ($stmt->execute()) {
             $newEventId = (int)$conn->insert_id;
@@ -125,9 +126,15 @@ if (!$selectedActivities) {
 
                 <form method="POST" class="glass glass-form">
                     <div class="form-grid">
-                        <div class="form-group">
-                            <label>Identificação do Evento</label>
-                            <input type="text" name="nome" placeholder="Nome da atividade ou celebração" required autofocus>
+                        <div class="row-grid" style="grid-template-columns: 1fr auto;">
+                            <div class="form-group">
+                                <label>Identificação do Evento</label>
+                                <input type="text" name="nome" placeholder="Nome da atividade ou celebração" required autofocus>
+                            </div>
+                            <div class="form-group">
+                                <label>Cor do Evento</label>
+                                <input type="color" name="cor" value="#3b82f6" style="height: 55px; width: 60px; padding: 0.2rem; cursor: pointer; border-radius: 12px; border: 1px solid var(--border); background: var(--panel-hi);" title="Cor no Calendário">
+                            </div>
                         </div>
 
                         <div class="row-grid">

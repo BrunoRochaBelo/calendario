@@ -87,10 +87,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Soft-delete: deactivate instead
                 $stmt = $conn->prepare("UPDATE atividades_catalogo SET ativo = 0 WHERE id = ? AND paroquia_id = ?");
                 $stmt->bind_param('ii', $id, $pid);
-                $stmt->execute();
-                logAction($conn, 'DESATIVAR_CATALOGO', 'atividades_catalogo', $id);
-                header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade desativada (vinculada a eventos existentes).'));
-                exit();
+                if ($stmt->execute()) {
+                    logAction($conn, 'DESATIVAR_CATALOGO', 'atividades_catalogo', $id);
+                    header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade desativada (vinculada a eventos existentes).'));
+                    exit();
+                } else {
+                    $error = 'Erro ao desativar: ' . $conn->error;
+                }
             } else {
                 $stmt = $conn->prepare("DELETE FROM atividades_catalogo WHERE id = ? AND paroquia_id = ?");
                 $stmt->bind_param('ii', $id, $pid);
@@ -98,6 +101,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     logAction($conn, 'EXCLUIR_CATALOGO', 'atividades_catalogo', $id);
                     header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade removida!'));
                     exit();
+                } else {
+                    $error = 'Erro ao remover: ' . $conn->error;
                 }
             }
         }
@@ -109,6 +114,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute();
             logAction($conn, 'REATIVAR_CATALOGO', 'atividades_catalogo', $id);
             header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade reativada!'));
+            exit();
+        }
+    } elseif ($action === 'deactivate') {
+        $id = (int)($data['id'] ?? 0);
+        if ($id > 0) {
+            $stmt = $conn->prepare("UPDATE atividades_catalogo SET ativo = 0 WHERE id = ? AND paroquia_id = ?");
+            $stmt->bind_param('ii', $id, $pid);
+            $stmt->execute();
+            logAction($conn, 'DESATIVAR_CATALOGO', 'atividades_catalogo', $id);
+            header('Location: gerenciar_catalogo.php?msg=' . urlencode('Atividade desativada!'));
             exit();
         }
     }
@@ -166,6 +181,23 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
             .btn-primary { width: 100%; }
         }
     </style>
+<style>
+        /* ── View Modes ────────────────────────────────────────── */
+        .view-controls { display: flex; gap: 0.5rem; background: var(--panel); padding: 0.4rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem; width: fit-content; }
+        .view-btn { padding: 0.5rem; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--anim); }
+        .view-btn:hover { background: var(--panel-hi); color: var(--text); }
+        .view-btn.active { background: var(--primary); color: #fff; box-shadow: var(--sh-primary); }
+
+        /* LIST VIEW */
+        .catalog-grid.view-list { grid-template-columns: 1fr !important; gap: 0.8rem; }
+        .view-list .catalog-card { flex-direction: row; align-items: center; padding: 1rem 1.5rem; justify-content: space-between; }
+        .view-list .catalog-card > div { flex-direction: row; align-items: center; gap: 1rem; }
+        .view-list .catalog-card p { margin: 0; }
+        
+        /* COMPACT VIEW */
+        .catalog-grid.view-compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; gap: 1rem; }
+        .view-compact .catalog-card { padding: 1rem; }
+        </style>
 </head>
 <body>
     <div class="bg-mesh"></div>
@@ -191,7 +223,19 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
                 </button>
             </header>
 
-            <div class="catalog-grid animate-in" style="animation-delay: 0.1s;">
+            <div class="view-controls animate-in" style="animation-delay: 0.05s;">
+                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grelha">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                </button>
+            </div>
+
+            <div class="catalog-grid animate-in" id="dataContainer" style="animation-delay: 0.1s;">
                 <?php if ($items && $items->num_rows > 0): ?>
                     <?php while ($item = $items->fetch_assoc()): ?>
                     <article class="glass-card catalog-card <?= $item['ativo'] ? '' : 'inactive' ?>">
@@ -208,7 +252,9 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
                             <button 
                                 type="button"
                                 class="btn btn-ghost btn-edit" 
-                                data-json="<?= h(json_encode($item, JSON_UNESCAPED_UNICODE)) ?>"
+                                data-id="<?= htmlspecialchars($item['id'], ENT_QUOTES, 'UTF-8') ?>"
+                                data-nome="<?= htmlspecialchars($item['nome'], ENT_QUOTES, 'UTF-8') ?>"
+                                data-descricao="<?= htmlspecialchars($item['descricao'], ENT_QUOTES, 'UTF-8') ?>"
                                 style="flex: 1; font-size: 0.75rem; border-color: rgba(var(--primary-rgb), 0.3); color: var(--primary); cursor: pointer;"
                                 onclick="editByData(this)"
                             >
@@ -217,23 +263,24 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
                             </button>
                             <?php if ($item['ativo']): ?>
                             <form method="POST" style="flex: 1; margin: 0;">
-                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="action" value="deactivate">
                                 <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                                <button type="submit" class="btn btn-ghost" style="width: 100%; color: #ef4444; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.2); cursor: pointer;" onclick="return confirm('Remover esta atividade do catálogo?')">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: -4px;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                                    Remover
+                                <button type="button" class="btn btn-ghost" style="width: 100%; color: #eab308; font-size: 0.75rem; border-color: rgba(234, 179, 8, 0.2); cursor: pointer;" onclick="return confirmForm(this, 'Desativar temporariamente esta atividade?')">
+                                    Desativar
                                 </button>
                             </form>
                             <?php else: ?>
                             <form method="POST" style="flex: 1; margin: 0;">
                                 <input type="hidden" name="action" value="reactivate">
                                 <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                                <button type="submit" class="btn btn-ghost" style="width: 100%; color: #22c55e; font-size: 0.75rem; border-color: rgba(34, 197, 94, 0.2); cursor: pointer;">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: -4px;"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 21v-5h5"/></svg>
-                                    Reativar
+                                <button type="button" class="btn btn-ghost" style="width: 100%; color: #22c55e; font-size: 0.75rem; border-color: rgba(34, 197, 94, 0.2); cursor: pointer;" onclick="return confirmForm(this, 'Reativar esta atividade?')">
+                                    Ativar
                                 </button>
                             </form>
                             <?php endif; ?>
+                            <button type="button" class="btn btn-ghost" style="flex: 1; margin: 0; color: #ef4444; font-size: 0.75rem; border-color: rgba(239, 68, 68, 0.2); cursor: pointer;" onclick="confirmDelete(<?= $item['id'] ?>)">
+                                Remover
+                            </button>
                         </div>
                     </article>
                     <?php endwhile; ?>
@@ -248,7 +295,7 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
     </div>
 
     <div id="catalogModal" class="modal" onclick="if(event.target.id==='catalogModal'){closeModal();}">
-        <form method="POST" class="glass modal-card">
+        <form method="POST" action="gerenciar_catalogo.php" class="glass modal-card">
             <input type="hidden" name="action" id="modalAction" value="create">
             <input type="hidden" name="id" id="itemId">
 
@@ -271,6 +318,28 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
         </form>
     </div>
 
+    <div id="deleteModal" class="modal" onclick="if(event.target.id==='deleteModal'){closeDeleteModal();}">
+        <form method="POST" action="gerenciar_catalogo.php" class="glass modal-card">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" id="deleteItemId">
+
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <div style="background: rgba(239, 68, 68, 0.15); width: 64px; height: 64px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: #ef4444;">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                </div>
+                <h2 style="font-weight: 900; color: var(--text);">Confirmar Exclusão</h2>
+                <p style="color: var(--text-dim); margin-top: 0.5rem;">
+                    Tem certeza que deseja remover esta atividade do catálogo?<br>Esta ação não pode ser desfeita.
+                </p>
+            </div>
+
+            <div style="display: flex; gap: 1rem;">
+                <button type="submit" class="btn" style="flex: 1; background: #ef4444; color: white;">Sim, Remover</button>
+                <button type="button" onclick="closeDeleteModal()" class="btn btn-ghost" style="flex: 1;">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
     <script>
         function openModal() {
             document.getElementById('modalAction').value = 'create';
@@ -284,27 +353,49 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
 
         function editByData(btn) {
             try {
-                const item = JSON.parse(btn.getAttribute('data-json'));
-                editItem(item);
+                document.getElementById('modalAction').value = 'update';
+                document.getElementById('modalTitle').textContent = 'Editar Atividade';
+                document.getElementById('itemId').value = btn.getAttribute('data-id');
+                document.getElementById('modalNome').value = btn.getAttribute('data-nome');
+                document.getElementById('modalDescricao').value = btn.getAttribute('data-descricao') || '';
+                document.getElementById('catalogModal').classList.add('active');
+                document.getElementById('modalNome').focus();
             } catch(e) {
-                console.error('Erro ao ler dados do item:', e);
+                console.error('Erro ao editar item:', e);
             }
-        }
-
-        function editItem(item) {
-            console.log('Editando item:', item);
-            document.getElementById('modalAction').value = 'update';
-            document.getElementById('modalTitle').textContent = 'Editar Atividade';
-            document.getElementById('itemId').value = item.id;
-            document.getElementById('modalNome').value = item.nome;
-            document.getElementById('modalDescricao').value = item.descricao || '';
-            document.getElementById('catalogModal').classList.add('active');
-            document.getElementById('modalNome').focus();
         }
 
         function closeModal() {
             document.getElementById('catalogModal').classList.remove('active');
         }
+
+        function confirmDelete(id) {
+            document.getElementById('deleteItemId').value = id;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+        }
+    </script>
+
+    <script>
+        function setView(mode) {
+            const container = document.getElementById('dataContainer');
+            if(!container) return;
+            const btns = document.querySelectorAll('.view-btn');
+            container.classList.remove('view-list', 'view-compact');
+            if (mode === 'list') container.classList.add('view-list');
+            if (mode === 'compact') container.classList.add('view-compact');
+            btns.forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-' + mode);
+            if(btn) btn.classList.add('active');
+            localStorage.setItem('layout-mode', mode);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedMode = localStorage.getItem('layout-mode') || 'grid';
+            setView(savedMode);
+        });
     </script>
 </body>
 </html>

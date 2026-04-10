@@ -58,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare($sql);
         $local = !empty($data['local_id']) ? (int)$data['local_id'] : null;
         $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
+        $cor = sanitize_text($data['cor'] ?? '#3b82f6');
         $restrito = isset($data['restrito']) ? 1 : 0;
         
         $stmt->bind_param('siisssiii', 
@@ -219,7 +220,7 @@ if (!$selectedActivities) {
 
                         <div style="display: flex; gap: 1.2rem; margin-top: 1rem;">
                             <button type="submit" class="btn btn-primary shimmer" style="flex: 2; height: 55px;">Salvar Alterações</button>
-                            <a href="excluir_atividade.php?id=<?= $id ?>" class="btn btn-ghost" style="flex: 1; height: 55px; line-height: 55px; text-align: center; color: #ef4444;" onclick="return confirm('Tem certeza que deseja excluir permanentemente este evento?')">Excluir</a>
+                            <a href="excluir_atividade.php?id=<?= $id ?>" class="btn btn-ghost" style="flex: 1; height: 55px; line-height: 55px; text-align: center; color: #ef4444;" onclick="return confirmLink(this, 'Tem certeza que deseja excluir permanentemente este evento?')">Excluir</a>
                         </div>
                     </div>
                 </form>

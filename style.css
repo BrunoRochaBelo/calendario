@@ -94,6 +94,7 @@ body {
   content: ''; position: absolute; inset: 0;
   background: radial-gradient(circle at top right, rgba(var(--primary-rgb), 0.05), transparent 60%);
   opacity: 0; transition: opacity var(--anim);
+  pointer-events: none;
 }
 .glass-card:hover::after { opacity: 1; }
 

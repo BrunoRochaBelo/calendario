@@ -133,6 +133,23 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
             .pq-card > div:last-child { width: 100%; flex-direction: row; justify-content: space-between; }
         }
     </style>
+<style>
+        /* ── View Modes ────────────────────────────────────────── */
+        .view-controls { display: flex; gap: 0.5rem; background: var(--panel); padding: 0.4rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem; width: fit-content; }
+        .view-btn { padding: 0.5rem; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--anim); }
+        .view-btn:hover { background: var(--panel-hi); color: var(--text); }
+        .view-btn.active { background: var(--primary); color: #fff; box-shadow: var(--sh-primary); }
+
+        /* LIST VIEW */
+        .grid.view-list { grid-template-columns: 1fr !important; gap: 0.8rem; }
+        .view-list .pq-card { flex-direction: row; align-items: center; padding: 1rem 1.5rem; justify-content: space-between; }
+        .view-list .pq-card > div { flex-direction: row; align-items: center; gap: 1rem; }
+        .view-list .pq-card p { margin: 0; }
+        
+        /* COMPACT VIEW */
+        .grid.view-compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; gap: 1rem; }
+        .view-compact .pq-card { padding: 1rem; }
+        </style>
 </head>
 <body>
     <div class="bg-mesh"></div>
@@ -152,11 +169,23 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
                 </button>
             </header>
 
+            <div class="view-controls animate-in" style="animation-delay: 0.05s;">
+                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grelha">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                </button>
+            </div>
+
             <?php if ($msg): ?> <?= alert('success', h($msg)) ?> <?php endif; ?>
             <?php if ($error): ?> <?= alert('danger', h($error)) ?> <?php endif; ?>
             <?php if (isset($_GET['msg'])): ?> <?= alert('success', h($_GET['msg'])) ?> <?php endif; ?>
 
-            <div class="grid animate-in" style="animation-delay: 0.1s;">
+            <div class="grid animate-in" id="dataContainer" style="animation-delay: 0.1s;">
                 <?php while ($row = $res->fetch_assoc()): ?>
                 <div class="glass pq-card">
                     <?php 
@@ -181,8 +210,8 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
                     </div>
 
                     <div style="display: flex; flex-direction: column; gap: 0.5rem; flex-shrink: 0;">
-                        <button onclick='editPq(<?= json_encode($row) ?>)' class="btn btn-ghost" style="padding: 0.6rem;">Editar</button>
-                        <a href="?delete=<?= $row['id'] ?>" onclick="return confirm('ATENÇÃO! Excluir este contexto paroquial afeta todos os usuários e lógicas associadas a ele. Deseja prosseguir?')" class="btn" style="padding: 0.6rem; color: #ef4444; font-size: 0.75rem; border: 1px solid rgba(239, 68, 68, 0.3);">Excluir</a>
+                        <button onclick="editPq(<?= htmlspecialchars(json_encode($row), ENT_QUOTES, 'UTF-8') ?>)" class="btn btn-ghost" style="padding: 0.6rem;">Editar</button>
+                        <a href="?delete=<?= $row['id'] ?>" onclick="return confirmLink(this, 'ATENÇÃO! Excluir este contexto paroquial afeta todos os usuários e lógicas associadas a ele. Deseja prosseguir?')" class="btn" style="padding: 0.6rem; color: #ef4444; font-size: 0.75rem; border: 1px solid rgba(239, 68, 68, 0.3);">Excluir</a>
                     </div>
                 </div>
                 <?php endwhile; ?>
@@ -198,6 +227,18 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
                 <h2>Gestão da Sede/Paróquia</h2>
                 <button type="button" class="btn-close" onclick="closeModal()">×</button>
             </header>
+
+            <div class="view-controls animate-in" style="animation-delay: 0.05s;">
+                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grelha">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                </button>
+            </div>
             
             <form method="POST" action="" enctype="multipart/form-data">
                 <input type="hidden" name="id" id="paroquiaId">
@@ -226,18 +267,37 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
     function openModal() {
         document.getElementById('paroquiaId').value = '';
         document.getElementById('paroquiaNome').value = '';
-        document.getElementById('formModal').classList.add('show');
+        document.getElementById('formModal').classList.add('active');
     }
     
     function closeModal() {
-        document.getElementById('formModal').classList.remove('show');
+        document.getElementById('formModal').classList.remove('active');
     }
     
     function editPq(data) {
         document.getElementById('paroquiaId').value = data.id;
         document.getElementById('paroquiaNome').value = data.nome;
-        document.getElementById('formModal').classList.add('show');
+        document.getElementById('formModal').classList.add('active');
     }
+    </script>
+
+    <script>
+        function setView(mode) {
+            const container = document.getElementById('dataContainer');
+            if(!container) return;
+            const btns = document.querySelectorAll('.view-btn');
+            container.classList.remove('view-list', 'view-compact');
+            if (mode === 'list') container.classList.add('view-list');
+            if (mode === 'compact') container.classList.add('view-compact');
+            btns.forEach(b => b.classList.remove('active'));
+            const btn = document.getElementById('btn-' + mode);
+            if(btn) btn.classList.add('active');
+            localStorage.setItem('layout-mode', mode);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedMode = localStorage.getItem('layout-mode') || 'grid';
+            setView(savedMode);
+        });
     </script>
 </body>
 </html>

@@ -149,7 +149,7 @@ function is_active(string $page): string {
             </a>
             <a href="/calender/documentos.php" class="<?= is_active('documentos.php') ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6"/><path d="M9 17h6"/></svg>
-                <span>Documentos</span>
+                <span>Relatórios</span>
             </a>
         </div>
         <?php endif; ?>
@@ -281,6 +281,10 @@ function is_active(string $page): string {
     .sidebar.open { transform: translateX(0); }
     .menu-trigger, .close-sidebar { display: flex; }
 }
+/* Modals globais */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 9999; align-items: center; justify-content: center; padding: 2rem; }
+.modal.active { display: flex; }
+.modal-card { width: 100%; max-width: 540px; padding: 3rem; }
 </style>
 
 <script>
@@ -288,4 +292,82 @@ function toggleSidebar() {
     const sidebar = document.getElementById('mainSidebar');
     sidebar.classList.toggle('open');
 }
+
+let _globalConfirmCallback = null;
+let _globalConfirmLink = null;
+let _globalConfirmForm = null;
+
+function openConfirmModal(message, callback, btnLabel, btnColor) {
+    const modal = document.getElementById('globalConfirmModal');
+    if (!modal) {
+        if (confirm(message)) callback();
+        return;
+    }
+    document.getElementById('globalConfirmMessage').textContent = message;
+    
+    // Customize target switch button
+    const actionBtn = document.getElementById('globalConfirmActionBtn');
+    actionBtn.textContent = btnLabel || 'Continuar';
+    actionBtn.style.backgroundColor = btnColor || '#3b82f6';
+    actionBtn.style.borderColor = btnColor || '#3b82f6';
+    
+    _globalConfirmCallback = callback;
+    modal.classList.add('active');
+}
+
+function closeGlobalConfirm() {
+    document.getElementById('globalConfirmModal').classList.remove('active');
+    _globalConfirmCallback = null;
+    _globalConfirmLink = null;
+    _globalConfirmForm = null;
+}
+
+function confirmForm(element, message, customCallback, btnLabel = 'Confirmar', btnColor = '#3b82f6') {
+    if (event) event.preventDefault();
+    _globalConfirmForm = element.closest('form');
+    // If element has data-color or data-label
+    if (element.getAttribute('data-btn-label')) btnLabel = element.getAttribute('data-btn-label');
+    if (element.getAttribute('data-btn-color')) btnColor = element.getAttribute('data-btn-color');
+    if (message.toLowerCase().includes('excluir') || message.toLowerCase().includes('remover') || message.toLowerCase().includes('arquivar')) {
+        btnLabel = 'Remover'; btnColor = '#ef4444';
+    }
+
+    openConfirmModal(message, function() {
+        if (typeof customCallback === 'function') {
+            customCallback(_globalConfirmForm);
+        } else if (_globalConfirmForm) {
+            _globalConfirmForm.submit();
+        }
+    }, btnLabel, btnColor);
+    return false;
+}
+
+function confirmLink(element, message, btnLabel = 'Continuar', btnColor = '#22c55e') {
+    if (event) event.preventDefault();
+    _globalConfirmLink = element.getAttribute('href');
+    if (element.getAttribute('data-btn-label')) btnLabel = element.getAttribute('data-btn-label');
+    if (element.getAttribute('data-btn-color')) btnColor = element.getAttribute('data-btn-color');
+    if (message.toLowerCase().includes('excluir') || message.toLowerCase().includes('remover') || message.toLowerCase().includes('arquivar')) {
+        btnLabel = 'Excluir'; btnColor = '#ef4444';
+    }
+
+    openConfirmModal(message, function() {
+        if (_globalConfirmLink) window.location.href = _globalConfirmLink;
+    }, btnLabel, btnColor);
+    return false;
+}
 </script>
+
+<div id="globalConfirmModal" class="modal" style="z-index: 9999;">
+    <div class="glass modal-card" style="max-width: 400px; text-align: center; padding: 2.5rem 2rem;">
+        <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(59, 130, 246, 0.1); color: var(--primary); display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem auto;" id="globalConfirmIconDiv">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </div>
+        <h3 style="font-size: 1.25rem; font-weight: 900; margin-bottom: 0.5rem; color: var(--text);">Confirmação</h3>
+        <p id="globalConfirmMessage" style="color: var(--text-dim); margin-bottom: 2rem; font-size: 0.9rem;">Tem certeza que deseja realizar esta ação?</p>
+        <div style="display: flex; gap: 1rem;">
+            <button type="button" class="btn btn-primary" id="globalConfirmActionBtn" style="flex: 1;" onclick="if(typeof _globalConfirmCallback === 'function') { _globalConfirmCallback(); } closeGlobalConfirm();">Continuar</button>
+            <button type="button" onclick="closeGlobalConfirm()" class="btn btn-ghost" style="flex: 1;">Cancelar</button>
+        </div>
+    </div>
+</div>
