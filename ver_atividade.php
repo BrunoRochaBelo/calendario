@@ -44,16 +44,22 @@ if ($activity['restrito']) {
     }
 }
 
-// 2. Fetch Participants (Inscrições)
+// 2. Fetch Participants (Inscrições Totais)
 $parts_sql = "
-    SELECT u.nome, u.email, u.foto_perfil, i.data_inscricao 
-    FROM inscricoes i 
-    JOIN usuarios u ON i.usuario_id = u.id 
-    WHERE i.atividade_id = ?
-    ORDER BY i.data_inscricao ASC
+    SELECT DISTINCT u.nome, u.email, u.foto_perfil, u.id
+    FROM usuarios u 
+    WHERE u.id IN (
+        SELECT usuario_id FROM inscricoes WHERE atividade_id = ?
+        UNION
+        SELECT aei.usuario_id 
+        FROM atividade_evento_inscricoes aei
+        INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
+        WHERE ei.evento_id = ?
+    )
+    ORDER BY u.nome ASC
 ";
 $stmt_p = $conn->prepare($parts_sql);
-$stmt_p->bind_param('i', $id);
+$stmt_p->bind_param('ii', $id, $id);
 $stmt_p->execute();
 $participants = $stmt_p->get_result();
 $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ?? 0));
@@ -208,11 +214,41 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
                         <?php endif; ?>
                     </div>
                     
-                    <?php if (can('admin_sistema')): ?>
-                    <button class="btn btn-ghost" style="width:100%; margin-top:1.5rem; font-size:0.75rem;">Gerenciar Inscrições</button>
+                    <?php if (can('admin_sistema') || can('editar_eventos')): ?>
+                    <a href="gerenciar_participantes.php?id=<?= $id ?>" class="btn btn-ghost" style="width:100%; margin-top:1.5rem; font-size:0.75rem; text-decoration: none; display: inline-flex; justify-content: center; align-items: center;">Gerenciar Inscrições</a>
                     <?php endif; ?>
                 </section>
             </div>
+
+            <?php if (empty($eventItems) && canInteractWithActivity()): ?>
+                <?php 
+                $userId = (int)($_SESSION['usuario_id'] ?? 0);
+                $isEnrolledMain = (bool)$conn->query("SELECT id FROM inscricoes WHERE atividade_id = $id AND usuario_id = $userId LIMIT 1")->num_rows;
+                ?>
+                <section class="glass event-items-board animate-in" style="animation-delay: 0.15s; text-align: center; margin-top: -1.5rem;">
+                    <h3 style="font-size: 0.75rem; font-weight: 800; text-transform: uppercase; color: var(--text-ghost); letter-spacing: 0.1em; margin-bottom: 1.5rem;">Inscrição neste Evento</h3>
+                    <div style="padding: 1rem; background: var(--panel-hi); border-radius: 16px; border: 1px solid var(--border);">
+                        <?php if (!$isEnrolledMain): ?>
+                            <form method="POST" action="inscrever.php" style="margin: 0;">
+                                <input type="hidden" name="id" value="<?= $id ?>">
+                                <input type="hidden" name="action" value="join">
+                                <button type="submit" class="btn btn-primary shimmer" style="padding: 1rem 3rem;">Inscrever-me no Evento</button>
+                            </form>
+                        <?php else: ?>
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                                <div style="color: var(--primary); font-weight: 800;">✓ Você já está inscrito neste evento!</div>
+                                <?php if (activityStartTimestamp($activity) - 86400 >= time() || canBypassEnrollmentDeadline()): ?>
+                                    <form method="POST" action="inscrever.php" style="margin: 0;">
+                                        <input type="hidden" name="id" value="<?= $id ?>">
+                                        <input type="hidden" name="action" value="leave">
+                                        <button type="submit" class="btn btn-ghost">Cancelar minha Inscrição</button>
+                                    </form>
+                                <?php endif; ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </section>
+            <?php endif; ?>
 
             <?php if (!empty($eventItems)): ?>
             <section class="glass event-items-board animate-in" style="animation-delay: 0.15s;">

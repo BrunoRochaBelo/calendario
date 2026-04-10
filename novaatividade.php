@@ -39,10 +39,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($stmt->execute()) {
             $newEventId = (int)$conn->insert_id;
             saveEventActivityItems($conn, $newEventId, $pid, $data['atividades_evento'] ?? []);
+            
+            // Recurrence Handling
+            if (isset($data['se_repete']) && !empty($data['data_fim_recorrencia'])) {
+                $iterDate = new DateTime($data['data_inicio']);
+                $endDate = new DateTime($data['data_fim_recorrencia']);
+                $freq = $data['frequencia'] ?? 'semanal';
+                $mensalTipo = $data['mensal_tipo'] ?? 'dia_mes';
+                
+                $originalDayNum = (int)$iterDate->format('d');
+                $dayOfWeek = $iterDate->format('l');
+                $weekOfMonth = ceil($originalDayNum / 7);
+                $ordinalStrings = ['first', 'second', 'third', 'fourth', 'fifth'];
+                $ordinal = $ordinalStrings[min(4, $weekOfMonth - 1)];
+
+                $count = 0;
+                while ($count < 100) {
+                    if ($freq === 'diario') $iterDate->modify('+1 day');
+                    elseif ($freq === 'semanal') $iterDate->modify('+1 week');
+                    elseif ($freq === 'quinzenal') $iterDate->modify('+2 weeks');
+                    elseif ($freq === 'anual') $iterDate->modify('+1 year');
+                    elseif ($freq === 'mensal') {
+                        if ($mensalTipo === 'dia_mes') {
+                            $iterDate->modify('+1 month');
+                        } else {
+                            $iterDate->modify("$ordinal $dayOfWeek of next month");
+                        }
+                    }
+                    if ($iterDate > $endDate) break;
+                    
+                    $newDateStr = $iterDate->format('Y-m-d');
+                    $stRepeat = $conn->prepare($sql);
+                    $stRepeat->bind_param('siiisssiisii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $newDateStr, $data['hora_inicio'], $uid, $restrito, $cor, $is_multi, $is_flash);
+                    if ($stRepeat->execute()) {
+                        $repeatId = (int)$conn->insert_id;
+                        saveEventActivityItems($conn, $repeatId, $pid, $data['atividades_evento'] ?? []);
+                    }
+                    $count++;
+                }
+            }
+
             logAction($conn, 'CRIAR_ATIVIDADE', 'atividades', $newEventId, $data['nome']);
             $eventMonth = (int)date('n', strtotime($data['data_inicio']));
             $eventYear = (int)date('Y', strtotime($data['data_inicio']));
-            header('Location: index.php?m=' . $eventMonth . '&y=' . $eventYear . '&msg=' . urlencode('Atividade criada com sucesso!') . '&refresh=1');
+            header('Location: index.php?m=' . $eventMonth . '&y=' . $eventYear . '&msg=' . urlencode('Atividades criadas com sucesso!') . '&refresh=1');
             exit();
         } else {
             $error = 'Erro interno: ' . $conn->error;
@@ -133,6 +173,17 @@ if (!$selectedActivities) {
             .form-grid { grid-template-columns: 1fr; }
             .form-grid > .full-width { grid-column: span 1; }
         }
+
+        /* ── Recurrence Fields ─────────────────────────────── */
+        .recurrence-box { 
+            grid-column: span 2; display: none; background: rgba(59, 130, 246, 0.05); 
+            border: 1px solid rgba(59, 130, 246, 0.1); border-radius: 16px; padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .recurrence-box.active { display: block; }
+        .recurrence-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; }
+        @media (max-width: 600px) { .recurrence-grid { grid-template-columns: 1fr; } }
+    </style>
     <div class="app-shell">
         <?php include 'sidebar.php'; ?>
 
@@ -194,6 +245,45 @@ if (!$selectedActivities) {
                             <div class="form-group">
                                 <label>Horário</label>
                                 <input type="time" name="hora_inicio">
+                            </div>
+
+                            <div class="form-group full-width">
+                                <label class="style-toggle" style="color: var(--text); background: rgba(255,255,255,0.03); padding: 1rem; border-radius: 12px; border: 1px solid var(--border); margin-top: 1rem;">
+                                    <input type="checkbox" name="se_repete" id="seRepete">
+                                    Este evento se repete?
+                                </label>
+                            </div>
+
+                            <div class="recurrence-box" id="recurrenceBox">
+                                <div class="recurrence-grid">
+                                    <div class="form-group">
+                                        <label>Frequência</label>
+                                        <select name="frequencia" id="frequencia">
+                                            <option value="diario">Diário</option>
+                                            <option value="semanal" selected>Semanal</option>
+                                            <option value="quinzenal">Quinzenal</option>
+                                            <option value="mensal">Mensal</option>
+                                            <option value="anual">Anual</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Data Final (Até quando?)</label>
+                                        <input type="date" name="data_fim_recorrencia" id="dataFimRecorrencia">
+                                    </div>
+                                    <div class="form-group full-width" id="mensalOptions" style="display: none;">
+                                        <label>Tipo de Repetição Mensal</label>
+                                        <div style="display: flex; gap: 2rem; margin-top: 0.5rem;">
+                                            <label class="style-toggle" style="color: var(--text);">
+                                                <input type="radio" name="mensal_tipo" value="dia_mes" checked>
+                                                Mesmo dia do mês
+                                            </label>
+                                            <label class="style-toggle" style="color: var(--text);">
+                                                <input type="radio" name="mensal_tipo" value="dia_semana">
+                                                Mesmo dia da semana
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
 
@@ -314,7 +404,7 @@ if (!$selectedActivities) {
                 row.className = 'event-activity-row';
                 row.innerHTML = `
                     <select name="atividades_evento[]">${buildOptions(selectedValue)}</select>
-                    <button type="button" class="btn btn-ghost event-activity-remove" title="Remover atividade">×</button>
+                    <button type="button" class="btn btn-ghost event-activity-remove" title="Remover atividade">&times;</button>
                 `;
                 row.querySelector('.event-activity-remove').addEventListener('click', () => {
                     row.remove();
@@ -331,6 +421,31 @@ if (!$selectedActivities) {
                 initialValues.forEach((value) => addRow(value));
             } else {
                 addRow('');
+            }
+
+            // ── Recurrence Logic ─────────────────────────────
+            const seRepete = document.getElementById('seRepete');
+            const recurrenceBox = document.getElementById('recurrenceBox');
+            const freqSelect = document.getElementById('frequencia');
+            const mensalOptions = document.getElementById('mensalOptions');
+            const dataFim = document.getElementById('dataFimRecorrencia');
+            const dataInicio = document.querySelector('input[name="data_inicio"]');
+
+            if (seRepete) {
+                seRepete.addEventListener('change', () => {
+                    recurrenceBox.classList.toggle('active', seRepete.checked);
+                    if (seRepete.checked && !dataFim.value) {
+                        const nextMonth = new Date(dataInicio.value || new Date());
+                        nextMonth.setMonth(nextMonth.getMonth() + 1);
+                        dataFim.value = nextMonth.toISOString().split('T')[0];
+                    }
+                });
+            }
+
+            if (freqSelect) {
+                freqSelect.addEventListener('change', () => {
+                    mensalOptions.style.display = freqSelect.value === 'mensal' ? 'block' : 'none';
+                });
             }
         })();
     </script>

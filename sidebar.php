@@ -62,6 +62,10 @@ function is_active(string $page): string {
 
 <aside class="sidebar" id="mainSidebar">
     <div class="sidebar-header">
+        <button type="button" class="desktop-toggle hide-on-mobile" onclick="toggleDesktopSidebar()" title="Alternar menu">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="toggle-icon"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            <span class="toggle-text">Fechar</span>
+        </button>
         <div class="brand">
             <!-- ... same brand content ... -->
             <div class="brand-logo">
@@ -213,7 +217,18 @@ function is_active(string $page): string {
 }
 .close-sidebar:hover { color: #ef4444; }
 
-.sidebar-header { padding: 2rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+.desktop-toggle {
+    background: var(--primary); border: none; color: #fff;
+    cursor: pointer; display: none; padding: 0.6rem 1.2rem; transition: all 0.3s;
+    border-radius: 12px; align-items: center; justify-content: center;
+    gap: 0.8rem; font-weight: 800; font-size: 0.85rem;
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+    margin-right: 1rem;
+}
+.desktop-toggle:hover { background: var(--accent); transform: translateX(-3px); }
+.toggle-text { display: inline-block; }
+
+.sidebar-header { padding: 2rem 1.5rem; display: flex; align-items: center; justify-content: flex-start; }
 .brand { display: flex; align-items: center; gap: 1rem; }
 .brand-logo { 
     width: 42px; height: 42px; border-radius: 12px; 
@@ -285,6 +300,34 @@ function is_active(string $page): string {
 .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 9999; align-items: center; justify-content: center; padding: 2rem; }
 .modal.active { display: flex; }
 .modal-card { width: 100%; max-width: 540px; padding: 3rem; }
+
+@media (min-width: 1025px) {
+    .desktop-toggle { display: flex; }
+    
+    .sidebar-mini .sidebar { width: 80px; padding: 1.5rem 0.75rem; overflow: visible; }
+    .sidebar-mini .main-content { margin-left: 80px; }
+    .sidebar-mini .sidebar .brand-text, 
+    .sidebar-mini .sidebar .nav-text, 
+    .sidebar-mini .sidebar .nav-badge,
+    .sidebar-mini .sidebar .user-details,
+    .sidebar-mini .sidebar .logout-btn,
+    .sidebar-mini .sidebar .brand-sub-select { display: none; }
+    
+    .sidebar-mini .sidebar .brand { justify-content: center; width: 100%; margin: 0; }
+    .sidebar-mini .sidebar .nav-link { justify-content: center; padding: 0.8rem; border-radius: 12px; }
+    .sidebar-mini .sidebar .nav-link i, .sidebar-mini .sidebar .nav-link svg { margin: 0; font-size: 1.25rem; }
+    .sidebar-mini .sidebar .user-info { justify-content: center; width: 100%; }
+    .sidebar-mini .sidebar .brand-logo { width: 42px; height: 42px; }
+    .sidebar-mini .sidebar .sidebar-header { padding: 1.5rem 0; flex-direction: column; gap: 1.5rem; align-items: center; }
+    .sidebar-mini .sidebar .desktop-toggle { 
+        width: 42px; height: 42px; padding: 0; margin: 0; 
+        background: rgba(var(--primary-rgb), 0.1); color: var(--primary);
+        box-shadow: none;
+    }
+    .sidebar-mini .sidebar .desktop-toggle:hover { transform: none; background: var(--panel-hi); }
+    .sidebar-mini .sidebar .desktop-toggle .toggle-text { display: none; }
+    .sidebar-mini .sidebar .desktop-toggle .toggle-icon { transform: rotate(180deg); }
+}
 </style>
 
 <script>
@@ -292,6 +335,25 @@ function toggleSidebar() {
     const sidebar = document.getElementById('mainSidebar');
     sidebar.classList.toggle('open');
 }
+
+function toggleDesktopSidebar() {
+    const shell = document.querySelector('.app-shell');
+    if (!shell) return;
+    shell.classList.toggle('sidebar-mini');
+    const isMini = shell.classList.contains('sidebar-mini');
+    localStorage.setItem('sidebar-mini', isMini ? 'true' : 'false');
+}
+
+// Initial state
+(() => {
+    const isMini = localStorage.getItem('sidebar-mini') === 'true';
+    if (isMini) {
+        window.addEventListener('DOMContentLoaded', () => {
+            const shell = document.querySelector('.app-shell');
+            if (shell) shell.classList.add('sidebar-mini');
+        });
+    }
+})();
 
 let _globalConfirmCallback = null;
 let _globalConfirmLink = null;
