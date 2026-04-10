@@ -104,7 +104,16 @@ foreach ($catalogoAtividades as $catalogoItem) {
     ];
 }
 
-$gruposTrabalho = getWorkingGroups($conn, $pid);
+$gruposTrabalhoRaw = getWorkingGroups($conn, $pid);
+$userGroups = getUserGroups($conn, (int)($_SESSION['usuario_id'] ?? 0));
+$isAdmin = can('admin_sistema') || ((int)($_SESSION['usuario_nivel'] ?? 99) === 0);
+
+$gruposTrabalho = [];
+foreach ($gruposTrabalhoRaw as $g) {
+    if ($isAdmin || in_array((int)$g['id'], $userGroups, true)) {
+        $gruposTrabalho[] = $g;
+    }
+}
 
 if (!$selectedActivities) {
     $selectedActivities = [0];
@@ -332,7 +341,7 @@ if (!$selectedActivities) {
                             <label>Participação por Grupos de Trabalho</label>
                             <div class="groups-checkbox-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem; background: rgba(255,255,255,0.02); padding: 1.5rem; border-radius: 16px; border: 1px solid var(--border);">
                                 <?php if (empty($gruposTrabalho)): ?>
-                                    <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0;">Nenhum grupo de trabalho cadastrado na paróquia.</p>
+                                    <p style="color: var(--text-dim); font-size: 0.8rem; margin: 0;">Você não possui grupos disponíveis para seleção.</p>
                                 <?php else: ?>
                                     <?php foreach ($gruposTrabalho as $grp): ?>
                                         <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.85rem; color: var(--text); padding: 0.4rem; border-radius: 8px; transition: background 0.2s;">

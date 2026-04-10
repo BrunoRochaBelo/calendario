@@ -155,7 +155,6 @@ $grupos = $conn->query($sqlGroups);
 
             <header class="header-flex animate-in">
                 <div>
-                    <p style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost);">RECURSOS HUMANOS</p>
                     <h1 class="gradient-text">Grupos de Trabalho</h1>
                 </div>
                 <button onclick="openModal()" class="btn btn-primary shimmer">Criar Novo Grupo</button>
