@@ -73,7 +73,7 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; overflow-y: auto; max-height: 100vh; }
         
         .detail-header { margin-bottom: 3.5rem; display: flex; justify-content: space-between; align-items: flex-start; }
         
