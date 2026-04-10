@@ -1,8 +1,8 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Master Calendar (v2.4.2 Ultra Premium)
- * High-Performance Grid · Sunday Red Highlight · Responsive
+ * PASCOM — Parish Calendar (v2.4.3 Ultra Premium)
+ * High Performance · Glassmorphism · Dynamic Enrollment
  * ═══════════════════════════════════════════════════════ */
 
 require_once 'functions.php';

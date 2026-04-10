@@ -436,4 +436,130 @@ function alert(string $type, string $message): string {
     return "<div style='background:{$bg}; border:1px solid {$border}; color:{$border}; padding:1rem; border-radius:var(--r-md); margin-bottom:1.5rem; font-size:0.85rem; font-weight:700; text-align:center;'>{$message}</div>";
 }
 
+/**
+ * Retorna todos os grupos de trabalho de uma paróquia
+ */
+function getWorkingGroups(mysqli $db, int $paroquiaId, bool $incluirInativos = false): array {
+    $sql = "SELECT * FROM grupos_trabalho WHERE paroquia_id = ? " . ($incluirInativos ? "" : "AND ativo = 1") . " ORDER BY nome ASC";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) return [];
+    $stmt->bind_param('i', $paroquiaId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $grupos = [];
+    while ($row = $res->fetch_assoc()) {
+        $grupos[] = $row;
+    }
+    return $grupos;
+}
+
+/**
+ * Retorna os IDs dos grupos aos quais um usuário pertence
+ */
+function getUserGroups(mysqli $db, int $userId): array {
+    $sql = "SELECT grupo_id FROM usuario_grupos WHERE usuario_id = ?";
+    $stmt = $db->prepare($sql);
+    if (!$stmt) return [];
+    $stmt->bind_param('i', $userId);
+    $stmt->execute();
+    $res = $stmt->get_result();
+    $ids = [];
+    while ($row = $res->fetch_assoc()) {
+        $ids[] = (int)$row['grupo_id'];
+    }
+    return $ids;
+}
+
+/**
+ * Salva as associações de um usuário com grupos de trabalho
+ */
+function saveUserGroups(mysqli $db, int $userId, array $groupIds): bool {
+    // Primeiro remove todas as associações atuais
+    $stmtDel = $db->prepare("DELETE FROM usuario_grupos WHERE usuario_id = ?");
+    if ($stmtDel) {
+        $stmtDel->bind_param('i', $userId);
+        $stmtDel->execute();
+    }
+
+    if (empty($groupIds)) return true;
+
+    // Depois insere as novas
+    $stmtIns = $db->prepare("INSERT INTO usuario_grupos (usuario_id, grupo_id) VALUES (?, ?)");
+    if (!$stmtIns) return false;
+
+    foreach ($groupIds as $gid) {
+        $gid = (int)$gid;
+        if ($gid > 0) {
+            $stmtIns->bind_param('ii', $userId, $gid);
+            $stmtIns->execute();
+        }
+    }
+    return true;
+}
+
+/**
+ * Garante que o grupo padrão 'Todos' exista na paróquia
+ * e que todos os usuários da paróquia estejam nele.
+ */
+function ensureDefaultVisitorGroup(mysqli $db, int $paroquiaId): void {
+    if ($paroquiaId <= 0) return;
+
+    // Migrar nome antigo 'Visitante' -> 'Todos' se existir
+    $db->query("UPDATE grupos_trabalho SET nome = 'Todos', descricao = 'Grupo padrão — todos os membros da paróquia', visivel = 1 WHERE paroquia_id = $paroquiaId AND nome = 'Visitante'");
+    
+    // Verificar se 'Todos' já existe
+    $check = $db->prepare("SELECT id FROM grupos_trabalho WHERE paroquia_id = ? AND nome = 'Todos' LIMIT 1");
+    if (!$check) return;
+    $check->bind_param('i', $paroquiaId);
+    $check->execute();
+    $res = $check->get_result();
+
+    if ($res->num_rows > 0) {
+        $row = $res->fetch_assoc();
+        $grupoId = (int)$row['id'];
+    } else {
+        // Criar grupo 'Todos'
+        $stmt = $db->prepare("INSERT INTO grupos_trabalho (paroquia_id, nome, descricao, cor, visivel) VALUES (?, 'Todos', 'Grupo padrão — todos os membros da paróquia', '#3b82f6', 1)");
+        if (!$stmt) return;
+        $stmt->bind_param('i', $paroquiaId);
+        $stmt->execute();
+        $grupoId = (int)$db->insert_id;
+    }
+
+    if ($grupoId <= 0) return;
+
+    // Adicionar todos os usuários da paróquia que ainda não estão no grupo
+    $db->query("
+        INSERT IGNORE INTO usuario_grupos (usuario_id, grupo_id)
+        SELECT u.id, $grupoId
+        FROM usuarios u
+        WHERE u.paroquia_id = $paroquiaId
+          AND u.id NOT IN (SELECT usuario_id FROM usuario_grupos WHERE grupo_id = $grupoId)
+    ");
+}
+
+/**
+ * Salva as associações de um usuário com grupos de trabalho, 
+ * respeitando o escopo do administrador logado (merge inteligente).
+ */
+function saveUserGroupsScoped(mysqli $db, int $userId, array $postGroupIds, array $manageableGroupIds): bool {
+    // 1. Converter tudo para int para segurança
+    $postGroupIds = array_map('intval', $postGroupIds);
+    $manageableGroupIds = array_map('intval', $manageableGroupIds);
+
+    // 2. Buscar grupos ATUAIS do usuário no banco
+    $currentTargetGroups = getUserGroups($db, $userId);
+
+    // 3. Identificar grupos que o admin NÃO pode gerenciar (devem ser mantidos)
+    $groupsToKeep = array_diff($currentTargetGroups, $manageableGroupIds);
+
+    // 4. Identificar grupos que o admin QUER associar (devem estar no escopo dele)
+    $groupsToAdd = array_intersect($postGroupIds, $manageableGroupIds);
+
+    // 5. Novo conjunto final = Mantidos + Adicionados
+    $finalGroupIds = array_unique(array_merge($groupsToKeep, $groupsToAdd));
+
+    // 6. Aplicar salvamento padrão
+    return saveUserGroups($db, $userId, $finalGroupIds);
+}
 ?>

@@ -65,6 +65,7 @@ $visiblePermissions = [
     'perm_admin_sistema' => $is_master || can('admin_sistema'),
     'perm_ver_logs' => $is_master || can('ver_logs'),
     'perm_gerenciar_catalogo' => $is_master || can('gerenciar_catalogo'),
+    'perm_gerenciar_grupos' => $is_master || can('gerenciar_grupos'),
 ];
 
 $permissionLabels = [
@@ -78,11 +79,31 @@ $permissionLabels = [
     'perm_admin_sistema' => 'Setup de Sistema (Paroquias)',
     'perm_ver_logs' => 'Acesso a Logs',
     'perm_gerenciar_catalogo' => 'Gerenciar Catalogo',
+    'perm_gerenciar_grupos' => 'Gerenciar Grupos de Trabalho',
 ];
 
 $msg = $_GET['msg'] ?? '';
 $error = '';
 $deleteConfirmPending = ((int)($_GET['delete_confirm'] ?? 0) === 1 && (int)($_SESSION['pending_delete_user_id'] ?? 0) === $id);
+
+// --- CONTEXTO DE GRUPOS (Mover para cima para uso no POST) ---
+$allGroupsRaw = getWorkingGroups($conn, (int)($user['paroquia_id'] ?? 0), true);
+$myGroups = getUserGroups($conn, $id);
+
+$admin_uid_ctx = (int)($_SESSION['usuario_id'] ?? 0);
+$is_master_global_ctx = has_level(0) || $admin_uid_ctx === 1;
+$adminGroups_ctx = getUserGroups($conn, $admin_uid_ctx);
+
+$allGroups_ctx = [];
+$hiddenGroupsCount_ctx = 0;
+foreach ($allGroupsRaw as $g) {
+    if ($is_master_global_ctx || in_array((int)$g['id'], $adminGroups_ctx, true)) {
+        $allGroups_ctx[] = $g;
+    } elseif (in_array((int)$g['id'], $myGroups, true)) {
+        $hiddenGroupsCount_ctx++;
+    }
+}
+// -----------------------------------------------------------
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = sanitize_post($_POST);
@@ -161,13 +182,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     paroquia_id = ?, perfil_id = ?, 
                     perm_ver_calendario = ?, perm_criar_eventos = ?, perm_editar_eventos = ?, perm_excluir_eventos = ?,
                     perm_ver_restritos = ?, perm_cadastrar_usuario = ?, perm_admin_usuarios = ?, perm_admin_sistema = ?, perm_ver_logs = ?,
-                    perm_gerenciar_catalogo = ?
+                    perm_gerenciar_catalogo = ?, perm_gerenciar_grupos = ?
                     WHERE id = ?";
 
             $stmtUpdate = $conn->prepare($sql);
             if ($stmtUpdate) {
                 $stmtUpdate->bind_param(
-                    'sssssiiiiiiiiiiiii',
+                    'sssssiiiiiiiiiiiiii',
                     $nome,
                     $emailToSave,
                     $sexo,
@@ -185,6 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $permValues['perm_admin_sistema'],
                     $permValues['perm_ver_logs'],
                     $permValues['perm_gerenciar_catalogo'],
+                    $permValues['perm_gerenciar_grupos'],
                     $id
                 );
 
@@ -275,6 +297,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
 
                     $newState = $conn->query("SELECT * FROM usuarios WHERE id = $id")->fetch_assoc();
+                    
+                    // SAVE WORKING GROUPS (Scoped)
+                    if ($can_manage_target) {
+                        $groupIds = isset($_POST['grupos_trabalho']) && is_array($_POST['grupos_trabalho']) ? $_POST['grupos_trabalho'] : [];
+                        
+                        // Use context variables defined above
+                        $manageableIds = $is_master_global_ctx ? array_column($allGroups_ctx, 'id') : $adminGroups_ctx;
+                        
+                        saveUserGroupsScoped($conn, $id, $groupIds, $manageableIds);
+                    }
+
                     logAction($conn, 'EDITAR_USUARIO', 'usuarios', $id, ['antigo' => $oldState, 'novo' => $newState]);
                     header('Location: usuarios.php?msg=Usuario atualizado com sucesso!');
                     exit();
@@ -293,6 +326,12 @@ if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
 } else {
     $parishes = $conn->query("SELECT id, nome FROM paroquias WHERE id = $pid ORDER BY nome");
 }
+
+// Filter $allGroups based on what the admin can see/manage
+$allGroups = $allGroups_ctx;
+$hiddenGroupsCount = $hiddenGroupsCount_ctx;
+$is_master_global = $is_master_global_ctx;
+$adminGroups = $adminGroups_ctx;
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -453,27 +492,105 @@ if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
                         </select>
                     </div>
 
-                    <?php if (!$is_self && array_filter($visiblePermissions)): ?>
+                    <?php if (!$is_self && ($can_manage_target || array_filter($visiblePermissions))): ?>
                     <div style="grid-column: span 2; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
-                        <h3 style="margin-bottom: 1rem; color: var(--primary);">Controle de Privilegios Individuais</h3>
-                        <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 1rem;">Aparecem apenas as permissoes que voce pode realmente conceder.</p>
-
+                        <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Configurações de Acesso e Grupos</h3>
+                        
                         <input type="hidden" name="perfil_id" value="<?= (int)$user['perfil_id'] ?>">
 
-                        <div class="perm-grid">
-                            <?php foreach ($permissionLabels as $field => $label): ?>
-                                <?php if (!empty($visiblePermissions[$field])): ?>
-                                    <label class="perm-item">
-                                        <input type="checkbox" name="<?= h($field) ?>" id="<?= h($field) ?>" <?= !empty($user[$field]) ? 'checked' : '' ?>>
-                                        <?= h($label) ?>
-                                    </label>
+                        <!-- Permissões do Sistema -->
+                        <?php if (array_filter($visiblePermissions)): ?>
+                        <div style="margin-bottom: 2rem;">
+                            <p style="font-size: 0.7rem; font-weight: 800; color: var(--text-ghost); margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em;">Permissões de Sistema</p>
+                            <div class="perm-grid">
+                                <?php foreach ($permissionLabels as $field => $label): ?>
+                                    <?php if (!empty($visiblePermissions[$field])): ?>
+                                        <label class="perm-item">
+                                            <input type="checkbox" name="<?= h($field) ?>" id="<?= h($field) ?>" <?= !empty($user[$field]) ? 'checked' : '' ?>>
+                                            <?= h($label) ?>
+                                        </label>
+                                    <?php endif; ?>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+
+                        <!-- Grupos de Trabalho -->
+                        <div style="margin-bottom: 1rem;">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 0.8rem;">
+                                <p style="font-size: 0.7rem; font-weight: 800; color: var(--text-ghost); margin-bottom: 0; text-transform: uppercase; letter-spacing: 0.05em;">Associação a Grupos de Trabalho</p>
+                                <?php if ($hiddenGroupsCount_ctx > 0): ?>
+                                    <span style="font-size: 0.65rem; font-weight: 800; color: #f59e0b; background: rgba(245, 158, 11, 0.1); padding: 0.2rem 0.5rem; border-radius: 4px; border: 1px solid rgba(245, 158, 11, 0.2);">
+                                        + <?= $hiddenGroupsCount_ctx ?> grupo(s) em outros departamentos
+                                    </span>
                                 <?php endif; ?>
-                            <?php endforeach; ?>
+                            </div>
+
+                            <?php if ($can_manage_target): ?>
+                                <div class="perm-grid">
+                                    <?php if (empty($allGroups)): ?>
+                                        <p style="font-size: 0.85rem; color: var(--text-ghost);">Nenhum grupo comum sob sua gestão.</p>
+                                    <?php else: ?>
+                                        <?php foreach ($allGroups as $g): ?>
+                                            <label class="perm-item" style="border-left: 3px solid <?= $g['cor'] ?>; padding-left: 0.8rem;">
+                                                <input type="checkbox" name="grupos_trabalho[]" value="<?= $g['id'] ?>" <?= in_array((int)$g['id'], $myGroups, true) ? 'checked' : '' ?>>
+                                                <div style="display: flex; flex-direction: column;">
+                                                    <span style="font-weight: 800;"><?= h($g['nome']) ?></span>
+                                                    <?php if (!$g['visivel']): ?>
+                                                        <span style="font-size: 0.65rem; color: #f59e0b; text-transform: uppercase;">Oculto</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </div>
+                            <?php else: ?>
+                                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                    <?php 
+                                    $groupsFound = false;
+                                    foreach ($allGroups as $g): 
+                                        if (in_array((int)$g['id'], $myGroups, true)): 
+                                            $groupsFound = true;
+                                    ?>
+                                        <span style="padding: 0.5rem 1rem; border-radius: 99px; background: <?= $g['cor'] ?>15; border: 1px solid <?= $g['cor'] ?>44; color: <?= $g['cor'] ?>; font-size: 0.8rem; font-weight: 800;">
+                                            <?= h($g['nome']) ?>
+                                        </span>
+                                    <?php 
+                                        endif;
+                                    endforeach; 
+                                    if (!$groupsFound && $hiddenGroupsCount === 0) echo '<span style="font-size:0.85rem; color:var(--text-ghost);">Nenhum grupo associado.</span>';
+                                    ?>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?php else: ?>
                         <input type="hidden" name="perfil_id" value="<?= (int)$user['perfil_id'] ?>">
+                        
+                        <!-- Se for auto-edição (perfil), ainda mostra os grupos mas de forma resumida -->
+                        <?php if ($is_self): ?>
+                        <div style="grid-column: span 2; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+                             <h3 style="margin-bottom: 1rem; color: var(--primary);">Meus Grupos de Trabalho</h3>
+                             <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                                <?php 
+                                $groupsFound = false;
+                                foreach ($allGroups as $g): 
+                                    if (in_array((int)$g['id'], $myGroups, true)): 
+                                        $groupsFound = true;
+                                ?>
+                                    <span style="padding: 0.5rem 1rem; border-radius: 99px; background: <?= $g['cor'] ?>15; border: 1px solid <?= $g['cor'] ?>44; color: <?= $g['cor'] ?>; font-size: 0.8rem; font-weight: 800;">
+                                        <?= h($g['nome']) ?>
+                                    </span>
+                                <?php 
+                                    endif;
+                                endforeach; 
+                                if (!$groupsFound) echo '<span style="font-size:0.85rem; color:var(--text-ghost);">Você ainda não foi associado a nenhum grupo.</span>';
+                                ?>
+                             </div>
+                        </div>
+                        <?php endif; ?>
                     <?php endif; ?>
+
 
                     <?php if ($can_edit_password_for_target): ?>
                     <div class="form-group" style="grid-column: span 2; margin-top: 1rem; border-top: 1px solid var(--border); padding-top: 2rem;">

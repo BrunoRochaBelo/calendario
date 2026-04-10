@@ -33,6 +33,7 @@ function requireLogin(): void {
     if (isset($conn) && $conn instanceof mysqli) {
         ensurePerfisHierarchyRemoved($conn);
         ensureUserPermissionsMaterialized($conn);
+        ensureWorkingGroupsTables($conn);
     }
 }
 
@@ -78,6 +79,7 @@ function ensureUserPermissionColumns(mysqli $db): void {
         'perm_admin_sistema' => "TINYINT(1) NULL DEFAULT NULL",
         'perm_ver_logs' => "TINYINT(1) NULL DEFAULT NULL",
         'perm_gerenciar_catalogo' => "TINYINT(1) NULL DEFAULT NULL",
+        'perm_gerenciar_grupos' => "TINYINT(1) NULL DEFAULT NULL",
     ];
 
     foreach ($cols as $col => $def) {
@@ -127,9 +129,11 @@ function ensureUserPermissionsMaterialized(mysqli $db): void {
             perm_admin_usuarios = COALESCE(perm_admin_usuarios, 0),
             perm_admin_sistema  = COALESCE(perm_admin_sistema, 0),
             perm_ver_logs       = COALESCE(perm_ver_logs, 0),
-            perm_gerenciar_catalogo = COALESCE(perm_gerenciar_catalogo, 0)
+            perm_gerenciar_catalogo = COALESCE(perm_gerenciar_catalogo, 0),
+            perm_gerenciar_grupos = COALESCE(perm_gerenciar_grupos, 0)
     ");
 }
+
 
 function ensureUserPhotoColumn(mysqli $db): void {
     static $checked = false;
@@ -191,7 +195,8 @@ function loadPermissions(mysqli $db, int $userId): array {
             COALESCE(u.perm_admin_usuarios, 0) as admin_usuarios,
             COALESCE(u.perm_admin_sistema, 0) as admin_sistema,
             COALESCE(u.perm_ver_logs, 0) as ver_logs,
-            COALESCE(u.perm_gerenciar_catalogo, 0) as gerenciar_catalogo
+            COALESCE(u.perm_gerenciar_catalogo, 0) as gerenciar_catalogo,
+            COALESCE(u.perm_gerenciar_grupos, 0) as gerenciar_grupos
         FROM usuarios u
         WHERE u.id = ?
     ";
@@ -408,5 +413,42 @@ function authThrottleReset(mysqli $db, string $scope, string $identifier): void 
         $stmt->bind_param('ss', $scope, $identifier);
         $stmt->execute();
     }
+}
+
+function ensureWorkingGroupsTables(mysqli $db): void {
+    static $checked = false;
+    if ($checked) return;
+    $checked = true;
+
+    // Table for Groups
+    $db->query("
+        CREATE TABLE IF NOT EXISTS grupos_trabalho (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            paroquia_id INT(10) UNSIGNED NOT NULL,
+            nome VARCHAR(100) NOT NULL,
+            descricao TEXT NULL,
+            cor VARCHAR(7) DEFAULT '#3b82f6',
+            ativo TINYINT(1) NOT NULL DEFAULT 1,
+            visivel TINYINT(1) NOT NULL DEFAULT 1,
+            data_criacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY fk_grupo_paroquia (paroquia_id),
+            CONSTRAINT fk_grupo_paroquia FOREIGN KEY (paroquia_id) REFERENCES paroquias (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
+
+    // Table for N:N Relationship
+    $db->query("
+        CREATE TABLE IF NOT EXISTS usuario_grupos (
+            usuario_id INT(10) UNSIGNED NOT NULL,
+            grupo_id INT(10) UNSIGNED NOT NULL,
+            data_atribuicao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (usuario_id, grupo_id),
+            KEY fk_ug_usuario (usuario_id),
+            KEY fk_ug_grupo (grupo_id),
+            CONSTRAINT fk_ug_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE,
+            CONSTRAINT fk_ug_grupo FOREIGN KEY (grupo_id) REFERENCES grupos_trabalho (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ");
 }
 ?>

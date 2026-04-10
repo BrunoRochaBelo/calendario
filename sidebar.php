@@ -1,8 +1,8 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Modern Sidebar Component (v2.4.2)
- * Glassmorphism · Premium Navigation · Active Highlighting
+ * PASCOM — Universal Sidebar (v2.4.3)
+ * Glassmorphic UI · Dynamic RBAC · Parish Hub
  * ═══════════════════════════════════════════════════════ */
 
 require_once 'config.php';
@@ -135,6 +135,13 @@ function is_active(string $page): string {
             <a href="usuarios.php" class="<?= is_active('usuarios.php') ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 <span>Usuários</span>
+            </a>
+            <?php endif; ?>
+
+            <?php if (can('gerenciar_grupos')): ?>
+            <a href="grupos_trabalho.php" class="<?= is_active('grupos_trabalho.php') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>Grupos de Trabalho</span>
             </a>
             <?php endif; ?>
         </div>
