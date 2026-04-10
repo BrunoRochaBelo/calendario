@@ -119,6 +119,12 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
         .event-item-participants { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.9rem; }
         .event-item-chip { padding: 0.4rem 0.6rem; border-radius: 10px; background: var(--panel-hi); border: 1px solid var(--border); font-size: 0.8rem; }
 
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+        .custom-scrollbar { scrollbar-width: thin; scrollbar-color: var(--primary) transparent; }
+
         @media (max-width: 1100px) {
             .info-grid { grid-template-columns: 1fr; }
         }
@@ -190,9 +196,9 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
 
                         <?php if ($activity['descricao']): ?>
                         <div class="meta-box" style="margin-top: 1rem; padding: 1.5rem; background: var(--panel-hi); border-radius: 16px;">
-                            <div class="meta-content" style="width: 100%;">
-                                <div style="margin-bottom: 0.8rem;">DETALHES DA ATIVIDADE</div>
-                                <p style="color: var(--text); line-height: 1.6; font-size: 0.95rem;"><?= nl2br(h($activity['descricao'])) ?></p>
+                            <div class="meta-content custom-scrollbar" style="width: 100%; max-height: 250px; overflow-y: auto; padding-right: 0.5rem;">
+                                <div style="margin-bottom: 0.8rem; position: sticky; top: 0; background: var(--panel-hi); padding-bottom: 0.5rem; z-index: 1;">DETALHES DA ATIVIDADE</div>
+                                <p style="color: var(--text); line-height: 1.6; font-size: 0.95rem; margin: 0;"><?= nl2br(h($activity['descricao'])) ?></p>
                             </div>
                         </div>
                         <?php endif; ?>

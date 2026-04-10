@@ -397,6 +397,21 @@ foreach ($holidays as $mmdd => $hName) {
             width: 100%; border-top: none; border-right: none; border-bottom: none;
             text-align: left; appearance: none;
         }
+
+        /* Modal Scroll Style */
+        .event-modal { max-height: 90vh; display: flex; flex-direction: column; }
+        .event-modal-content-scroll {
+            flex: 1;
+            overflow-y: auto;
+            margin: 1rem 0;
+            padding-right: 0.5rem;
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) transparent;
+        }
+        .event-modal-content-scroll::-webkit-scrollbar { width: 6px; }
+        .event-modal-content-scroll::-webkit-scrollbar-track { background: transparent; }
+        .event-modal-content-scroll::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        .event-modal-content-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
     </style>
 </head>
 <body>
@@ -575,20 +590,22 @@ foreach ($holidays as $mmdd => $hName) {
                 <button type="button" class="btn btn-ghost" id="closeEventModal">Fechar</button>
             </div>
 
-            <p id="eventModalDescription" style="color: var(--text); line-height: 1.6; margin: 0;"></p>
+            <div class="event-modal-content-scroll">
+                <p id="eventModalDescription" style="color: var(--text); line-height: 1.6; margin: 0;"></p>
 
-            <div id="eventModalItemsWrap" class="event-items-wrap">
-                <strong style="font-size: 0.85rem;">Atividades do evento</strong>
-                <div id="eventModalItems" class="event-items-list"></div>
+                <div id="eventModalItemsWrap" class="event-items-wrap">
+                    <strong style="font-size: 0.85rem;">Atividades do evento</strong>
+                    <div id="eventModalItems" class="event-items-list"></div>
+                </div>
+
+                <div id="eventModalParticipantsWrap" style="margin-top: 1rem;">
+                    <strong style="font-size: 0.85rem;">Participantes</strong>
+                    <div id="eventModalParticipants" class="participant-chips"></div>
+                </div>
+
+                <div id="eventModalNote" class="modal-note"></div>
+                <div id="eventModalFeedback" class="modal-feedback"></div>
             </div>
-
-            <div id="eventModalParticipantsWrap" style="margin-top: 1rem;">
-                <strong style="font-size: 0.85rem;">Participantes</strong>
-                <div id="eventModalParticipants" class="participant-chips"></div>
-            </div>
-
-            <div id="eventModalNote" class="modal-note"></div>
-            <div id="eventModalFeedback" class="modal-feedback"></div>
 
             <div class="event-modal-actions">
                 <button type="button" class="btn btn-primary shimmer" id="eventJoinButton" style="display:none;">Inscrever-me</button>
