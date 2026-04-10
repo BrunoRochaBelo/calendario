@@ -32,10 +32,12 @@ if (!$activity) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $targetUserId = (int)($_POST['usuario_id'] ?? 0);
     $selectedItems = $_POST['items'] ?? [];
+    $newCatalogId = (int)($_POST['add_catalog_id'] ?? 0);
     
     if ($targetUserId > 0) {
         $conn->begin_transaction();
         try {
+            // Delete existing assignments for this event context
             $conn->query("DELETE FROM inscricoes WHERE atividade_id = $id AND usuario_id = $targetUserId");
             $conn->query("
                 DELETE aei FROM atividade_evento_inscricoes aei
@@ -43,6 +45,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 WHERE ei.evento_id = $id AND aei.usuario_id = $targetUserId
             ");
             
+            // If we are adding a NEW item from catalog
+            if ($newCatalogId > 0) {
+                // Check if this catalog item is already in this event
+                $stCheck = $conn->prepare("SELECT id FROM atividade_evento_itens WHERE evento_id = ? AND atividade_catalogo_id = ? LIMIT 1");
+                $stCheck->bind_param('ii', $id, $newCatalogId);
+                $stCheck->execute();
+                $resCheck = $stCheck->get_result()->fetch_assoc();
+                
+                if ($resCheck) {
+                    $itemId = $resCheck['id'];
+                } else {
+                    $stInsert = $conn->prepare("INSERT INTO atividade_evento_itens (evento_id, atividade_catalogo_id, ordem) SELECT ?, ?, IFNULL(MAX(ordem)+1, 1) FROM atividade_evento_itens WHERE evento_id = ?");
+                    $stInsert->bind_param('iii', $id, $newCatalogId, $id);
+                    $stInsert->execute();
+                    $itemId = $conn->insert_id;
+                }
+                
+                // Add to selectedItems if not already there
+                if (!in_array((string)$itemId, $selectedItems)) {
+                    $selectedItems[] = (string)$itemId;
+                }
+            }
+
             if (empty($selectedItems)) {
                 $st = $conn->prepare("INSERT INTO inscricoes (atividade_id, usuario_id) VALUES (?, ?)");
                 $st->bind_param('ii', $id, $targetUserId);
@@ -59,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             $conn->commit();
-            header("Location: gerenciar_participantes.php?id=$id&msg=" . urlencode("Atribuições sincronizadas!"));
+            header("Location: gerenciar_participantes.php?id=$id&msg=" . urlencode("Sincronizado!"));
             exit();
         } catch (Exception $e) {
             $conn->rollback();
@@ -67,6 +92,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
+
+// 2.2 Catalog for Assignment
+$catalog = $conn->query("SELECT id, nome FROM atividades_catalogo WHERE paroquia_id = $pid ORDER BY nome ASC")->fetch_all(MYSQLI_ASSOC);
 
 // 3. Fetch Participants
 $participantsQuery = "
@@ -173,10 +201,16 @@ $eventItems = getEventActivityItems($conn, $id);
                                         <?php foreach ($eventItems as $item): ?>
                                             <?php $isAssigned = in_array((string)$item['id'], $p['assigned_ids']); ?>
                                             <label class="item-chip <?= $isAssigned ? 'active' : '' ?>">
-                                                <input type="checkbox" name="items[]" value="<?= $item['id'] ?>" <?= $isAssigned ? 'checked' : '' ?> onchange="document.getElementById('form_<?= $p['id'] ?>').submit()">
+                                                <input type="checkbox" name="items[]" value="<?= $item['id'] ?>" <?= $isAssigned ? 'checked' : '' ?> onchange="this.form.submit()">
                                                 <?= htmlspecialchars($item['nome'] ?? '') ?>
                                             </label>
                                         <?php endforeach; ?>
+                                        <select name="add_catalog_id" class="item-chip" style="display: inline-block; padding: 0.4rem; cursor: pointer; border-style: dashed;" onchange="this.form.submit()">
+                                            <option value="">+ Atribuir nova...</option>
+                                            <?php foreach($catalog as $cat): ?>
+                                                <option value="<?= $cat['id'] ?>"><?= htmlspecialchars($cat['nome']) ?></option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                 </form>
                             </td>
