@@ -101,7 +101,19 @@ $eventItems = getEventActivityItems($conn, $id, (int)($_SESSION['usuario_id'] ??
         .p-avatar { width: 32px; height: 32px; border-radius: 8px; background: var(--panel-hi); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; color: var(--accent); overflow: hidden; }
         .p-avatar img { width: 100%; height: 100%; object-fit: cover; }
         .event-items-board { margin-bottom: 2rem; padding: 2rem; }
-        .event-items-grid { display: grid; gap: 1rem; }
+        .event-items-grid {
+            display: grid; gap: 1rem;
+            max-height: 400px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+            /* Firefox */
+            scrollbar-width: thin;
+            scrollbar-color: var(--primary) rgba(255,255,255,0.05);
+        }
+        .event-items-grid::-webkit-scrollbar { width: 8px; }
+        .event-items-grid::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .event-items-grid::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        .event-items-grid::-webkit-scrollbar-thumb:hover { background: var(--accent); }
         .event-item-card { padding: 1.1rem; border-radius: 14px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); }
         .event-item-header { display: flex; justify-content: space-between; gap: 1rem; align-items: center; flex-wrap: wrap; }
         .event-item-participants { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-top: 0.9rem; }
