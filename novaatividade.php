@@ -345,7 +345,7 @@ if (!$selectedActivities) {
                                 <?php else: ?>
                                     <?php foreach ($gruposTrabalho as $grp): ?>
                                         <label style="display: flex; align-items: center; gap: 0.6rem; cursor: pointer; font-size: 0.85rem; color: var(--text); padding: 0.4rem; border-radius: 8px; transition: background 0.2s;">
-                                            <input type="checkbox" name="grupos_evento[]" value="<?= $grp['id'] ?>" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;">
+                                            <input type="checkbox" name="grupos_evento[]" value="<?= $grp['id'] ?>" style="width: 18px; height: 18px; accent-color: var(--primary); cursor: pointer;" <?= $grp['nome'] === 'Todos' ? 'checked' : '' ?>>
                                             <span style="display:inline-block; width:12px; height:12px; border-radius:50%; background:<?= $grp['cor'] ?? '#fff' ?>;"></span>
                                             <?= h($grp['nome']) ?>
                                         </label>
