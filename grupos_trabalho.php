@@ -141,6 +141,36 @@ $grupos = $conn->query($sqlGroups);
         .modal-card { width: 100%; max-width: 500px; padding: 2.5rem; }
         
         .color-preview { width: 24px; height: 24px; border-radius: 6px; border: 2px solid var(--border); }
+        
+        /* ── View Modes ────────────────────────────────────────── */
+        .view-controls { display: flex; gap: 0.5rem; background: var(--panel); padding: 0.4rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem; width: fit-content; }
+        .view-btn { 
+            padding: 0.5rem; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--anim);
+        }
+        .view-btn:hover { background: var(--panel-hi); color: var(--text); }
+        .view-btn.active { background: var(--primary); color: #fff; box-shadow: var(--sh-primary); }
+
+        /* LIST VIEW */
+        .groups-grid.view-list { grid-template-columns: 1fr; gap: 0.8rem; }
+        .view-list .group-card { 
+            flex-direction: row; align-items: center; padding: 1rem 1.5rem; gap: 2rem; 
+        }
+        .view-list .grp-header { min-width: 250px; flex-shrink: 0; }
+        .view-list .grp-desc { flex: 2; min-height: auto; margin: 0; display: flex; align-items: center; }
+        .view-list .grp-stats { flex: 1; border: none; padding: 0; margin: 0; justify-content: flex-start; }
+        .view-list .grp-footer { flex: 1; margin: 0; align-items: center; }
+        
+        /* COMPACT VIEW */
+        .groups-grid.view-compact { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+        .view-compact .group-card { padding: 1.2rem; gap: 1rem; }
+        .view-compact .grp-icon { width: 36px; height: 36px; font-size: 1rem; }
+        .view-compact .grp-desc { display: none; }
+        .view-compact .grp-footer { padding-top: 1rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+
+        @media (max-width: 900px) {
+            .view-list .group-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .view-list .grp-stats { padding-top: 1rem; border-top: 1px solid var(--border); width: 100%; justify-content: flex-start; }
+        }
     </style>
 </head>
 <body>
@@ -160,7 +190,19 @@ $grupos = $conn->query($sqlGroups);
                 <button onclick="openModal()" class="btn btn-primary shimmer">Criar Novo Grupo</button>
             </header>
 
-            <div class="groups-grid animate-in" style="animation-delay: 0.1s;">
+            <div class="view-controls animate-in" style="animation-delay: 0.05s;">
+                <button onclick="setView('grid')" id="btn-grid" class="view-btn" title="Grelha">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                </button>
+                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+                </button>
+            </div>
+
+            <div id="groupsContainer" class="groups-grid animate-in" style="animation-delay: 0.1s;">
                 <?php while ($g = $grupos->fetch_assoc()): ?>
                 <article class="glass group-card" style="border-top-color: <?= $g['cor'] ?>;">
                     <div class="grp-header">
@@ -291,6 +333,30 @@ $grupos = $conn->query($sqlGroups);
         function closeModal() {
             modal.classList.remove('active');
         }
+
+        function setView(mode) {
+            const container = document.getElementById('groupsContainer');
+            const btns = document.querySelectorAll('.view-btn');
+            
+            // Toggle classes
+            container.classList.remove('view-list', 'view-compact');
+            if (mode === 'list') container.classList.add('view-list');
+            if (mode === 'compact') container.classList.add('view-compact');
+
+            // Active button state
+            btns.forEach(b => b.classList.remove('active'));
+            if(document.getElementById('btn-' + mode)) {
+                document.getElementById('btn-' + mode).classList.add('active');
+            }
+
+            localStorage.setItem('groups-view-mode', mode);
+        }
+
+        // Init view mode
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedMode = localStorage.getItem('groups-view-mode') || 'grid';
+            setView(savedMode);
+        });
     </script>
 </body>
 </html>

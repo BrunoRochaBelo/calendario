@@ -102,6 +102,10 @@ function is_active(string $page): string {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg>
                 <span>Calendário</span>
             </a>
+            <a href="meus_grupos.php" class="<?= is_active('meus_grupos.php') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+                <span>Grupos de Trabalho</span>
+            </a>
         </div>
 
         <?php if (can('admin_sistema') || can('admin_usuarios')): ?>
@@ -147,13 +151,7 @@ function is_active(string $page): string {
         </div>
         <?php endif; ?>
 
-        <div class="nav-group">
-            <span class="nav-label">Minha Agenda</span>
-            <a href="meus_grupos.php" class="<?= is_active('meus_grupos.php') ?>">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
-                <span>Grupos de Trabalho</span>
-            </a>
-        </div>
+
         
         <?php if (can('ver_logs')): ?>
         <div class="nav-group">
