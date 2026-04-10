@@ -72,7 +72,29 @@ if (!can('admin_sistema') && !can('ver_logs')) {
                         </div>
                     </div>
 
-                    <div class="form-row">
+                    <div class="form-group" style="margin: 0;">
+                            <label>CATEGORIA / TIPO DE EVENTO</label>
+                        <select name="tipo_id" style="color: #fff; background: rgba(255,255,255,0.05);">
+                            <option value="" style="color: #000;">Todas as categorias</option>
+                            <?php
+                                $pid = current_paroquia_id();
+                                $tipos_r = $conn->query("SELECT * FROM tipos_atividade WHERE paroquia_id = $pid ORDER BY nome_tipo");
+                                if ($tipos_r) while ($tr = $tipos_r->fetch_assoc()) {
+                                    echo '<option value="' . $tr["id"] . '" style="color: #000;">' . h($tr["nome_tipo"]) . '</option>';
+                                }
+                            ?>
+                        </select>
+                        </div>
+
+                        <div class="form-group" style="margin: 0;">
+                            <label>CONTEÚDO DO RELATÓRIO</label>
+                            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.85rem;">
+                                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="inc_inscritos" value="1" checked> Incluir Inscritos</label>
+                                <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="inc_stats" value="1" checked> Estatísticas</label>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
                         <div class="form-group" style="margin: 0;">
                             <label>DATA INICIAL (OPCIONAL)</label>
                             <input type="date" name="data_inicio">
@@ -83,20 +105,8 @@ if (!can('admin_sistema') && !can('ver_logs')) {
                         </div>
                     </div>
 
-                    <div class="export-actions">
-                        <button type="submit" name="formato" value="csv" class="btn btn-ghost btn-export">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                            CSV
-                        </button>
-                        <button type="submit" name="formato" value="xls" class="btn btn-ghost btn-export">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                            XLS
-                        </button>
-                        <button type="submit" name="formato" value="doc" class="btn btn-ghost btn-export">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                            DOC
-                        </button>
-                        <button type="submit" name="formato" value="pdf" class="btn btn-primary shimmer btn-export" style="background: #ef4444; border-color: #ef4444; color: white; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">
+                    <div class="export-actions" style="grid-template-columns: 1fr;">
+                        <button type="submit" name="formato" value="pdf" class="btn btn-primary shimmer btn-export" style="background: #ef4444; border-color: #ef4444; color: white; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4); width: 100%;">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13H8v4"/><path d="M14 13h-2v4"/><path d="M18 13h-2v4"/></svg>
                             PDF
                         </button>
@@ -119,10 +129,10 @@ if (!can('admin_sistema') && !can('ver_logs')) {
 
                     <div class="form-group" style="margin: 0;">
                         <label>SITUAÇÃO DO USUÁRIO</label>
-                        <select name="status" style="color: #000;">
-                            <option value="todos">Todos os registros</option>
-                            <option value="1">Apenas Ativos</option>
-                            <option value="0">Apenas Inativos / Bloqueados</option>
+                        <select name="status" style="color: #fff; background: rgba(255,255,255,0.05);">
+                            <option value="todos" style="color: #000;">Todos os registros</option>
+                            <option value="1" style="color: #000;">Apenas Ativos</option>
+                            <option value="0" style="color: #000;">Apenas Inativos / Bloqueados</option>
                         </select>
                     </div>
 
@@ -130,7 +140,7 @@ if (!can('admin_sistema') && !can('ver_logs')) {
                         <label>INFORMAÇÕES A EXPORTAR</label>
                         <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 0.5rem; font-size: 0.85rem;">
                             <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Nome" checked> Nome</label>
-                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Email" checked> E-mail</label>
+                            <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Email" checked> <span style="white-space: nowrap;">E-mail</span></label>
                             <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Telefone" checked> Telefone</label>
                             <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Sexo" checked> Sexo</label>
                             <label style="display: flex; align-items: center; gap: 0.4rem; cursor: pointer; color: var(--text-dim); text-transform: none; letter-spacing: normal;"><input type="checkbox" name="cols[]" value="Nascimento" checked> Nascimento</label>
@@ -138,19 +148,7 @@ if (!can('admin_sistema') && !can('ver_logs')) {
                         </div>
                     </div>
 
-                    <div class="export-actions">
-                        <button type="submit" name="formato" value="csv" class="btn btn-ghost btn-export">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                            CSV
-                        </button>
-                        <button type="submit" name="formato" value="xls" class="btn btn-ghost btn-export">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
-                            XLS
-                        </button>
-                        <button type="submit" name="formato" value="doc" class="btn btn-ghost btn-export">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-                            DOC
-                        </button>
+                    <div class="export-actions" style="grid-template-columns: 1fr;">
                         <button type="submit" name="formato" value="pdf" class="btn btn-primary shimmer btn-export" style="background: #ef4444; border-color: #ef4444; color: white; box-shadow: 0 0 20px rgba(239, 68, 68, 0.4);">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13H8v4"/><path d="M14 13h-2v4"/><path d="M18 13h-2v4"/></svg>
                             PDF

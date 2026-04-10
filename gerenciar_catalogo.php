@@ -166,9 +166,10 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
         .card-status.inactive { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 
         .card-actions {
-            display: flex; gap: 0.8rem; border-top: 1px solid var(--border);
+            display: flex; flex-wrap: wrap; gap: 0.5rem; border-top: 1px solid var(--border);
             padding-top: 1.2rem; margin-top: auto;
         }
+        .card-actions .btn { flex: 1 1 auto; min-width: 80px; text-align: center; }
 
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); z-index: 2600; align-items: center; justify-content: center; padding: 2rem; }
         .modal.active { display: flex; }
@@ -180,6 +181,17 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
             .catalog-grid { grid-template-columns: 1fr; }
             .btn-primary { width: 100%; }
         }
+    
+        .catalog-actions {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; padding-top: 1rem;
+            border-top: 1px solid var(--border); margin-top: auto;
+        }
+        .catalog-actions .btn { flex: 1 1 auto; min-width: 80px; text-align: center; font-size: 0.75rem; padding: 0.6rem 0.8rem; white-space: nowrap; }
+        @media (max-width: 480px) {
+            .catalog-actions { flex-direction: column; }
+            .catalog-actions .btn { width: 100%; }
+        }
+    
     </style>
 <style>
         /* ── View Modes ────────────────────────────────────────── */
@@ -197,7 +209,18 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
         /* COMPACT VIEW */
         .catalog-grid.view-compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important; gap: 1rem; }
         .view-compact .catalog-card { padding: 1rem; }
-        </style>
+        
+        .catalog-actions {
+            display: flex; flex-wrap: wrap; gap: 0.5rem; padding-top: 1rem;
+            border-top: 1px solid var(--border); margin-top: auto;
+        }
+        .catalog-actions .btn { flex: 1 1 auto; min-width: 80px; text-align: center; font-size: 0.75rem; padding: 0.6rem 0.8rem; white-space: nowrap; }
+        @media (max-width: 480px) {
+            .catalog-actions { flex-direction: column; }
+            .catalog-actions .btn { width: 100%; }
+        }
+    
+    </style>
 </head>
 <body>
     <div class="bg-mesh"></div>
@@ -224,14 +247,14 @@ $items = $conn->query("SELECT * FROM atividades_catalogo WHERE paroquia_id = $pi
             </header>
 
             <div class="view-controls animate-in" style="animation-delay: 0.05s;">
-                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grelha">
+                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grande">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Média">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                 </button>
                 <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-                </button>
-                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                 </button>
             </div>
 

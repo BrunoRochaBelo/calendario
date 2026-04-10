@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
         $restrito = isset($data['restrito']) ? 1 : 0;
         $uid = $_SESSION['usuario_id'];
-        $cor = sanitize_text($data['cor'] ?? '#3b82f6');
+        $cor = trim($data['cor'] ?? '#3b82f6');
         
         $sql = "INSERT INTO atividades (nome, paroquia_id, local_id, tipo_atividade_id, descricao, data_inicio, hora_inicio, criador_id, restrito, cor) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";

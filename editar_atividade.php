@@ -52,19 +52,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $sql = "UPDATE atividades SET 
                 nome = ?, local_id = ?, tipo_atividade_id = ?, 
                 descricao = ?, data_inicio = ?, hora_inicio = ?, 
-                restrito = ?
+                restrito = ?, cor = ?
                 WHERE id = ? AND paroquia_id = ?";
         
         $stmt = $conn->prepare($sql);
         $local = !empty($data['local_id']) ? (int)$data['local_id'] : null;
         $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
-        $cor = sanitize_text($data['cor'] ?? '#3b82f6');
+        $cor = trim($data['cor'] ?? '#3b82f6');
         $restrito = isset($data['restrito']) ? 1 : 0;
         
-        $stmt->bind_param('siisssiii', 
+        $stmt->bind_param('siisssisii', 
             $data['nome'], $local, $tipo, 
             $data['descricao'], $data['data_inicio'], $data['hora_inicio'], 
-            $restrito, $id, $pid
+            $restrito, $cor, $id, $pid
         );
         
         if ($stmt->execute()) {
@@ -156,9 +156,15 @@ if (!$selectedActivities) {
 
                 <form method="POST" class="glass glass-form">
                     <div class="form-grid">
-                        <div class="form-group">
-                            <label>Identificação do Evento</label>
-                            <input type="text" name="nome" value="<?= h($activity['nome']) ?>" required autofocus>
+                        <div class="row-grid" style="grid-template-columns: 1fr auto;">
+                            <div class="form-group">
+                                <label>Identificação do Evento</label>
+                                <input type="text" name="nome" value="<?= h($activity['nome']) ?>" required autofocus>
+                            </div>
+                            <div class="form-group">
+                                <label>Cor do Evento</label>
+                                <input type="color" name="cor" value="<?= h($activity['cor'] ?? '#3b82f6') ?>" style="height: 55px; width: 60px; padding: 0.2rem; cursor: pointer; border-radius: 12px; border: 1px solid var(--border); background: var(--panel-hi);">
+                            </div>
                         </div>
 
                         <div class="row-grid">
@@ -189,7 +195,7 @@ if (!$selectedActivities) {
                                 <select name="tipo_id">
                                     <option value="">Selecione o tipo</option>
                                     <?php while ($t = $tipos->fetch_assoc()): ?>
-                                        <option value="<?= $t['id'] ?>" <?= $t['id'] == $activity['tipo_id'] ? 'selected' : '' ?>>
+                                        <option value="<?= $t['id'] ?>" <?= $t['id'] == $activity['tipo_atividade_id'] ? 'selected' : '' ?>>
                                             <?= h($t['nome_tipo']) ?>
                                         </option>
                                     <?php endwhile; ?>

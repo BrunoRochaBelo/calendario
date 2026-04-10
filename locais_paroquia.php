@@ -151,18 +151,18 @@ $locais = $conn->query("SELECT * FROM locais_paroquia WHERE paroquia_id = $pid O
             </header>
 
             <div class="view-controls animate-in" style="animation-delay: 0.05s;">
-                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grelha">
+                <button onclick="setView('grid')" id="btn-grid" class="view-btn active" title="Grande">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                </button>
+                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Média">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
                 </button>
                 <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
                 </button>
-                <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
-                </button>
             </div>
 
-            <div class="locations-grid animate-in" style="animation-delay: 0.1s;">
+            <div class="locations-grid animate-in" id="dataContainer" style="animation-delay: 0.1s;">
                 <?php while ($l = $locais->fetch_assoc()): ?>
                 <article class="glass location-card">
                     <div class="loc-header">

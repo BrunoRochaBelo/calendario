@@ -286,7 +286,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$parishes = $conn->query('SELECT id, nome FROM paroquias ORDER BY nome');
+// Fetch Parishes for the dropdown
+$pid = current_paroquia_id();
+if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
+    $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
+} else {
+    $parishes = $conn->query("SELECT id, nome FROM paroquias WHERE id = $pid ORDER BY nome");
+}
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">

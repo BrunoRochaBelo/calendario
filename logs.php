@@ -58,6 +58,11 @@ if ($params) {
 $stmt->execute();
 $logs = $stmt->get_result();
 ?>
+<?php
+// Autocomplete data for filters
+$usuarios_list = $conn->query("SELECT DISTINCT nome FROM usuarios WHERE paroquia_id = $pid ORDER BY nome");
+$tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes ORDER BY tabela_afetada");
+?>
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -151,19 +156,30 @@ $logs = $stmt->get_result();
             <form method="GET" class="glass filter-bar animate-in" style="padding: 1.5rem; border-radius: 20px; animation-delay: 0.1s;">
                 <div class="form-group">
                     <label style="font-size: 0.65rem; margin-bottom: 0.5rem; display: block;">FILTRAR POR TABELA</label>
-                    <input type="text" name="tabela" value="<?= h($filter_table) ?>" placeholder="Ex: atividades, locais...">
+                    <input type="text" name="tabela" value="<?= h($filter_table) ?>" placeholder="Ex: atividades, locais..." list="tabelas_list" autocomplete="off">
                 </div>
                 <div class="form-group">
                     <label style="font-size: 0.65rem; margin-bottom: 0.5rem; display: block;">FILTRAR POR USUÁRIO</label>
-                    <input type="text" name="usuario" value="<?= h($filter_user) ?>" placeholder="Nome do usuário...">
+                    <input type="text" name="usuario" value="<?= h($filter_user) ?>" placeholder="Nome do usuário..." list="usuarios_list" autocomplete="off">
                 </div>
                 <div style="display: flex; gap: 0.5rem; align-items: flex-end;">
                     <button type="submit" class="btn btn-primary" style="padding: 0.8rem 1.5rem;">Filtrar</button>
                     <a href="logs.php" class="btn btn-ghost" style="padding: 0.8rem 1.5rem;">Limpar</a>
                 </div>
+
+                <datalist id="tabelas_list">
+                    <?php if ($tabelas_list) while ($tb = $tabelas_list->fetch_assoc()): ?>
+                        <option value="<?= h($tb['tabela_afetada']) ?>">
+                    <?php endwhile; ?>
+                </datalist>
+                <datalist id="usuarios_list">
+                    <?php if ($usuarios_list) while ($ul = $usuarios_list->fetch_assoc()): ?>
+                        <option value="<?= h($ul['nome']) ?>">
+                    <?php endwhile; ?>
+                </datalist>
             </form>
 
-            <section class="glass timeline animate-in" style="border-radius: 24px; padding: 1rem 0; animation-delay: 0.2s;">
+            <section class="glass timeline animate-in" id="dataContainer" style="border-radius: 24px; padding: 1rem 0; animation-delay: 0.2s;">
                 <?php if ($logs->num_rows > 0): ?>
                     <?php while ($l = $logs->fetch_assoc()): ?>
                     <?php 

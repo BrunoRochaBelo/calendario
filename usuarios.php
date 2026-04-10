@@ -68,13 +68,10 @@ if (!$is_master) {
     $params[] = $my_level;
     $types .= "ii";
 } else {
-    // Master global vê todos da paróquia selecionada
-    $where[] = "u.id <> 0"; // dummy
-    
-    // Se quiser limitar à paróquia atual:
-    // $where[] = "u.paroquia_id = ?";
-    // $params[] = $pid;
-    // $types .= "i";
+    // Master global vê apenas os da paróquia selecionada no contexto
+    $where[] = "u.paroquia_id = ?";
+    $params[] = $pid;
+    $types .= "i";
 }
 
 $sql = "
