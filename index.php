@@ -44,7 +44,7 @@ $endMonth = "$year-" . str_pad($month, 2, '0', STR_PAD_LEFT) . "-" . $daysInMont
 $sql = "
     SELECT
         a.*,
-        t.cor,
+        t.cor AS tipo_cor,
         t.icone,
         (
             SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))

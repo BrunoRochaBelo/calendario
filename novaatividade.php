@@ -224,7 +224,7 @@ if (!$selectedActivities) {
                                 <label>Estilo Visual do Evento</label>
                                 <div class="color-palette" id="colorPalette">
                                     <?php 
-                                        $presets = ['#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#3b82f6', '#6366f1'];
+                                        $presets = ['#16a34a', '#f8fafc', '#dc2626', '#7e22ce', '#f472b6', '#1e293b', '#2563eb', '#f59e0b', '#0ea5e9', '#ec4899', '#84cc16'];
                                         foreach($presets as $p): 
                                     ?>
                                         <div class="color-opt" style="background: <?= $p ?>" data-color="<?= $p ?>"></div>
