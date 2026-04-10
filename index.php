@@ -47,13 +47,18 @@ $sql = "
         t.cor,
         t.icone,
         (
-            SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))
-            FROM inscricoes i_pre
-            INNER JOIN usuarios u ON u.id = i_pre.usuario_id
-            WHERE i_pre.atividade_id = a.id
-            ORDER BY i_pre.data_inscricao ASC
-            LIMIT 1
-        ) AS primeiro_inscrito,
+            SELECT GROUP_CONCAT(CONCAT(u.nome, '||', COALESCE(u.foto_perfil, '')) SEPARATOR '###')
+            FROM (
+                SELECT usuario_id, data_inscricao FROM inscricoes WHERE atividade_id = a.id
+                UNION ALL
+                SELECT aei.usuario_id, aei.data_inscricao 
+                FROM atividade_evento_inscricoes aei
+                INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
+                WHERE ei.evento_id = a.id
+            ) AS combined
+            INNER JOIN usuarios u ON u.id = combined.usuario_id
+            ORDER BY combined.data_inscricao ASC
+        ) AS todos_inscritos,
         (
             SELECT COUNT(*)
             FROM inscricoes i
@@ -64,6 +69,7 @@ $sql = "
             INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
             WHERE ei.evento_id = a.id
         ) AS total_inscritos
+
     FROM atividades a
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
     WHERE a.paroquia_id = ? 
@@ -170,7 +176,15 @@ foreach ($holidays as $mmdd => $hName) {
     <link rel="stylesheet" href="style.css">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
-        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 1.5rem; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 1.5rem; display: flex; flex-direction: column; min-height: 100vh; transition: margin 0.3s; }
+        
+        /* Premium Scrollbar for Main Page */
+        body::-webkit-scrollbar { width: 10px; }
+        body::-webkit-scrollbar-track { background: var(--bg-darker); }
+        body::-webkit-scrollbar-thumb { background: var(--panel-hi); border-radius: 10px; border: 2px solid var(--bg-darker); }
+        body::-webkit-scrollbar-thumb:hover { background: var(--primary); }
+        body { scrollbar-width: thin; scrollbar-color: var(--panel-hi) var(--bg-darker); }
+
         
         /* Premium Calendar UI */
         .calendar-header { 
@@ -197,15 +211,17 @@ foreach ($holidays as $mmdd => $hName) {
         .nav-controls { display: flex; gap: 0.5rem; }
         
         .calendar-container { 
-            flex: 1;
             background: rgba(255, 255, 255, 0.01); border-radius: 20px; 
             border: 1px solid var(--border); overflow: hidden;
             box-shadow: var(--sh-lg);
             display: flex; flex-direction: column;
+            margin-bottom: 2rem;
         }
 
+
         /* Desktop Grid */
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex: 1; min-height: 0; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); grid-auto-rows: minmax(160px, auto); }
+
         
         .cal-weekday { 
             background: var(--bg-darker); padding: 0.75rem; text-align: center;
@@ -218,8 +234,9 @@ foreach ($holidays as $mmdd => $hName) {
         .cal-day { 
             border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
             padding: 0.8rem; position: relative; transition: all 0.3s var(--anim);
-            display: flex; flex-direction: column; gap: 0.4rem; overflow: hidden;
+            display: flex; flex-direction: column; gap: 0.5rem; min-height: 100%;
         }
+
         .cal-day:nth-child(7n) { border-right: none; }
         .cal-day:hover { background: rgba(255, 255, 255, 0.03); }
         .cal-day.empty { background: rgba(0, 0, 0, 0.2); opacity: 0.3; }
@@ -236,28 +253,38 @@ foreach ($holidays as $mmdd => $hName) {
         }
         .sunday .day-number { color: #ef4444; }
 
-        .activities-list { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
-        .activities-list::-webkit-scrollbar { width: 3px; }
+        .activities-list { display: flex; flex-direction: column; gap: 0.3rem; }
+
 
         .act-pill { 
             font-size: 0.6rem; padding: 0.35rem 0.5rem; border-radius: 6px;
             background: rgba(var(--primary-rgb), 0.1); border: 1px solid rgba(var(--primary-rgb), 0.15);
             color: var(--text); font-weight: 700; cursor: pointer;
-            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
             transition: all 0.2s; text-decoration: none;
-            display: flex; align-items: center; gap: 0.3rem;
+            display: flex; align-items: center; gap: 0.4rem;
+            width: 100%; overflow: hidden;
         }
+        .act-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            font-weight: 800;
+        }
+
         .act-count {
             margin-left: auto;
-            padding: 0.18rem 0.45rem;
-            border-radius: 999px;
-            background: rgba(var(--accent-rgb), 0.12);
+            width: 18px; height: 18px;
+            border-radius: 50%;
+            background: rgba(var(--accent-rgb), 0.15);
             color: var(--accent);
-            font-size: 0.52rem;
-            font-weight: 800;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            white-space: nowrap;
+            font-size: 0.55rem;
+            font-weight: 900;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+        }
+        .act-pill:hover .act-count {
+            background: var(--accent);
+            color: #fff;
         }
         .act-pill:hover { 
             background: rgba(var(--primary-rgb), 0.2);
@@ -275,19 +302,24 @@ foreach ($holidays as $mmdd => $hName) {
         }
         .enroll-preview {
             display: flex;
+            flex-direction: column;
+            gap: 0.15rem;
+            margin: 0.35rem 0 0 0.5rem;
+            width: 100%;
+        }
+        .enroll-item {
+            display: flex;
             align-items: center;
-            gap: 0.4rem;
-            margin: 0.25rem 0 0 0.5rem;
+            gap: 0.35rem;
             color: var(--text-dim);
             font-size: 0.62rem;
             font-weight: 800;
-            max-width: 100%;
         }
         .enroll-preview[hidden] { display: none; }
         .enroll-avatar,
         .enroll-avatar-img {
-            width: 18px;
-            height: 18px;
+            width: 16px;
+            height: 16px;
             border-radius: 999px;
             flex-shrink: 0;
         }
@@ -298,9 +330,10 @@ foreach ($holidays as $mmdd => $hName) {
             background: var(--panel-hi);
             border: 1px solid var(--border);
             color: var(--primary);
-            font-size: 0.6rem;
+            font-size: 0.55rem;
             font-weight: 900;
         }
+
         .enroll-avatar-img { object-fit: cover; border: 1px solid rgba(255,255,255,0.25); }
         .enroll-name {
             color: var(--text);
@@ -337,7 +370,10 @@ foreach ($holidays as $mmdd => $hName) {
             .cal-day.empty { display: none; }
             .day-number { min-width: 40px; font-size: 1.5rem; text-align: center; }
             .activities-list { flex: 1; overflow: visible; }
+            .act-pill { white-space: normal; height: auto; padding: 0.6rem; }
+            .act-name { white-space: normal; }
         }
+
 
         /* FAB */
         .fab {
@@ -498,29 +534,37 @@ foreach ($holidays as $mmdd => $hName) {
                                                     style="<?= $pillStyle ?>"
                                                 >
                                                     <span style="opacity: 0.6;"><?= substr($act['hora_inicio'] ?? '', 0, 5) ?></span>
-                                                    <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
-                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
+                                                    <strong class="act-name"><?= h($act['nome']) ?></strong>
+                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?></span>
                                                 </button>
-                                                <?php
-                                                    $enName = trim((string)($act['primeiro_inscrito_nome'] ?? ''));
-                                                    $enPhoto = trim((string)($act['primeiro_inscrito_foto'] ?? ''));
-                                                    $enParts = preg_split('/\s+/', trim($enName)) ?: [];
-                                                    $enFirst = $enParts[0] ?? $enName;
-                                                    $enLast = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
-                                                    $enDisp = trim($enFirst . ' ' . $enLast);
-                                                    $enDisp = mb_substr($enDisp ?: $enName, 0, 12);
-                                                    $enTotal = (int)($act['total_inscritos'] ?? 0);
-                                                    $enMore = max(0, $enTotal - 1);
-                                                ?>
-                                                <div class="enroll-preview" <?= ($enTotal > 0 && $enName !== '') ? '' : 'hidden' ?>>
-                                                    <?php if ($enPhoto !== '' && file_exists(__DIR__ . '/' . $enPhoto)): ?>
-                                                        <img class="enroll-avatar-img" src="<?= h($enPhoto) ?>?v=<?= time() ?>" alt="Foto">
-                                                    <?php else: ?>
-                                                        <div class="enroll-avatar"><?= mb_strtoupper(mb_substr($enDisp ?: $enName ?: '?', 0, 1)) ?></div>
-                                                    <?php endif; ?>
-                                                    <span class="enroll-name"><?= h($enDisp ?: $enName ?: '?') ?></span>
-                                                    <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
+                                                <div class="enroll-preview" <?= ($act['todos_inscritos'] ? '' : 'hidden') ?>>
+                                                    <?php 
+                                                    $rawInscritos = explode('###', (string)$act['todos_inscritos']);
+                                                    foreach ($rawInscritos as $idx => $raw): 
+                                                        if (empty($raw)) continue;
+                                                        // Limite de 20 para não explodir o layout, embora agora seja expansivo
+                                                        if ($idx >= 20) {
+                                                            echo '<span class="enroll-more" style="margin-left:1.5rem">+'.(count($rawInscritos)-$idx).' mais</span>';
+                                                            break;
+                                                        }
+                                                        list($nome, $foto) = explode('||', $raw);
+                                                        $nParts = preg_split('/\s+/', trim($nome)) ?: [];
+                                                        $nFirst = $nParts[0] ?? $nome;
+                                                        $nLast = count($nParts) > 1 ? $nParts[count($nParts) - 1] : '';
+                                                        $disp = trim($nFirst . ' ' . $nLast);
+                                                        $disp = mb_substr($disp ?: $nome, 0, 15);
+                                                    ?>
+                                                        <div class="enroll-item">
+                                                            <?php if ($foto !== '' && file_exists(__DIR__ . '/' . $foto)): ?>
+                                                                <img class="enroll-avatar-img" src="<?= h($foto) ?>?v=<?= time() ?>" alt="Foto">
+                                                            <?php else: ?>
+                                                                <div class="enroll-avatar"><?= mb_strtoupper(mb_substr($disp ?: $nome ?: '?', 0, 1)) ?></div>
+                                                            <?php endif; ?>
+                                                            <span class="enroll-name" title="<?= h($nome) ?>"><?= h($disp) ?></span>
+                                                        </div>
+                                                    <?php endforeach; ?>
                                                 </div>
+
                                             <?php else: ?>
                                                 <?php
                                                     $pillClasses = "act-pill";
@@ -534,8 +578,8 @@ foreach ($holidays as $mmdd => $hName) {
                                                 ?>
                                                 <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="<?= $pillClasses ?>" style="<?= $pillStyle ?>">
                                                     <span style="opacity: 0.6;"><?= substr($act['hora_inicio'] ?? '', 0, 5) ?></span>
-                                                    <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
-                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?> inscritos</span>
+                                                    <strong class="act-name"><?= h($act['nome']) ?></strong>
+                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?></span>
                                                 </a>
                                                 <?php
                                                     $enName = trim((string)($act['primeiro_inscrito_nome'] ?? ''));
