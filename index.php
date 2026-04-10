@@ -1,7 +1,7 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Master Calendar (v2.0 Ultra Premium)
+ * PASCOM — Master Calendar (v2.4.2 Ultra Premium)
  * High-Performance Grid · Sunday Red Highlight · Responsive
  * ═══════════════════════════════════════════════════════ */
 
@@ -47,18 +47,13 @@ $sql = "
         t.cor,
         t.icone,
         (
-            SELECT GROUP_CONCAT(CONCAT(u.nome, '||', COALESCE(u.foto_perfil, '')) SEPARATOR '###')
-            FROM (
-                SELECT usuario_id, data_inscricao FROM inscricoes WHERE atividade_id = a.id
-                UNION ALL
-                SELECT aei.usuario_id, aei.data_inscricao 
-                FROM atividade_evento_inscricoes aei
-                INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
-                WHERE ei.evento_id = a.id
-            ) AS combined
-            INNER JOIN usuarios u ON u.id = combined.usuario_id
-            ORDER BY combined.data_inscricao ASC
-        ) AS todos_inscritos,
+            SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))
+            FROM inscricoes i_pre
+            INNER JOIN usuarios u ON u.id = i_pre.usuario_id
+            WHERE i_pre.atividade_id = a.id
+            ORDER BY i_pre.data_inscricao ASC
+            LIMIT 1
+        ) AS primeiro_inscrito,
         (
             SELECT COUNT(*)
             FROM inscricoes i
@@ -69,7 +64,6 @@ $sql = "
             INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
             WHERE ei.evento_id = a.id
         ) AS total_inscritos
-
     FROM atividades a
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
     WHERE a.paroquia_id = ? 
@@ -224,8 +218,8 @@ foreach ($holidays as $mmdd => $hName) {
 
         
         .cal-weekday { 
-            background: var(--bg-darker); padding: 0.75rem; text-align: center;
-            font-size: 0.65rem; font-weight: 800; text-transform: uppercase;
+            background: var(--bg-darker); padding: 1rem 0.75rem; text-align: center;
+            font-size: 0.85rem; font-weight: 800; text-transform: uppercase;
             letter-spacing: 0.1em; color: var(--text-ghost);
             border-bottom: 1px solid var(--border);
         }
@@ -302,24 +296,19 @@ foreach ($holidays as $mmdd => $hName) {
         }
         .enroll-preview {
             display: flex;
-            flex-direction: column;
-            gap: 0.15rem;
-            margin: 0.35rem 0 0 0.5rem;
-            width: 100%;
-        }
-        .enroll-item {
-            display: flex;
             align-items: center;
-            gap: 0.35rem;
+            gap: 0.4rem;
+            margin: 0.25rem 0 0 0.5rem;
             color: var(--text-dim);
             font-size: 0.62rem;
             font-weight: 800;
+            max-width: 100%;
         }
         .enroll-preview[hidden] { display: none; }
         .enroll-avatar,
         .enroll-avatar-img {
-            width: 16px;
-            height: 16px;
+            width: 18px;
+            height: 18px;
             border-radius: 999px;
             flex-shrink: 0;
         }
@@ -330,10 +319,9 @@ foreach ($holidays as $mmdd => $hName) {
             background: var(--panel-hi);
             border: 1px solid var(--border);
             color: var(--primary);
-            font-size: 0.55rem;
+            font-size: 0.6rem;
             font-weight: 900;
         }
-
         .enroll-avatar-img { object-fit: cover; border: 1px solid rgba(255,255,255,0.25); }
         .enroll-name {
             color: var(--text);
@@ -537,34 +525,26 @@ foreach ($holidays as $mmdd => $hName) {
                                                     <strong class="act-name"><?= h($act['nome']) ?></strong>
                                                     <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?></span>
                                                 </button>
-                                                <div class="enroll-preview" <?= ($act['todos_inscritos'] ? '' : 'hidden') ?>>
-                                                    <?php 
-                                                    $rawInscritos = explode('###', (string)$act['todos_inscritos']);
-                                                    foreach ($rawInscritos as $idx => $raw): 
-                                                        if (empty($raw)) continue;
-                                                        // Limite de 20 para não explodir o layout, embora agora seja expansivo
-                                                        if ($idx >= 20) {
-                                                            echo '<span class="enroll-more" style="margin-left:1.5rem">+'.(count($rawInscritos)-$idx).' mais</span>';
-                                                            break;
-                                                        }
-                                                        list($nome, $foto) = explode('||', $raw);
-                                                        $nParts = preg_split('/\s+/', trim($nome)) ?: [];
-                                                        $nFirst = $nParts[0] ?? $nome;
-                                                        $nLast = count($nParts) > 1 ? $nParts[count($nParts) - 1] : '';
-                                                        $disp = trim($nFirst . ' ' . $nLast);
-                                                        $disp = mb_substr($disp ?: $nome, 0, 15);
-                                                    ?>
-                                                        <div class="enroll-item">
-                                                            <?php if ($foto !== '' && file_exists(__DIR__ . '/' . $foto)): ?>
-                                                                <img class="enroll-avatar-img" src="<?= h($foto) ?>?v=<?= time() ?>" alt="Foto">
-                                                            <?php else: ?>
-                                                                <div class="enroll-avatar"><?= mb_strtoupper(mb_substr($disp ?: $nome ?: '?', 0, 1)) ?></div>
-                                                            <?php endif; ?>
-                                                            <span class="enroll-name" title="<?= h($nome) ?>"><?= h($disp) ?></span>
-                                                        </div>
-                                                    <?php endforeach; ?>
+                                                <?php
+                                                    $enName = trim((string)($act['primeiro_inscrito_nome'] ?? ''));
+                                                    $enPhoto = trim((string)($act['primeiro_inscrito_foto'] ?? ''));
+                                                    $enParts = preg_split('/\s+/', trim($enName)) ?: [];
+                                                    $enFirst = $enParts[0] ?? $enName;
+                                                    $enLast = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
+                                                    $enDisp = trim($enFirst . ' ' . $enLast);
+                                                    $enDisp = mb_substr($enDisp ?: $enName, 0, 12);
+                                                    $enTotal = (int)($act['total_inscritos'] ?? 0);
+                                                    $enMore = max(0, $enTotal - 1);
+                                                ?>
+                                                <div class="enroll-preview" <?= ($enTotal > 0 && $enName !== '') ? '' : 'hidden' ?>>
+                                                    <?php if ($enPhoto !== '' && file_exists(__DIR__ . '/' . $enPhoto)): ?>
+                                                        <img class="enroll-avatar-img" src="<?= h($enPhoto) ?>?v=<?= time() ?>" alt="Foto">
+                                                    <?php else: ?>
+                                                        <div class="enroll-avatar"><?= mb_strtoupper(mb_substr($enDisp ?: $enName ?: '?', 0, 1)) ?></div>
+                                                    <?php endif; ?>
+                                                    <span class="enroll-name"><?= h($enDisp ?: $enName ?: '?') ?></span>
+                                                    <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
                                                 </div>
-
                                             <?php else: ?>
                                                 <?php
                                                     $pillClasses = "act-pill";

@@ -1,7 +1,7 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Modern Sidebar Component (v2.0)
+ * PASCOM — Modern Sidebar Component (v2.4.2)
  * Glassmorphism · Premium Navigation · Active Highlighting
  * ═══════════════════════════════════════════════════════ */
 
