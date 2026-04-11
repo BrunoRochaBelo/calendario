@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Universal Sidebar (v2.4.3)
@@ -98,7 +98,6 @@ function is_active(string $page): string {
         <div class="nav-group">
             <span class="nav-label">Principal</span>
             
-            <!-- Botão de Criação Rápida (Apenas Mobile) -->
             <?php if (can('criar_eventos')): ?>
             <a href="novaatividade.php" class="hide-on-desktop nav-item btn-create-accent">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -159,8 +158,6 @@ function is_active(string $page): string {
         </div>
         <?php endif; ?>
 
-
-        
         <?php if (can('ver_logs')): ?>
         <div class="nav-group">
             <span class="nav-label">Relatórios</span>
@@ -203,6 +200,19 @@ function is_active(string $page): string {
     --sidebar-w: 280px;
 }
 
+body {
+  font-family: 'Plus Jakarta Sans', 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  overflow-x: hidden !important;
+  width: 100%;
+  touch-action: manipulation;
+}
+#app-shell { overflow-x: hidden; }
+
 .sidebar {
     position: fixed; top: 0; left: 0; width: var(--sidebar-w); height: 100vh;
     background: rgba(13, 14, 26, 0.9); backdrop-filter: blur(25px);
@@ -224,7 +234,7 @@ function is_active(string $page): string {
     width: 48px; height: 48px; border-radius: 12px;
     background: var(--panel-hi); border: 1px solid var(--border);
     color: var(--text); display: none; align-items: center; justify-content: center;
-    cursor: pointer; transition: all 0.3s;
+    cursor: pointer; transition: all 0.3s; touch-action: manipulation;
 }
 .menu-trigger:hover { background: var(--border); transform: scale(1.05); }
 
@@ -240,7 +250,6 @@ function is_active(string $page): string {
 
 .sidebar-header { padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
 .header-top { display: flex; align-items: center; justify-content: space-between; width: 100%; }
-.brand { display: flex; align-items: center; gap: 0.85rem; }
 .brand-details { display: flex; flex-direction: column; line-height: 1.1; }
 .brand-text { font-weight: 900; font-size: 1.05rem; letter-spacing: -0.02em; color: var(--text); }
 .brand-sub { 

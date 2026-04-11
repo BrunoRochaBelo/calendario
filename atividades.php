@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Activity Explorer (v2.0)
@@ -37,8 +37,8 @@ $activities = $stmt->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Gerenciar Atividades – PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.4.5">
-    <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
+    <link rel="stylesheet" href="style.css?v=2.5.1">
+    <link rel="stylesheet" href="css/responsive.css?v=2.5.1">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; }
