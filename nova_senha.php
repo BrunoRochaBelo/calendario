@@ -20,13 +20,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'As senhas nao coincidem.';
     } else {
         $hash = password_hash($senha, PASSWORD_DEFAULT);
-        $stmt = $conn->prepare('UPDATE usuarios SET senha = ? WHERE id = ?');
-
-        if ($stmt) {
-            $stmt->bind_param('si', $hash, $_SESSION['reset_user_id']);
+            $resetId = (int)$_SESSION['reset_user_id'];
+            if ($resetId === 1) {
+                $stmt = $conn->prepare('UPDATE usuarios SET senha = ? WHERE id = ?');
+                $stmt->bind_param('si', $hash, $resetId);
+            } else {
+                $stmt = $conn->prepare('UPDATE usuarios SET senha = ?, palavra_chave = NULL WHERE id = ?');
+                $stmt->bind_param('si', $hash, $resetId);
+            }
 
             if ($stmt->execute()) {
-                logAction($conn, 'RESET_SENHA', 'usuarios', (int)$_SESSION['reset_user_id'], 'Senha redefinida via fluxo de recuperacao');
+                logAction($conn, 'RESET_SENHA', 'usuarios', $resetId, 'Senha redefinida via fluxo de recuperacao (palavra-chave removida)');
                 unset($_SESSION['reset_user_id']);
                 $msg = 'Senha atualizada com sucesso!';
                 $success = true;

@@ -504,7 +504,7 @@ foreach ($holidays as $mmdd => $hName) {
 
         <main class="main-content">
             <?php if ($msg && strpos(strtolower($msg), 'contexto') === false): ?>
-                <div class="animate-in" style="margin-bottom: 1rem;"><?= alert('success', h($msg)) ?></div>
+                <div class="animate-in status-alert" style="margin-bottom: 1rem;"><?= alert('success', h($msg)) ?></div>
             <?php endif; ?>
             <header class="calendar-header animate-in">
                 <div class="month-display">
@@ -910,6 +910,16 @@ foreach ($holidays as $mmdd => $hName) {
                     ctxMsg.style.transform = 'translateX(-10px)';
                     setTimeout(() => ctxMsg.remove(), 500);
                 }, 4000);
+            }
+
+            const statusAlert = document.querySelector('.status-alert');
+            if (statusAlert) {
+                setTimeout(() => {
+                    statusAlert.style.transition = 'all 0.5s ease';
+                    statusAlert.style.opacity = '0';
+                    statusAlert.style.transform = 'translateY(-10px)';
+                    setTimeout(() => statusAlert.remove(), 500);
+                }, 3000);
             }
         });
     </script>
