@@ -441,8 +441,9 @@ foreach ($holidays as $mmdd => $hName) {
         .event-modal {
             width: min(680px, 100%); background: #11131f; border: 1px solid var(--border);
             border-radius: 24px; box-shadow: var(--sh-lg); padding: 1.5rem;
+            max-height: 90vh; display: flex; flex-direction: column;
         }
-        .event-modal-header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+        .event-modal-header { display: flex; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; flex-shrink: 0; }
         .event-modal-title { font-size: 1.5rem; font-weight: 900; margin: 0.35rem 0; }
         .event-meta { display: grid; gap: 0.4rem; color: var(--text-dim); font-size: 0.9rem; }
         .participant-chips { display: grid; gap: 0.5rem; margin-top: 1rem; }
@@ -467,7 +468,13 @@ foreach ($holidays as $mmdd => $hName) {
         .event-item-actions { display: flex; gap: 0.6rem; flex-wrap: wrap; margin-top: 0.8rem; }
         .event-item-participants { display: grid; gap: 0.4rem; margin-top: 0.8rem; }
         .event-item-note { margin-top: 0.8rem; font-size: 0.78rem; color: #fbbf24; }
-        .event-modal-actions { display: flex; gap: 0.75rem; margin-top: 1.25rem; flex-wrap: wrap; }
+        .event-modal-actions {
+            display: flex; gap: 0.75rem; flex-wrap: wrap;
+            flex-shrink: 0;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+            margin-top: 0.5rem;
+        }
         .modal-note {
             margin-top: 1rem; padding: 0.8rem 1rem; border-radius: 14px;
             background: rgba(245, 158, 11, 0.1); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.25);
@@ -480,12 +487,12 @@ foreach ($holidays as $mmdd => $hName) {
             text-align: left; appearance: none;
         }
 
-        /* Modal Scroll Style */
-        .event-modal { max-height: 90vh; display: flex; flex-direction: column; }
+        /* Modal Scroll — conteúdo rola, header e botões ficam fixos */
         .event-modal-content-scroll {
             flex: 1;
             overflow-y: auto;
-            margin: 1rem 0;
+            min-height: 0;
+            margin: 0.5rem 0;
             padding-right: 0.5rem;
             scrollbar-width: thin;
             scrollbar-color: var(--primary) transparent;
@@ -494,6 +501,22 @@ foreach ($holidays as $mmdd => $hName) {
         .event-modal-content-scroll::-webkit-scrollbar-track { background: transparent; }
         .event-modal-content-scroll::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
         .event-modal-content-scroll::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* Mobile — bottom sheet */
+        @media (max-width: 768px) {
+            .event-modal-backdrop {
+                align-items: flex-end;
+                padding: 0;
+            }
+            .event-modal {
+                width: 100%;
+                max-height: 90dvh;
+                border-radius: 24px 24px 0 0;
+                padding: 1.25rem 1rem 1rem;
+            }
+            .event-modal-actions { gap: 0.5rem; }
+            .event-modal-actions .btn { flex: 1; justify-content: center; }
+        }
     </style>
 </head>
 <body>
