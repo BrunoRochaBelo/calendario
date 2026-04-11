@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Activity Explorer (v2.0)
@@ -37,7 +37,8 @@ $activities = $stmt->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Gerenciar Atividades – PASCOM</title>
-    <link rel="stylesheet" href="style.css">`n    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="style.css?v=2.5.0">
+    <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; }
@@ -86,14 +87,19 @@ $activities = $stmt->get_result();
                 <?= alert('success', h($msg)) ?>
             <?php endif; ?>
 
-            <header class="header-stack animate-in">
-                <div>
-                    <p style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost);">ADMINISTRAÇÃO</p>
+                        <header class="calendar-header animate-in">
+                <button class="menu-trigger inline hide-on-desktop" onclick="toggleSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+                <div class="month-display">
                     <h1 class="gradient-text">Atividades</h1>
+                    <?php if (can('criar_eventos')): ?>
+                        <a href="novaatividade.php" class="btn-plus-header hide-on-desktop" title="Nova Atividade">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </a>
+                    <?php endif; ?>
                 </div>
                 <?php if (can('criar_eventos')): ?>
-                <a href="novaatividade.php" class="btn btn-primary shimmer">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                <a href="novaatividade.php" class="btn btn-primary shimmer hide-on-mobile">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"/></svg>
                     Nova Atividade
                 </a>
                 <?php endif; ?>

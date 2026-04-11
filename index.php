@@ -1,7 +1,7 @@
-<?php
+﻿<?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Parish Calendar (v2.4.4 Ultra Premium)
+ * PASCOM — Parish Calendar (v2.5.0 Stable Ultra Premium)
  * High Performance · Glassmorphism · Dynamic Enrollment
  * ═══════════════════════════════════════════════════════ */
 
@@ -216,7 +216,8 @@ foreach ($holidays as $mmdd => $hName) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Calendário Paroquial – PASCOM</title>
-    <link rel="stylesheet" href="style.css">`n    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="style.css?v=2.5.0">
+    <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 1.5rem; display: flex; flex-direction: column; min-height: 100vh; transition: margin 0.3s; }
@@ -529,18 +530,27 @@ foreach ($holidays as $mmdd => $hName) {
             <?php if ($msg && strpos(strtolower($msg), 'contexto') === false): ?>
                 <div class="animate-in status-alert" style="margin-bottom: 1rem;"><?= alert('success', h($msg)) ?></div>
             <?php endif; ?>
-            <header class="calendar-header animate-in">
+                        <header class="calendar-header animate-in">
+                <button class="menu-trigger inline hide-on-desktop" onclick="toggleSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+
                 <div class="month-display">
                     <h1 class="gradient-text" style="background: linear-gradient(to bottom, var(--primary), var(--accent)); -webkit-background-clip: text;"><?= $displayMonth ?></h1>
                     <?php if ($msg && strpos(strtolower($msg), 'contexto') !== false): ?>
                         <span id="ctxMsg" class="context-msg animate-in"><?= h($msg) ?></span>
                     <?php endif; ?>
                     <span class="year-label"><?= $year ?></span>
+                    
+                    <?php if (can('criar_eventos')): ?>
+                        <a href="novaatividade.php" class="hide-on-desktop btn-plus-header" title="Novo Evento">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </a>
+                    <?php endif; ?>
                 </div>
+
                 <div class="nav-controls">
-                    <a href="?m=<?= $month-1 ?>&y=<?= $year ?>" class="btn btn-ghost" style="padding: 0.7rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg></a>
-                    <a href="?m=<?= date('n') ?>&y=<?= date('Y') ?>" class="btn btn-ghost" style="padding: 0.7rem 1.2rem; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em;">HOJE</a>
-                    <a href="?m=<?= $month+1 ?>&y=<?= $year ?>" class="btn btn-ghost" style="padding: 0.7rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg></a>
+                    <a href="?m=<?= $month-1 ?>&y=<?= $year ?>" class="btn btn-ghost" style="padding: 0.70rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="15 18 9 12 15 6"/></svg></a>
+                    <a href="?m=<?= date('n') ?>&y=<?= date('Y') ?>" class="btn btn-ghost" style="padding: 0.70rem 1.2rem; font-weight: 800; font-size: 0.75rem; letter-spacing: 0.05em;">HOJE</a>
+                    <a href="?m=<?= $month+1 ?>&y=<?= $year ?>" class="btn btn-ghost" style="padding: 0.70rem;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="9 18 15 12 9 6"/></svg></a>
                 </div>
             </header>
 

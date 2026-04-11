@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 require_once 'functions.php';
 requireLogin();
 
@@ -120,7 +120,8 @@ if ($tipo === 'eventos') {
 
 $filename = "Relatorio_" . ucfirst($tipo) . "_" . date('Ymd_His');
 
-$html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">';
+$html = '<!DOCTYPE html><html lang="pt-BR"><head>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'><meta charset="UTF-8">';
 $html .= '<title>' . $title . '</title>
 <style>
     body { font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; color: #333; margin: 3rem; background: #fff; line-height: 1.6; }

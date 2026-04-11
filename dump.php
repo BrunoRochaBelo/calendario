@@ -1,4 +1,7 @@
-<?php
+﻿<?php
+require_once 'functions.php';
+requireLogin();
+requirePerm('admin_sistema');
 require 'conexao.php';
 $res = $conn->query('SHOW TABLES'); 
 $out = "";

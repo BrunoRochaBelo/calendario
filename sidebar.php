@@ -1,7 +1,7 @@
-<?php
+﻿<?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Universal Sidebar (v2.4.3)
+ * PASCOM — Universal Sidebar (v2.5.0 Stable)
  * Glassmorphic UI · Dynamic RBAC · Parish Hub
  * ═══════════════════════════════════════════════════════ */
 
@@ -56,7 +56,7 @@ function is_active(string $page): string {
 }
 ?>
 
-<button class="menu-trigger" onclick="toggleSidebar()">
+<button class="menu-trigger hide-on-mobile" onclick="toggleSidebar()">
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
 </button>
 
@@ -95,9 +95,17 @@ function is_active(string $page): string {
 
     <!-- ... rest of sidebar ... -->
     <nav class="sidebar-nav">
-        <!-- ... same nav content ... -->
         <div class="nav-group">
             <span class="nav-label">Principal</span>
+            
+            <!-- Botão de Criação Rápida (Apenas Mobile) -->
+            <?php if (can('criar_eventos')): ?>
+            <a href="novaatividade.php" class="hide-on-desktop nav-item btn-create-accent">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Novo Evento</span>
+            </a>
+            <?php endif; ?>
+
             <a href="index.php" class="<?= is_active('index.php') ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="3" x2="21" y1="10" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01"/></svg>
                 <span>Calendário</span>
@@ -266,6 +274,22 @@ function is_active(string $page): string {
 .nav-item.active { 
     background: rgba(var(--primary-rgb), 0.1); color: var(--primary); 
     box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.2);
+}
+
+.btn-create-accent {
+    background: linear-gradient(135deg, var(--primary), var(--accent)) !important;
+    color: #fff !important;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+    margin-bottom: 0.8rem !important;
+    border-radius: 12px !important;
+}
+.btn-create-accent:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 10px 20px -5px rgba(var(--primary-rgb), 0.4) !important;
+}
+
+@media (max-width: 1024px) {
+    .menu-trigger { display: flex; }
 }
 
 .sidebar-footer { 

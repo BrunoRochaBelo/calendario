@@ -1,4 +1,7 @@
-<?php
+﻿<?php
+require_once 'functions.php';
+requireLogin();
+requirePerm('admin_sistema');
 require 'conexao.php';
 
 $sql = "UPDATE usuarios u JOIN perfis p ON u.perfil_id = p.id SET u.perfil_nome = p.nome";

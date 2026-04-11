@@ -38,6 +38,15 @@
 /* ── Reset & Base ────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; outline: none; }
 
+/* Visibility Utilities */
+.hide-on-desktop { display: none !important; }
+.hide-on-mobile { display: flex !important; }
+
+@media (max-width: 1024px) {
+  .hide-on-desktop { display: flex !important; }
+  .hide-on-mobile { display: none !important; }
+}
+
 ::selection {
   background: rgba(var(--primary-rgb), 0.3);
   color: #fff;

@@ -117,17 +117,88 @@
     /* Participant chips */
     .participant-chips { grid-template-columns: 1fr !important; }
 
-    /* Calendar header */
+    /* Calendar header resilient layout */
     .calendar-header {
-        padding-left: 4rem !important;
-        flex-wrap: wrap !important;
-        gap: 0.5rem !important;
+        position: fixed !important; 
+        top: 0; left: 0; width: 100%;
+        height: 64px !important;
+        background: rgba(13, 14, 26, 0.8) !important;
+        backdrop-filter: blur(20px) !important;
+        padding: 0 0.75rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        z-index: 2000 !important;
+        border-bottom: 1px solid var(--border) !important;
     }
-    .nav-controls { gap: 0.3rem !important; }
-    .nav-controls .btn { padding: 0.5rem !important; }
+    .month-display {
+        flex: 1 !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+        min-width: 0 !important;
+    }
+    .month-display h1 { font-size: 1.15rem !important; margin: 0 !important; }
+    .year-label { font-size: 0.8rem !important; opacity: 0.8 !important; }
+
+    .nav-controls {
+        display: flex !important;
+        gap: 0.25rem !important;
+        align-items: center !important;
+    }
+    .nav-controls .btn { 
+        padding: 0.5rem 0.6rem !important; 
+        font-size: 0.65rem !important;
+        min-width: 44px !important; /* Touch target */
+        height: 44px !important;
+        display: flex !important;
+        align-items: center; justify-content: center;
+    }
+
+    /* Circular Plus Button */
+    .btn-plus-header {
+        width: 36px !important;
+        height: 36px !important;
+        border-radius: 50% !important;
+        background: linear-gradient(135deg, var(--primary), var(--accent)) !important;
+        color: #fff !important;
+        display: flex !important;
+        align-items: center; justify-content: center;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+        flex-shrink: 0 !important;
+        border: none !important;
+        margin-left: 0.25rem !important;
+    }
+
+    /* Toggle Button (Trigger) */
+    .menu-trigger.inline {
+        position: static !important;
+        display: flex !important;
+        width: 44px !important; height: 44px !important;
+        background: transparent !important;
+        border: none !important;
+        color: var(--text) !important;
+        margin-right: 0.25rem !important;
+    }
 
     /* Tables in manage pages */
     th, td { padding: 0.6rem 0.5rem !important; font-size: 0.8rem !important; }
+
+    /* Sidebar Global Resilient */
+    .sidebar { 
+        z-index: 3000 !important; 
+        height: 100vh !important; height: 100dvh !important;
+        -webkit-overflow-scrolling: touch !important; 
+    }
+    .sidebar-nav {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        touch-action: pan-y !important;
+    }
+    .sidebar-overlay { z-index: 2900 !important; }
+    
+    .nav-group { display: block !important; }
+    .nav-item { display: flex !important; min-height: 44px !important; }
 
     /* Logs / relatórios – search bar */
     [style*="display: flex"][style*="gap: 1rem"] input[type="text"],
@@ -136,7 +207,7 @@
     }
 
     /* FAB stays visible */
-    .fab { bottom: 1.25rem !important; right: 1.25rem !important; }
+    .fab { bottom: 1.25rem !important; right: 1.25rem !important; z-index: 100 !important; }
 
     /* Sidebar footer user name truncate */
     .user-name { 
@@ -248,3 +319,4 @@
     /* Sidebar overlay fix: close on mobile when tapping content */
     .sidebar-overlay { display: block !important; }
 }
+

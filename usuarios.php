@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — User Management Console (v2.0)
@@ -105,7 +105,8 @@ $users = $stmt->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Gestão de Usuários — PASCOM</title>
-    <link rel="stylesheet" href="style.css">`n    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="style.css?v=2.5.0"
+        <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
@@ -190,16 +191,21 @@ $users = $stmt->get_result();
         <?php include 'sidebar.php'; ?>
 
         <main class="main-content">
-            <header class="header-flex animate-in">
-                <div>
-                    <p style="font-size: 0.65rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost); opacity: 0.6;">ADMINISTRAÇÃO</p>
-                    <h1 class="gradient-text">Usuários & Acessos</h1>
+                        <header class="calendar-header animate-in">
+                <button class="menu-trigger inline hide-on-desktop" onclick="toggleSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+                <div class="month-display">
+                    <h1 class="gradient-text">Usuários</h1>
+                    <?php if ($can_edit && (can('cadastrar_usuario') || can('admin_usuarios'))): ?>
+                        <a href="register.php" class="btn-plus-header hide-on-desktop" title="Novo Usuário">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        </a>
+                    <?php endif; ?>
                 </div>
                 <?php if ($can_edit && (can('cadastrar_usuario') || can('admin_usuarios'))): ?>
-                    <a href="register.php" class="btn btn-primary shimmer">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="16" x2="22" y1="11" y2="11"/></svg>
-                        Novo Usuário
-                    </a>
+                <a href="register.php" class="btn btn-primary shimmer hide-on-mobile">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="16" x2="22" y1="11" y2="11"/></svg>
+                    Novo Usuário
+                </a>
                 <?php endif; ?>
             </header>
 

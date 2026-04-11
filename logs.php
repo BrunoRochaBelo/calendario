@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Audit Trail & Logs (v2.0)
@@ -69,7 +69,8 @@ $tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Auditoria do Sistema – PASCOM</title>
-    <link rel="stylesheet" href="style.css">`n    <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="style.css?v=2.5.0"
+        <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
