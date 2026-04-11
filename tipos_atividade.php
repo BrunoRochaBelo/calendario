@@ -179,18 +179,24 @@ $tipos = $conn->query("SELECT * FROM tipos_atividade WHERE paroquia_id = $pid OR
             <?php if ($msg): ?> <?= alert('success', h($msg)) ?> <?php endif; ?>
             <?php if ($error): ?> <?= alert('error', h($error)) ?> <?php endif; ?>
 
-            <header class="header-stack animate-in">
-                <div>
-                    <p style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost);">ADMINISTRACAO</p>
-                    <h1 class="gradient-text">Categorias de Atividade</h1>
+            <header class="calendar-header animate-in" style="margin-bottom: 2rem; display: flex; align-items: center; padding: 0 1rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 1rem;">
+                    <div>
+                        <p class="hide-on-mobile" style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost); margin:0;">ADMINISTRACAO</p>
+                        <h1 class="gradient-text" style="font-size: 1.15rem; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Categorias de Atividade</h1>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: stretch; flex-shrink: 0;">
+                        <a href="index.php" class="hide-on-desktop btn btn-ghost" style="background: #ef4444; color: #fff; border: none; padding: 0 0.8rem; min-height: 44px; border-radius: 10px; display: flex; align-items: center; gap: 0.4rem; font-weight: 800; font-size: 0.75rem; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); justify-content: center;">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                            SAIR
+                        </a>
+                        <button onclick="openModal()" class="hide-on-desktop btn btn-primary shimmer" style="min-height: 44px; padding: 0 0.8rem; border-radius: 10px; display: flex; align-items: center; justify-content: center; gap: 0.3rem; font-size: 0.75rem;">
+                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                             NOVA
+                        </button>
+                    </div>
                 </div>
-                <div style="display: flex; gap: 0.8rem; width: 100%; justify-content: flex-end; align-items: stretch; margin-top: 1rem;">
-                    <a href="index.php" class="btn btn-ghost hide-on-desktop" style="background: #ef4444; color: #fff; border: none; padding: 0 1.2rem; min-height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); flex: 1; justify-content: center;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
-                        SAIR
-                    </a>
-                    <button onclick="openModal()" class="btn btn-primary shimmer" style="min-height: 48px; border-radius: 12px; flex: 2; justify-content: center;">Nova Categoria</button>
-                </div>
+                <button onclick="openModal()" class="btn btn-primary shimmer hide-on-mobile">Nova Categoria</button>
             </header>
 
             <div class="view-controls animate-in" style="animation-delay: 0.05s;">
