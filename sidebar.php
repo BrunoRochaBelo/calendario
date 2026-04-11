@@ -1,7 +1,7 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Universal Sidebar (v2.4.4)
+ * PASCOM — Universal Sidebar (v2.4.3)
  * Glassmorphic UI · Dynamic RBAC · Parish Hub
  * ═══════════════════════════════════════════════════════ */
 
