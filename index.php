@@ -46,13 +46,24 @@ $sql = "
         a.*,
         t.cor AS tipo_cor,
         t.icone,
-        (
-            SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))
-            FROM inscricoes i_pre
-            INNER JOIN usuarios u ON u.id = i_pre.usuario_id
-            WHERE i_pre.atividade_id = a.id
-            ORDER BY i_pre.data_inscricao ASC
-            LIMIT 1
+        COALESCE(
+            (
+                SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))
+                FROM inscricoes i_pre
+                INNER JOIN usuarios u ON u.id = i_pre.usuario_id
+                WHERE i_pre.atividade_id = a.id
+                ORDER BY i_pre.data_inscricao ASC
+                LIMIT 1
+            ),
+            (
+                SELECT CONCAT(u.nome, '||', COALESCE(u.foto_perfil, ''))
+                FROM atividade_evento_inscricoes aei
+                INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
+                INNER JOIN usuarios u ON u.id = aei.usuario_id
+                WHERE ei.evento_id = a.id
+                ORDER BY aei.data_inscricao ASC
+                LIMIT 1
+            )
         ) AS primeiro_inscrito,
         (
             SELECT COUNT(*)
