@@ -122,6 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
             }
+            
+            ensureDefaultVisitorGroup($conn, $target_pid);
 
             logAction($conn, 'REGISTRAR_USUARIO', 'usuarios', $newUserId, ['novo' => $data, 'foto_perfil' => $savedPhoto]);
             header("Location: register.php?msg=Usuário cadastrado com sucesso!");

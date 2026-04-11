@@ -305,7 +305,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // Use context variables defined above
                         $manageableIds = $is_master_global_ctx ? array_column($allGroups_ctx, 'id') : $adminGroups_ctx;
                         
-                        saveUserGroupsScoped($conn, $id, $groupIds, $manageableIds);
+                        saveUserGroupsScoped($conn, $id, $groupIds, $manageableIds, $paroquiaId);
+                        ensureDefaultVisitorGroup($conn, $paroquiaId);
                     }
 
                     logAction($conn, 'EDITAR_USUARIO', 'usuarios', $id, ['antigo' => $oldState, 'novo' => $newState]);
