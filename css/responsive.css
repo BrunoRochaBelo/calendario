@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════════════
+   PASCOM — Global Mobile Responsive Stylesheet
+   Covers all pages with sidebar layout
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Mobile trigger button always visible on small screens ── */
+@media (max-width: 1024px) {
+    .menu-trigger { display: flex !important; }
+
+    /* Main content never pushed by sidebar */
+    .main-content {
+        margin-left: 0 !important;
+        padding-top: 5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Generic header row: stack vertically */
+    .header-flex,
+    .page-header,
+    [class*="head"][style*="justify-content"] {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+
+    /* Full-width buttons in header area */
+    .header-flex .btn,
+    .header-flex a.btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* 2-col form grids → 1 col */
+    [style*="grid-template-columns: 1fr 1fr"],
+    [style*="grid-template-columns: repeat(2"],
+    .form-grid,
+    .perm-grid,
+    .recurrence-grid {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* span 2 → span 1 */
+    [style*="grid-column: span 2"],
+    .full-width,
+    .actions-row {
+        grid-column: span 1 !important;
+    }
+
+    /* Actions row */
+    .actions-row {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        width: 100% !important;
+    }
+    .actions-row .btn,
+    .actions-row a,
+    .actions-row form { width: 100% !important; }
+
+    /* Section/glass cards: remove excess padding */
+    .glass[style*="padding: 3rem"],
+    section.glass { padding: 1.5rem !important; }
+
+    /* Tables → scrollable */
+    table { display: block; overflow-x: auto; width: 100%; }
+
+    /* Modal card padding */
+    .modal-card { padding: 1.5rem !important; }
+
+    /* Gerenciar participantes, atividades, etc. */
+    .user-grid { grid-template-columns: 1fr !important; }
+
+    /* view-list on mobile: stack cards */
+    .user-grid.view-list .user-card {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    .user-grid.view-list .user-meta {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.3rem !important;
+    }
+    .user-grid.view-list .user-name { min-width: unset !important; }
+    .user-grid.view-list .user-details {
+        grid-template-columns: 1fr !important;
+        width: 100% !important;
+    }
+    .user-grid.view-list .user-actions {
+        width: 100% !important;
+        flex-wrap: wrap !important;
+    }
+
+    /* Glass form pages (editar_usuario, register, etc.) */
+    section.glass { border-radius: 20px !important; margin: 0 !important; }
+}
+
+/* ── Small phones ─────────────────────────────────────── */
+@media (max-width: 600px) {
+    .main-content { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+
+    /* Buttons stacked */
+    .form-actions { flex-direction: column !important; gap: 0.75rem !important; }
+    .form-actions .btn { width: 100% !important; flex: none !important; }
+
+    /* Event activity rows */
+    .event-activity-row { flex-direction: column !important; align-items: stretch !important; }
+    .event-activity-row select { width: 100% !important; }
+    .event-activity-row .btn { width: 100% !important; }
+
+    /* Atividades page – filter/sort */
+    [style*="display: flex"][style*="flex-wrap"] {
+        flex-wrap: wrap !important;
+    }
+
+    /* Participant chips */
+    .participant-chips { grid-template-columns: 1fr !important; }
+
+    /* Calendar header */
+    .calendar-header {
+        padding-left: 4rem !important;
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    .nav-controls { gap: 0.3rem !important; }
+    .nav-controls .btn { padding: 0.5rem !important; }
+
+    /* Tables in manage pages */
+    th, td { padding: 0.6rem 0.5rem !important; font-size: 0.8rem !important; }
+
+    /* Logs / relatórios – search bar */
+    [style*="display: flex"][style*="gap: 1rem"] input[type="text"],
+    [style*="display: flex"][style*="gap: 1rem"] select {
+        width: 100% !important;
+    }
+
+    /* FAB stays visible */
+    .fab { bottom: 1.25rem !important; right: 1.25rem !important; }
+
+    /* Sidebar footer user name truncate */
+    .user-name { 
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+/* ── Medium tablets ───────────────────────────────────── */
+@media (min-width: 601px) and (max-width: 900px) {
+    .main-content {
+        padding-left: 1.25rem !important;
+        padding-right: 1.25rem !important;
+    }
+}
+
+/* ── Gerenciar Catálogo / Tipos / Locais ─────────────── */
+@media (max-width: 1024px) {
+    /* Catalog/admin pages inline form rows → stack */
+    .inline-form,
+    [style*="display: flex"][style*="align-items: flex-end"] {
+        flex-wrap: wrap !important;
+    }
+
+    /* Stats grid */
+    .stats-grid,
+    [class*="stats"] { grid-template-columns: 1fr 1fr !important; }
+}
+
+@media (max-width: 600px) {
+    .stats-grid,
+    [class*="stats"] { grid-template-columns: 1fr !important; }
+}
+
+/* ── Editar / Nova atividade ─────────────────────────── */
+@media (max-width: 768px) {
+    .glass-form { padding: 1.5rem !important; }
+    .form-container { margin-top: 0 !important; }
+
+    /* Color palette wrap */
+    .color-palette { gap: 0.5rem !important; }
+    .style-toggles { flex-direction: column !important; gap: 0.75rem !important; }
+
+    /* Recurrence box always single col */
+    .recurrence-box { grid-column: span 1 !important; }
+}
+
+/* ── Editar Usuário ───────────────────────────────────── */
+@media (max-width: 768px) {
+    /* 2-col grid form inside glass */
+    form[style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+    }
+    /* Permission grid */
+    .perm-grid { grid-template-columns: 1fr 1fr !important; }
+}
+
+@media (max-width: 480px) {
+    .perm-grid { grid-template-columns: 1fr !important; }
+}
+
+/* ── ver_atividade ────────────────────────────────────── */
+@media (max-width: 768px) {
+    [style*="grid-template-columns: 2fr 1fr"],
+    [style*="grid-template-columns: 1fr 2fr"] {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ── Grupos de Trabalho ───────────────────────────────── */
+@media (max-width: 768px) {
+    .group-card-actions,
+    [class*="group"][style*="display: flex"] {
+        flex-wrap: wrap !important;
+        gap: 0.5rem !important;
+    }
+    .group-card-actions .btn { flex: 1; min-width: 120px; }
+}
+
+/* ── Meus Grupos ──────────────────────────────────────── */
+@media (max-width: 768px) {
+    [style*="grid-template-columns: repeat(auto-fill, minmax(280px"] {
+        grid-template-columns: 1fr !important;
+    }
+    [style*="grid-template-columns: repeat(auto-fill, minmax(200px"] {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    /* Editar Usuário — form grid inline */
+    .edit-user-form, .edit-activity-form {
+        grid-template-columns: 1fr !important;
+    }
+    .edit-user-form [style*="grid-column: span 2"],
+    .edit-activity-form [style*="grid-column: span 2"] {
+        grid-column: span 1 !important;
+    }
+    .edit-user-form .actions-row,
+    .edit-activity-form .actions-row {
+        grid-column: span 1 !important;
+        flex-direction: column !important;
+    }
+    .edit-user-form .delete-wrap,
+    .edit-activity-form .delete-wrap {
+        grid-column: span 1 !important;
+    }
+
+    /* Sidebar overlay fix: close on mobile when tapping content */
+    .sidebar-overlay { display: block !important; }
+}

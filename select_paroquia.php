@@ -43,7 +43,7 @@ $res = $conn->query('SELECT id, nome FROM paroquias ORDER BY nome');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Selecionar Unidade — PASCOM</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css">`n    <link rel="stylesheet" href="css/responsive.css">
     <style>
         body { background: #000; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
         .selection-panel { width: 100%; max-width: 600px; padding: 4rem; border-radius: 32px; }
