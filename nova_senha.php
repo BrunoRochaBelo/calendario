@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'functions.php';
 
 if (empty($_SESSION['reset_user_id'])) {
@@ -36,9 +36,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = true;
             } else {
                 $error = 'Erro critico ao atualizar senha. Tente novamente.';
-            }
-        } else {
-            $error = 'Erro critico ao atualizar senha. Tente novamente.';
         }
     }
 }
@@ -49,8 +46,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Nova Senha - PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.4.5"
-        <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
+    <link rel="stylesheet" href="style.css?v=2.4.5">
+    <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
     <style>
         body {
             background: #000;
