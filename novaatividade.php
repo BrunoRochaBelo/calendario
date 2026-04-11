@@ -31,11 +31,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $cor = trim($data['cor'] ?? '#3b82f6');
         $is_multi = isset($data['is_multi_color']) ? 1 : 0;
         $is_flash = isset($data['is_flashing']) ? 1 : 0;
+        $hora_inicio = !empty($data['hora_inicio']) ? $data['hora_inicio'] : null;
         
         $sql = "INSERT INTO atividades (nome, paroquia_id, local_id, tipo_atividade_id, descricao, data_inicio, hora_inicio, criador_id, restrito, cor, is_multi_color, is_flashing) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
-        $stmt->bind_param('siiisssiisii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $data['hora_inicio'], $uid, $restrito, $cor, $is_multi, $is_flash);
+        $stmt->bind_param('siiisssiisii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $data['data_inicio'], $hora_inicio, $uid, $restrito, $cor, $is_multi, $is_flash);
         
         if ($stmt->execute()) {
             $newEventId = (int)$conn->insert_id;
@@ -72,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $newDateStr = $iterDate->format('Y-m-d');
                     $stRepeat = $conn->prepare($sql);
-                    $stRepeat->bind_param('siiisssiisii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $newDateStr, $data['hora_inicio'], $uid, $restrito, $cor, $is_multi, $is_flash);
+                    $stRepeat->bind_param('siiisssiisii', $data['nome'], $pid, $local, $tipo, $data['descricao'], $newDateStr, $hora_inicio, $uid, $restrito, $cor, $is_multi, $is_flash);
                     if ($stRepeat->execute()) {
                         $repeatId = (int)$conn->insert_id;
                         saveEventActivityItems($conn, $repeatId, $pid, $data['atividades_evento'] ?? []);

@@ -55,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $is_multi = isset($data['is_multi_color']) ? 1 : 0;
         $is_flash = isset($data['is_flashing']) ? 1 : 0;
         $restrito = isset($data['restrito']) ? 1 : 0;
+        $hora_inicio = !empty($data['hora_inicio']) ? $data['hora_inicio'] : null;
 
         $sql = "UPDATE atividades SET 
                 nome = ?, local_id = ?, tipo_atividade_id = ?, 
@@ -65,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('siisssisiiii', 
             $data['nome'], $local, $tipo, 
-            $data['descricao'], $data['data_inicio'], $data['hora_inicio'], 
+            $data['descricao'], $data['data_inicio'], $hora_inicio, 
             $restrito, $cor, $is_multi, $is_flash, $id, $pid
         );
         
@@ -243,7 +244,7 @@ if (!$selectedActivities) {
                             </div>
                             <div class="form-group">
                                 <label>Horário</label>
-                                <input type="time" name="hora_inicio" value="<?= formatTime($activity['hora_inicio']) ?>">
+                                <input type="time" name="hora_inicio" value="<?= formatTime($activity['hora_inicio'] ?? '') ?>">
                             </div>
 
 
