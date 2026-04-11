@@ -50,7 +50,7 @@ $can_manage_target = $is_master || $is_self || (
 $can_edit_photo_for_target = $is_master || $is_self || $can_manage_target;
 $can_edit_email_for_target = $is_self || $can_manage_target;
 $can_edit_parish_for_target = $is_master;
-$can_edit_password_for_target = $is_self || $can_manage_target;
+$can_edit_password_for_target = $is_self; // apenas o próprio usuário pode redefinir sua senha
 $can_edit_keyword_for_target = $can_manage_target || $is_self;
 $can_delete_target = !$is_self && $can_manage_target;
 
