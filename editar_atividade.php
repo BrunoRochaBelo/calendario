@@ -282,7 +282,7 @@ if (!$selectedActivities) {
                         <div class="form-group full-width" style="margin-top: 1rem;">
                             <div style="display: flex; align-items: center; gap: 0.8rem; background: rgba(239, 68, 68, 0.05); padding: 1rem; border-radius: 12px; border: 1px solid rgba(239, 68, 68, 0.1); width: fit-content;">
                                 <input type="checkbox" name="restrito" id="restrito" style="width: 20px; height: 20px; cursor: pointer;" <?= $activity['restrito'] ? 'checked' : '' ?>>
-                                <label for="restrito" style="margin: 0; cursor: pointer; color: #ef4444;">Evento Restrito (Apenas Admin/Nível Elevado)</label>
+                                <label for="restrito" style="margin: 0; cursor: pointer; color: #ef4444;">Evento Restrito</label>
                             </div>
                         </div>
                         <?php endif; ?>
