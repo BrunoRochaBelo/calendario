@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'functions.php';
 requireLogin();
 
@@ -49,13 +49,22 @@ if (!can('admin_sistema') && !can('ver_logs')) {
     <div class="app-shell">
         <?php include 'sidebar.php'; ?>
         <main class="main-content">
-            <header class="header-stack animate-in">
-                <div>
-                    <p style="font-size:0.75rem; font-weight:800; letter-spacing:0.15em; color:var(--text-ghost);">ADMINISTRAÇÃO</p>
-                    <h1 class="gradient-text">Central de Relatórios</h1>
-                    <p style="color:var(--text-dim); font-size:0.95rem; margin-top:0.4rem;">Gere e exporte dados da paróquia em múltiplos formatos para análise e arquivamento.</p>
+            <header class="calendar-header animate-in" style="margin-bottom: 2rem;">
+                <button class="menu-trigger inline hide-on-desktop" onclick="toggleSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
+                <div class="month-display" style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div>
+                        <p class="hide-on-mobile" style="font-size:0.75rem; font-weight:800; letter-spacing:0.15em; color:var(--text-ghost); margin:0;">ADMINISTRAÇÃO</p>
+                        <h1 class="gradient-text" style="margin:0;">Central de Relatórios</h1>
+                    </div>
+                    <div style="display: flex; gap: 0.8rem; align-items: stretch;">
+                        <a href="index.php" class="hide-on-desktop btn btn-ghost" style="background: #ef4444; color: #fff; border: none; padding: 0 1.2rem; min-height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); justify-content: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                            SAIR
+                        </a>
+                    </div>
                 </div>
             </header>
+            <p class="hide-on-mobile" style="color:var(--text-dim); font-size:0.95rem; margin-top:-1rem; margin-bottom: 2rem; padding: 0 1rem;"><?= h('Gere e exporte dados da paróquia em múltiplos formatos para análise e arquivamento.') ?></p>
 
             <section class="report-grid animate-in" style="animation-delay: 0.1s;">
                 

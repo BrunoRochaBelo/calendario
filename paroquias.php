@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Parish Management (v2.0)
@@ -164,10 +164,16 @@ $res = $conn->query('SELECT p.*, (SELECT COUNT(id) FROM usuarios u WHERE u.paroq
                     <p style="font-size: 0.75rem; font-weight: 800; letter-spacing: 0.15em; color: var(--text-ghost);">MASTER CONTROL</p>
                     <h1 class="gradient-text">Sedes Paroquiais</h1>
                 </div>
-                <button onclick="openModal()" class="btn btn-primary shimmer">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
-                    Novo Contexto
-                </button>
+                <div style="display: flex; gap: 0.8rem; width: 100%; justify-content: flex-end; align-items: stretch; margin-top: 1rem;">
+                    <a href="index.php" class="btn btn-ghost hide-on-desktop" style="background: #ef4444; color: #fff; border: none; padding: 0 1.2rem; min-height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); flex: 1; justify-content: center;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                        SAIR
+                    </a>
+                    <button onclick="openModal()" class="btn btn-primary shimmer" style="min-height: 48px; border-radius: 12px; flex: 2; justify-content: center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                        Novo Contexto
+                    </button>
+                </div>
             </header>
 
             <div class="view-controls animate-in" style="animation-delay: 0.05s;">

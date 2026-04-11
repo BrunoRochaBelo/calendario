@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — User Management Console (v2.0)
@@ -195,11 +195,18 @@ $users = $stmt->get_result();
                 <button class="menu-trigger inline hide-on-desktop" onclick="toggleSidebar()"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg></button>
                 <div class="month-display">
                     <h1 class="gradient-text">Usuários</h1>
-                    <?php if ($can_edit && (can('cadastrar_usuario') || can('admin_usuarios'))): ?>
-                        <a href="register.php" class="btn-plus-header hide-on-desktop" title="Novo Usuário">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    <div style="display: flex; gap: 0.8rem; align-items: stretch;">
+                        <a href="index.php" class="hide-on-desktop btn btn-ghost" style="background: #ef4444; color: #fff; border: none; padding: 0 1.2rem; min-height: 48px; border-radius: 12px; display: flex; align-items: center; gap: 0.5rem; font-weight: 800; font-size: 0.85rem; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3); justify-content: center;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                            SAIR
                         </a>
-                    <?php endif; ?>
+                        <?php if ($can_edit && (can('cadastrar_usuario') || can('admin_usuarios'))): ?>
+                            <a href="register.php" class="hide-on-desktop btn btn-primary" style="min-height: 48px; min-width: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; padding: 0 1rem; gap: 0.5rem;">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                                NOVO
+                            </a>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <?php if ($can_edit && (can('cadastrar_usuario') || can('admin_usuarios'))): ?>
                 <a href="register.php" class="btn btn-primary shimmer hide-on-mobile">
