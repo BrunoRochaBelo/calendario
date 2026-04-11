@@ -5,7 +5,8 @@
  * Session Management · RBAC Layer · Global Helpers
  * ═══════════════════════════════════════════════════════ */
 
-// 1. Session Security
+// 1. Session & Environment Security
+date_default_timezone_set('America/Sao_Paulo');
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
 session_start();

@@ -101,6 +101,40 @@ $geralAtivo = isGrupoAtivo(0, $filtroAtual);
 
         .empty-state { text-align: center; padding: 5rem 2rem; color: var(--text-dim); }
         .empty-state svg { opacity: 0.3; margin-bottom: 1.5rem; }
+
+        /* ── View Modes ────────────────────────────────────────── */
+        .view-controls { display: flex; gap: 0.5rem; background: var(--panel); padding: 0.4rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem; width: fit-content; }
+        .view-btn { 
+            padding: 0.5rem; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); cursor: pointer; display: flex; align-items: center; transition: all var(--anim);
+        }
+        .view-btn:hover { background: var(--panel-hi); color: var(--text); }
+        .view-btn.active { background: var(--primary); color: #fff; box-shadow: var(--sh-primary); }
+
+        /* LIST VIEW */
+        .grupos-grid.view-list { grid-template-columns: 1fr; gap: 0.8rem; }
+        .view-list .grupo-card { 
+            flex-direction: row; align-items: center; padding: 1rem 1.5rem; gap: 2rem; 
+        }
+        .view-list .card-header { min-width: 250px; flex-shrink: 0; }
+        .view-list .grupo-card > p { flex: 2; min-height: auto; margin: 0; display: flex; align-items: center; }
+        .view-list .card-stats { flex: 1; border: none; padding: 0; margin: 0; justify-content: flex-start; }
+        .view-list .toggle-row { flex: 1; margin: 0; justify-content: flex-end; gap: 1rem; }
+        .view-list .toggle-label { display: none; }
+
+        /* COMPACT VIEW */
+        .grupos-grid.view-compact { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+        .view-compact .grupo-card { padding: 1.2rem; gap: 1rem; }
+        .view-compact .card-icon { width: 36px; height: 36px; font-size: 1rem; }
+        .view-compact .grupo-card > p { display: none; }
+        .view-compact .card-stats { display: none; }
+        .view-compact .toggle-row { padding-top: 1rem; border-top: 1px solid var(--border); margin-top: 0.5rem; }
+
+        @media (max-width: 900px) {
+            .view-list .grupo-card { flex-direction: column; align-items: flex-start; gap: 1rem; }
+            .view-list .card-stats { padding-top: 1rem; border-top: 1px solid var(--border); width: 100%; justify-content: flex-start; }
+            .view-list .toggle-row { width: 100%; justify-content: space-between; }
+            .view-list .toggle-label { display: block; }
+        }
     </style>
 </head>
 <body>
@@ -135,6 +169,18 @@ $geralAtivo = isGrupoAtivo(0, $filtroAtual);
             <span>Os eventos de grupos <strong>desativados</strong> ficam ocultos no calendário principal. A preferência é salva automaticamente ao alternar o botão.</span>
         </div>
 
+        <div class="view-controls animate-in" style="animation-delay: 0.05s;">
+            <button onclick="setView('grid')" id="btn-grid" class="view-btn" title="Grelha">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            </button>
+            <button onclick="setView('list')" id="btn-list" class="view-btn" title="Lista">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            </button>
+            <button onclick="setView('compact')" id="btn-compact" class="view-btn" title="Compacto">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+            </button>
+        </div>
+
         <?php if (empty($grupos)): ?>
         <div class="empty-state">
             <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M8 15h8M9 9h.01M15 9h.01"/></svg>
@@ -142,7 +188,7 @@ $geralAtivo = isGrupoAtivo(0, $filtroAtual);
             <p>Você ainda não foi adicionado a nenhum grupo de trabalho nesta paróquia.</p>
         </div>
         <?php else: ?>
-        <div class="grupos-grid animate-in" style="animation-delay:0.1s;">
+        <div id="gruposContainer" class="grupos-grid animate-in" style="animation-delay:0.1s;">
 
             <!-- Card: Eventos Gerais (sem grupo associado) -->
             <article class="glass grupo-card card-geral <?= !$geralAtivo ? 'inactive-card' : '' ?>" id="card-geral">
@@ -240,6 +286,32 @@ function setTodos(estado) {
         body: `action=toggle&grupo_id=-1&ativo=${estado ? 1 : 0}`
     }).catch(err => console.error('Erro:', err));
 }
+
+// ── View Modes ──────────────────────────────────────────
+function setView(mode) {
+    const container = document.getElementById('gruposContainer');
+    if(!container) return;
+    const btns = document.querySelectorAll('.view-btn');
+    
+    // Toggle classes
+    container.classList.remove('view-list', 'view-compact');
+    if (mode === 'list') container.classList.add('view-list');
+    if (mode === 'compact') container.classList.add('view-compact');
+
+    // Active button state
+    btns.forEach(b => b.classList.remove('active'));
+    if(document.getElementById('btn-' + mode)) {
+        document.getElementById('btn-' + mode).classList.add('active');
+    }
+
+    localStorage.setItem('mygroups-view-mode', mode);
+}
+
+// Init view mode
+document.addEventListener('DOMContentLoaded', () => {
+    const savedMode = localStorage.getItem('mygroups-view-mode') || 'grid';
+    setView(savedMode);
+});
 </script>
 </body>
 </html>

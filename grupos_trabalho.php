@@ -44,6 +44,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // AUTO-JOIN: Add creator to the newly created group
                     saveUserGroupsScoped($conn, $my_user_id, [$newId], [$newId]);
                     
+                    // AUTO-JOIN: Add master admin (ID 1) to the newly created group
+                    if ($my_user_id !== 1) {
+                        $conn->query("INSERT IGNORE INTO usuario_grupos (usuario_id, grupo_id) VALUES (1, $newId)");
+                    }
+                    
                     header("Location: grupos_trabalho.php?msg=Grupo criado com sucesso e voce foi adicionado como membro!");
                     exit();
                 }
