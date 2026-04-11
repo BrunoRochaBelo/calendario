@@ -340,8 +340,8 @@ $adminGroups = $adminGroups_ctx;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Editar Usuario - PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.5.0"
-        <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
+    <link rel="stylesheet" href="style.css?v=2.4.5"
+        <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
     <style>
         select option,
         select optgroup {

@@ -80,8 +80,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Acessar Portal — PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.5.0"
-        <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
+    <link rel="stylesheet" href="style.css?v=2.4.5"
+        <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
     <style>
         body { background: #000; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 2rem; }
         .login-gate { width: 100%; max-width: 1000px; display: grid; grid-template-columns: 1fr 1fr; gap: 4rem; align-items: center; }

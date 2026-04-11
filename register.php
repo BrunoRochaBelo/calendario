@@ -147,8 +147,8 @@ if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Cadastrar Usuário — PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.5.0"
-        <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
+    <link rel="stylesheet" href="style.css?v=2.4.5"
+        <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
     <style>
         .app-shell { display: flex; min-height: 100vh; width: 100%; overflow-x: hidden; }
         .main-content { flex: 1; min-width: 0; width: 100%; margin-left: var(--sidebar-w); padding: 3rem; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: margin 0.3s; }

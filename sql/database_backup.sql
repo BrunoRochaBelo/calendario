@@ -393,33 +393,6 @@ INSERT INTO `perfis` VALUES (2,'ADMINISTRADOR PAROQUIAL',NULL,1,1,1,1,1,1,1,1,1)
 UNLOCK TABLES;
 
 --
--- Table structure for table `sistema_config`
---
-
-DROP TABLE IF EXISTS `sistema_config`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `sistema_config` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `chave` varchar(50) NOT NULL,
-  `valor` text DEFAULT NULL,
-  `last_updated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `chave` (`chave`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `sistema_config`
---
-
-LOCK TABLES `sistema_config` WRITE;
-/*!40000 ALTER TABLE `sistema_config` DISABLE KEYS */;
-INSERT INTO `sistema_config` VALUES (1,'versao_sistema','2.5.0','2026-04-11 04:06:10'),(2,'status_banco','funcional','2026-04-11 04:06:10');
-/*!40000 ALTER TABLE `sistema_config` ENABLE KEYS */;
-UNLOCK TABLES;
-
---
 -- Table structure for table `tipos_atividade`
 --
 
@@ -535,4 +508,4 @@ UNLOCK TABLES;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2026-04-11  1:07:16
+-- Dump completed on 2026-04-11  1:13:20

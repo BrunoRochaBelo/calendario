@@ -126,8 +126,8 @@ if (!$selectedActivities) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Nova Atividade – PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.5.0">
-    <link rel="stylesheet" href="css/responsive.css?v=2.5.0">
+    <link rel="stylesheet" href="style.css?v=2.4.5">
+    <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; display: flex; justify-content: center; align-items: flex-start; }

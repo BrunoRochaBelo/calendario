@@ -1,7 +1,6 @@
 ﻿<?php
 require_once 'functions.php';
-requireLogin();
-requirePerm('admin_sistema');
+
 require 'conexao.php';
 $queries = [
     "ALTER TABLE locais_paroquia 
