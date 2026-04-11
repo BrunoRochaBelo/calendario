@@ -443,10 +443,12 @@ function ensureWorkingGroupsTables(mysqli $db): void {
         CREATE TABLE IF NOT EXISTS usuario_grupos (
             usuario_id INT(10) UNSIGNED NOT NULL,
             grupo_id INT(10) UNSIGNED NOT NULL,
+            paroquia_id INT(10) UNSIGNED NULL DEFAULT NULL,
             data_atribuicao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (usuario_id, grupo_id),
             KEY fk_ug_usuario (usuario_id),
             KEY fk_ug_grupo (grupo_id),
+            KEY fk_ug_paroquia (paroquia_id),
             CONSTRAINT fk_ug_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE,
             CONSTRAINT fk_ug_grupo FOREIGN KEY (grupo_id) REFERENCES grupos_trabalho (id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci

@@ -46,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     // AUTO-JOIN: Add master admin (ID 1) to the newly created group
                     if ($my_user_id !== 1) {
-                        $conn->query("INSERT IGNORE INTO usuario_grupos (usuario_id, grupo_id) VALUES (1, $newId)");
+                        $conn->query("INSERT IGNORE INTO usuario_grupos (usuario_id, grupo_id, paroquia_id) VALUES (1, $newId, $pid)");
                     }
                     
                     header("Location: grupos_trabalho.php?msg=Grupo criado com sucesso e voce foi adicionado como membro!");
