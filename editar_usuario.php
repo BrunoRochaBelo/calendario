@@ -82,6 +82,16 @@ $permissionLabels = [
     'perm_gerenciar_grupos' => 'Gerenciar Grupos de Trabalho',
 ];
 
+$max_access_level = 6;
+$allowed_access_levels = selectable_access_levels_for_user($my_level, $is_master, $max_access_level);
+$perfis_options = list_perfis_for_user($conn, $my_level, $is_master);
+$allowedPerfilMap = [];
+foreach ($perfis_options as $p) {
+    $allowedPerfilMap[(int)$p['id']] = $p;
+}
+$selected_nivel_acesso = isset($_POST['nivel_acesso']) ? (int)$_POST['nivel_acesso'] : (int)($user['nivel_acesso'] ?? $max_access_level);
+$selected_perfil_id = isset($_POST['perfil_id']) ? (int)$_POST['perfil_id'] : (int)($user['perfil_id'] ?? pick_default_perfil_id($perfis_options, 9));
+
 $msg = $_GET['msg'] ?? '';
 $error = '';
 $deleteConfirmPending = ((int)($_GET['delete_confirm'] ?? 0) === 1 && (int)($_SESSION['pending_delete_user_id'] ?? 0) === $id);
@@ -159,6 +169,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $palavraChave = trim((string)($data['palavra_chave'] ?? ''));
         $paroquiaId = $can_edit_parish_for_target ? (int)($data['paroquia_id'] ?? $user['paroquia_id']) : (int)$user['paroquia_id'];
         $perfil_id = (int)($user['perfil_id'] ?? 3);
+        $perfil_nome = (string)($user['perfil_nome'] ?? '');
+        $nivel_acesso = (int)($user['nivel_acesso'] ?? $max_access_level);
+
+        if ($can_manage_target && !$is_self) {
+            $nivel_raw = trim((string)($data['nivel_acesso'] ?? ''));
+            if ($nivel_raw !== '') {
+                $nivel_candidate = (int)$nivel_raw;
+                if ($nivel_candidate < 0 || $nivel_candidate > $max_access_level) {
+                    $error = 'Nivel de acesso invalido.';
+                } elseif (!$is_master && $nivel_candidate < $my_level) {
+                    $error = 'Nivel de acesso invalido para o seu usuario.';
+                } else {
+                    $nivel_acesso = $nivel_candidate;
+                }
+            }
+
+            $perfil_raw = trim((string)($data['perfil_id'] ?? ''));
+            if ($perfil_raw !== '') {
+                $perfil_candidate = (int)$perfil_raw;
+                if (!isset($allowedPerfilMap[$perfil_candidate])) {
+                    $error = 'Perfil selecionado invalido para o seu nivel.';
+                } else {
+                    $perfil_id = $perfil_candidate;
+                    $perfil_nome = (string)($allowedPerfilMap[$perfil_candidate]['nome'] ?? $perfil_nome);
+                }
+            }
+        }
 
         if ($nome === '') {
             $error = 'Nome obrigatorio.';
@@ -179,7 +216,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $sql = "UPDATE usuarios SET 
                     nome = ?, email = ?, sexo = ?, telefone = ?, data_nascimento = ?, 
-                    paroquia_id = ?, perfil_id = ?, 
+                    paroquia_id = ?, perfil_id = ?, perfil_nome = ?, nivel_acesso = ?, 
                     perm_ver_calendario = ?, perm_criar_eventos = ?, perm_editar_eventos = ?, perm_excluir_eventos = ?,
                     perm_ver_restritos = ?, perm_cadastrar_usuario = ?, perm_admin_usuarios = ?, perm_admin_sistema = ?, perm_ver_logs = ?,
                     perm_gerenciar_catalogo = ?, perm_gerenciar_grupos = ?
@@ -188,7 +225,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtUpdate = $conn->prepare($sql);
             if ($stmtUpdate) {
                 $stmtUpdate->bind_param(
-                    'sssssiiiiiiiiiiiiii',
+                    'sssssiisiiiiiiiiiiiii',
                     $nome,
                     $emailToSave,
                     $sexo,
@@ -196,6 +233,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $dt_nasc,
                     $paroquiaId,
                     $perfil_id,
+                    $perfil_nome,
+                    $nivel_acesso,
                     $permValues['perm_ver_calendario'],
                     $permValues['perm_criar_eventos'],
                     $permValues['perm_editar_eventos'],
@@ -497,8 +536,32 @@ $adminGroups = $adminGroups_ctx;
                     <?php if (!$is_self && ($can_manage_target || array_filter($visiblePermissions))): ?>
                     <div style="grid-column: span 2; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
                         <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Configurações de Acesso e Grupos</h3>
-                        
-                        <input type="hidden" name="perfil_id" value="<?= (int)$user['perfil_id'] ?>">
+
+                        <?php if ($can_manage_target): ?>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.25rem;">
+                            <div class="form-group" style="margin:0;">
+                                <label>NIVEL DE ACESSO</label>
+                                <select name="nivel_acesso">
+                                    <?php foreach ($allowed_access_levels as $lvl): ?>
+                                        <option value="<?= (int)$lvl ?>" <?= ((int)$lvl === (int)$selected_nivel_acesso) ? 'selected' : '' ?>>
+                                            <?= h(getAccessLabelV2((int)$lvl)) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+
+                            <div class="form-group" style="margin:0;">
+                                <label>PERFIL</label>
+                                <select name="perfil_id">
+                                    <?php foreach ($perfis_options as $pf): ?>
+                                        <option value="<?= (int)$pf['id'] ?>" <?= ((int)$pf['id'] === (int)$selected_perfil_id) ? 'selected' : '' ?>>
+                                            <?= h($pf['nome']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <?php endif; ?>
 
                         <!-- Permissões do Sistema -->
                         <?php if (array_filter($visiblePermissions)): ?>

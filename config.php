@@ -14,6 +14,24 @@ session_start();
 // 2. Load Database Connection
 require_once __DIR__ . '/conexao.php';
 
+// 2.1. Schema mutations guard
+// Nao executar ALTER/CREATE/DROP automaticamente em runtime.
+// Ajustes de schema devem ser feitos manualmente no banco.
+if (!defined('DB_SCHEMA_MUTATIONS_ENABLED')) {
+    define('DB_SCHEMA_MUTATIONS_ENABLED', false);
+}
+
+function db_has_column(mysqli $db, string $table, string $column): bool {
+    $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+    $column = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+    if ($table === '' || $column === '') {
+        return false;
+    }
+
+    $res = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
+    return (bool)($res && $res->num_rows > 0);
+}
+
 // 3. Global Security Headers
 header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: SAMEORIGIN");
@@ -32,9 +50,11 @@ function requireLogin(): void {
 
     global $conn;
     if (isset($conn) && $conn instanceof mysqli) {
-        ensurePerfisHierarchyRemoved($conn);
-        ensureUserPermissionsMaterialized($conn);
-        ensureWorkingGroupsTables($conn);
+        if (DB_SCHEMA_MUTATIONS_ENABLED) {
+            ensurePerfisHierarchyRemoved($conn);
+            ensureUserPermissionsMaterialized($conn);
+            ensureWorkingGroupsTables($conn);
+        }
     }
 }
 
@@ -45,6 +65,10 @@ function ensurePermissionColumns(mysqli $db): void {
         return;
     }
     $checked = true;
+
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
 
     $targets = [
         ['table' => 'usuarios', 'column' => 'perm_cadastrar_usuario'],
@@ -68,6 +92,10 @@ function ensureUserPermissionColumns(mysqli $db): void {
         return;
     }
     $checked = true;
+
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
 
     $cols = [
         'perm_ver_calendario' => "TINYINT(1) NULL DEFAULT NULL",
@@ -99,6 +127,10 @@ function ensureUserProfileNameColumn(mysqli $db): void {
     }
     $checked = true;
 
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
+
     $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE 'perfil_nome'");
     if ($exists && $exists->num_rows > 0) {
         return;
@@ -116,6 +148,26 @@ function ensureUserPermissionsMaterialized(mysqli $db): void {
 
     ensureUserPermissionColumns($db);
     ensureUserProfileNameColumn($db);
+
+    $requiredCols = [
+        'perm_ver_calendario',
+        'perm_criar_eventos',
+        'perm_editar_eventos',
+        'perm_excluir_eventos',
+        'perm_ver_restritos',
+        'perm_cadastrar_usuario',
+        'perm_admin_usuarios',
+        'perm_admin_sistema',
+        'perm_ver_logs',
+        'perm_gerenciar_catalogo',
+        'perm_gerenciar_grupos',
+    ];
+
+    foreach ($requiredCols as $col) {
+        if (!db_has_column($db, 'usuarios', $col)) {
+            return;
+        }
+    }
 
     // Normaliza NULL -> 0 (permissões devem existir na tabela usuarios)
     $db->query("
@@ -143,6 +195,10 @@ function ensureUserPhotoColumn(mysqli $db): void {
     }
     $checked = true;
 
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
+
     $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE 'foto_perfil'");
     if ($exists && $exists->num_rows > 0) {
         return;
@@ -158,6 +214,10 @@ function ensureUserLastLoginColumn(mysqli $db): void {
     }
     $checked = true;
 
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
+
     $exists = $db->query("SHOW COLUMNS FROM `usuarios` LIKE 'ultimo_login'");
     if ($exists && $exists->num_rows > 0) {
         return;
@@ -172,6 +232,10 @@ function ensurePerfisHierarchyRemoved(mysqli $db): void {
         return;
     }
     $checked = true;
+
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
 
     $exists = $db->query("SHOW COLUMNS FROM `perfis` LIKE 'nivel_hierarquia'");
     if (!$exists || $exists->num_rows === 0) {
@@ -271,6 +335,10 @@ function ensureAuthThrottleTable(mysqli $db): void {
         return;
     }
     $checked = true;
+
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
 
     $db->query("
         CREATE TABLE IF NOT EXISTS auth_throttle (
@@ -420,6 +488,10 @@ function ensureWorkingGroupsTables(mysqli $db): void {
     static $checked = false;
     if ($checked) return;
     $checked = true;
+
+    if (!DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
 
     // Table for Groups
     $db->query("

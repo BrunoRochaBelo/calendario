@@ -13,6 +13,14 @@ requirePerm('admin_usuarios');
 $pid = current_paroquia_id();
 $msg = $_GET['msg'] ?? '';
 $error = $_GET['error'] ?? '';
+$my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
+$is_master = has_level(0) || (int)($_SESSION['usuario_id'] ?? 0) === 1;
+$max_access_level = 6;
+$allowed_access_levels = selectable_access_levels_for_user($my_level, $is_master, $max_access_level);
+$perfis_options = list_perfis_for_user($conn, $my_level, $is_master);
+$default_perfil_id = pick_default_perfil_id($perfis_options, 9);
+$selected_nivel_acesso = isset($_POST['nivel_acesso']) ? (int)$_POST['nivel_acesso'] : $max_access_level;
+$selected_perfil_id = isset($_POST['perfil_id']) ? (int)$_POST['perfil_id'] : $default_perfil_id;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     ensureUserPhotoColumn($conn);
@@ -31,10 +39,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'As senhas nao coincidem.';
     } else {
         $hash = password_hash($senha, PASSWORD_DEFAULT);
-        $perfil_id = 9; // Força Visitante padrão
+
+        $nivel_acesso_raw = trim((string)($data['nivel_acesso'] ?? ''));
+        $nivel_acesso = ($nivel_acesso_raw === '') ? $max_access_level : (int)$nivel_acesso_raw;
+        if ($nivel_acesso < 0 || $nivel_acesso > $max_access_level) {
+            $nivel_acesso = $max_access_level;
+        }
+        if (!$is_master && $nivel_acesso < $my_level) {
+            $error = 'Nivel de acesso invalido para o seu usuario.';
+        }
+
+        $allowedPerfilIds = [];
+        foreach ($perfis_options as $p) {
+            $allowedPerfilIds[(int)$p['id']] = $p;
+        }
+
+        $perfil_id_raw = trim((string)($data['perfil_id'] ?? ''));
+        if ($perfil_id_raw === '') {
+            $perfil_id = pick_default_perfil_id($perfis_options, 9);
+        } else {
+            $perfil_id = (int)$perfil_id_raw;
+            if (!isset($allowedPerfilIds[$perfil_id])) {
+                $error = 'Perfil selecionado invalido para o seu nivel.';
+            }
+        }
+
         $target_pid = (int)($data['paroquia_id'] ?: $pid);
         $dt_nasc = !empty($data['data_nascimento']) ? $data['data_nascimento'] : null;
 
+        if ($error === '') {
         $perfilNome = '';
         $perfilPerms = [
             'perm_ver_calendario' => 0,
@@ -65,12 +98,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     paroquia_id, perfil_id, perfil_nome, ativo, nivel_acesso,
                     perm_ver_calendario, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos,
                     perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema, perm_ver_logs
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1, 3, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $conn->prepare($sql);
         $stmt->bind_param(
-            'sssssssiisiiiiiiiii',
+            'sssssssiisiiiiiiiiii',
             $data['nome'], $data['email'], $hash, $data['sexo'], $data['telefone'], $dt_nasc, $palavraChave,
             $target_pid, $perfil_id, $perfilNome,
+            $nivel_acesso,
             $perfilPerms['perm_ver_calendario'],
             $perfilPerms['perm_criar_eventos'],
             $perfilPerms['perm_editar_eventos'],
@@ -130,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         } else {
             $error = 'Erro ao cadastrar. Talvez este e-mail já esteja em uso.';
+        }
         }
     }
 }
@@ -246,7 +281,27 @@ if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
                         <input type="file" name="foto_perfil" accept="image/*">
                     </div>
 
-                    <input type="hidden" name="perfil_id" value="9">
+                    <div class="form-group">
+                        <label>NIVEL DE ACESSO</label>
+                        <select name="nivel_acesso">
+                            <?php foreach ($allowed_access_levels as $lvl): ?>
+                                <option value="<?= (int)$lvl ?>" <?= ((int)$lvl === (int)$selected_nivel_acesso) ? 'selected' : '' ?>>
+                                    <?= h(getAccessLabelV2((int)$lvl)) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>PERFIL</label>
+                        <select name="perfil_id">
+                            <?php foreach ($perfis_options as $pf): ?>
+                                <option value="<?= (int)$pf['id'] ?>" <?= ((int)$pf['id'] === (int)$selected_perfil_id) ? 'selected' : '' ?>>
+                                    <?= h($pf['nome']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
 
                     <div class="form-group full-row">
                         <label>PARÓQUIA DESIGNADA</label>

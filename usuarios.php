@@ -78,8 +78,9 @@ $sql = "
     SELECT u.*, p.nome as paroquia_nome,
     CASE 
         WHEN u.nivel_acesso = 0 THEN 'Master'
-        WHEN u.nivel_acesso = 1 THEN 'Supervisor'
+        WHEN u.nivel_acesso = 1 THEN 'Administrador'
         WHEN u.nivel_acesso = 2 THEN 'Gerente'
+        WHEN u.nivel_acesso = 6 THEN 'Visitante'
         ELSE 'Usuário'
     END as nivel_label
     FROM usuarios u

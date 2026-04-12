@@ -41,6 +41,20 @@ function getAccessLabel(int $level): string {
     return $labels[$level] ?? 'Desconhecido';
 }
 
+// Rotulos oficiais (numero menor = mais privilegio)
+function getAccessLabelV2(int $level): string {
+    $labels = [
+        0 => 'Master',
+        1 => 'Administrador',
+        2 => 'Gerente',
+        3 => 'Usuario',
+        4 => 'Usuario',
+        5 => 'Usuario',
+        6 => 'Visitante',
+    ];
+    return $labels[$level] ?? ('Nivel ' . $level);
+}
+
 /**
  * Retorna o ID da paróquia atual da sessão
  */
@@ -81,6 +95,10 @@ function ensureInscricoesTable(mysqli $db): bool {
         return true;
     }
 
+    if (defined('DB_SCHEMA_MUTATIONS_ENABLED') && !DB_SCHEMA_MUTATIONS_ENABLED) {
+        return false;
+    }
+
     $sql = "
         CREATE TABLE inscricoes (
             id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -107,6 +125,17 @@ function ensureEventActivitiesStructure(mysqli $db): bool {
     }
 
     $checked = true;
+
+    if (defined('DB_SCHEMA_MUTATIONS_ENABLED') && !DB_SCHEMA_MUTATIONS_ENABLED) {
+        $t1 = $db->query("SHOW TABLES LIKE 'atividades_catalogo'");
+        $t2 = $db->query("SHOW TABLES LIKE 'atividade_evento_itens'");
+        $t3 = $db->query("SHOW TABLES LIKE 'atividade_evento_inscricoes'");
+        return (bool)(
+            $t1 && $t1->num_rows > 0 &&
+            $t2 && $t2->num_rows > 0 &&
+            $t3 && $t3->num_rows > 0
+        );
+    }
 
     $catalogSql = "
         CREATE TABLE IF NOT EXISTS atividades_catalogo (
@@ -587,6 +616,10 @@ function ensureAtividadeGruposTable(mysqli $db): void {
     if ($checked) return;
     $checked = true;
 
+    if (defined('DB_SCHEMA_MUTATIONS_ENABLED') && !DB_SCHEMA_MUTATIONS_ENABLED) {
+        return;
+    }
+
     $db->query("
         CREATE TABLE IF NOT EXISTS atividade_grupos (
             atividade_id INT(10) UNSIGNED NOT NULL,
@@ -643,5 +676,83 @@ function getActivityGroups(mysqli $db, int $atividadeId): array {
         $ids[] = (int)$row['grupo_id'];
     }
     return $ids;
+}
+
+// --------------------
+// Usuario: niveis/perfis (sem alterar schema)
+// --------------------
+
+// Convencao: numero menor = mais privilegio. O usuario logado so pode atribuir
+// niveis "iguais ou abaixo" na hierarquia, ou seja: nivel >= meu nivel.
+function selectable_access_levels_for_user(int $myLevel, bool $isMaster, int $maxLevel = 6): array {
+    if (!$isMaster && $myLevel > $maxLevel) {
+        $myLevel = $maxLevel;
+    }
+    $min = $isMaster ? 0 : max(0, $myLevel);
+    $max = max($min, $maxLevel);
+    $levels = [];
+    for ($lvl = $min; $lvl <= $max; $lvl++) {
+        $levels[] = $lvl;
+    }
+    return $levels;
+}
+
+// Infere um "nivel" do perfil usando permissões ja existentes na tabela perfis.
+// Isso serve apenas para FILTRAR o dropdown, nao muda a logica de permissao do sistema.
+function infer_perfil_nivel(array $perfilRow): int {
+    $adminSistema = (int)($perfilRow['perm_admin_sistema'] ?? 0);
+    $adminUsuarios = (int)($perfilRow['perm_admin_usuarios'] ?? 0);
+    $cadastrarUser = (int)($perfilRow['perm_cadastrar_usuario'] ?? 0);
+    $verRestritos = (int)($perfilRow['perm_ver_restritos'] ?? 0);
+    $criar = (int)($perfilRow['perm_criar_eventos'] ?? 0);
+    $editar = (int)($perfilRow['perm_editar_eventos'] ?? 0);
+    $excluir = (int)($perfilRow['perm_excluir_eventos'] ?? 0);
+
+    if ($adminSistema || $adminUsuarios) return 1; // Administrador
+    if ($cadastrarUser) return 2; // Gerente
+    if ($verRestritos || $criar || $editar || $excluir) return 3; // Usuario
+    return 6; // Visitante
+}
+
+function list_perfis_for_user(mysqli $db, int $myLevel, bool $isMaster): array {
+    if (!$isMaster) {
+        $myLevel = max(0, min(6, $myLevel));
+    }
+    $rows = [];
+    $sql = "SELECT id, nome, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos, perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema FROM perfis ORDER BY nome ASC";
+    $res = $db->query($sql);
+    if (!$res) return [];
+
+    while ($r = $res->fetch_assoc()) {
+        $nivel = infer_perfil_nivel($r);
+        if ($isMaster || $nivel >= $myLevel) {
+            $r['nivel_inferido'] = $nivel;
+            $rows[] = $r;
+        }
+    }
+    return $rows;
+}
+
+function pick_default_perfil_id(array $perfis, int $fallback = 9): int {
+    if (!$perfis) return $fallback;
+
+    // Prioriza VISITANTE se estiver disponivel, senao pega o de maior nivel_inferido.
+    foreach ($perfis as $p) {
+        $nome = strtoupper(trim((string)($p['nome'] ?? '')));
+        if ($nome === 'VISITANTE') {
+            return (int)($p['id'] ?? $fallback);
+        }
+    }
+
+    $bestId = $fallback;
+    $bestNivel = -1;
+    foreach ($perfis as $p) {
+        $nivel = (int)($p['nivel_inferido'] ?? 0);
+        if ($nivel > $bestNivel) {
+            $bestNivel = $nivel;
+            $bestId = (int)($p['id'] ?? $fallback);
+        }
+    }
+    return $bestId;
 }
 ?>
