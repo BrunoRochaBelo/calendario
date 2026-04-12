@@ -699,6 +699,19 @@ function getActivityGroups(mysqli $db, int $atividadeId): array {
     return $ids;
 }
 
+/**
+ * Retorna o ID do grupo padrão "Todos" da paróquia, quando existir.
+ */
+function getDefaultTodosGroupId(mysqli $db, int $paroquiaId): int {
+    if ($paroquiaId <= 0) return 0;
+    $stmt = $db->prepare("SELECT id FROM grupos_trabalho WHERE paroquia_id = ? AND nome = 'Todos' LIMIT 1");
+    if (!$stmt) return 0;
+    $stmt->bind_param('i', $paroquiaId);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    return (int)($row['id'] ?? 0);
+}
+
 // --------------------
 // Usuario: niveis/perfis (sem alterar schema)
 // --------------------

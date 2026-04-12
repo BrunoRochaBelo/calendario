@@ -103,10 +103,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             cursor: pointer; padding: 0.25rem 0.5rem;
         }
         .note-limit { margin-top: 0.6rem; color: var(--text-ghost); font-size: 0.78rem; line-height: 1.4; }
+        .login-subtitle { color: var(--text-ghost); font-size: 0.95rem; }
+        .login-subtitle .mobile-break { display: inline; }
         @media (max-width: 900px) {
             .login-gate { grid-template-columns: 1fr; gap: 2rem; }
             .hero-side { display: none; }
             .auth-card { padding: 3rem 2rem; }
+            .login-subtitle .mobile-break { display: block; }
         }
     </style>
 </head>
@@ -124,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <main class="auth-card glass animate-in" style="animation-delay: 0.1s;">
             <div style="margin-bottom: 3rem;">
                 <h1 style="font-size: 2rem; font-weight: 900; margin-bottom: 0.5rem; letter-spacing: -0.02em;">Acessar Portal</h1>
-                <p style="color: var(--text-ghost); font-size: 0.95rem;">Bem-vindo de volta! Identifique-se.</p>
+                <p class="login-subtitle">Bem-vindo de volta! <span class="mobile-break">Identifique-se.</span></p>
             </div>
 
             <?php if ($error): ?>

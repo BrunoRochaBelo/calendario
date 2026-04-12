@@ -16,6 +16,14 @@ $can_edit = can('admin_usuarios');
 $is_master = has_level(0);
 $my_user_id = (int)($_SESSION['usuario_id'] ?? 0);
 $my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
+$my_group_ids = getUserGroups($conn, $my_user_id, $pid);
+$todos_group_id = getDefaultTodosGroupId($conn, $pid);
+if ($todos_group_id > 0) {
+    $my_group_ids = array_values(array_filter(
+        $my_group_ids,
+        static fn(int $gid): bool => $gid !== $todos_group_id
+    ));
+}
 
 // 1. Handle Status Toggles (AJAX/Simple POST)
 if (isset($_GET['toggle_status']) && $can_edit) {
@@ -40,6 +48,29 @@ if (isset($_GET['toggle_status']) && $can_edit) {
     ) {
         header('Location: usuarios.php?error=unauthorized');
         exit();
+    }
+
+    if (
+        !$is_master &&
+        (int)$oldState['id'] !== $my_user_id
+    ) {
+        if (empty($my_group_ids)) {
+            header('Location: usuarios.php?error=unauthorized');
+            exit();
+        }
+
+        $targetGroupIds = getUserGroups($conn, (int)$oldState['id'], $pid);
+        if ($todos_group_id > 0) {
+            $targetGroupIds = array_values(array_filter(
+                $targetGroupIds,
+                static fn(int $gid): bool => $gid !== $todos_group_id
+            ));
+        }
+        $hasCommonGroup = !empty(array_intersect($my_group_ids, $targetGroupIds));
+        if (!$hasCommonGroup) {
+            header('Location: usuarios.php?error=unauthorized');
+            exit();
+        }
     }
     
     $conn->query("UPDATE usuarios SET ativo = 1 - ativo WHERE id = $uid");
@@ -67,6 +98,27 @@ if (!$is_master) {
     $params[] = $my_user_id;
     $params[] = $my_level;
     $types .= "ii";
+
+    if (!empty($my_group_ids)) {
+        $groupPlaceholders = implode(',', array_fill(0, count($my_group_ids), '?'));
+        $where[] = "(u.id = ? OR EXISTS (
+            SELECT 1
+            FROM usuario_grupos ug
+            WHERE ug.usuario_id = u.id
+              AND ug.paroquia_id = u.paroquia_id
+              AND ug.grupo_id IN ($groupPlaceholders)
+        ))";
+        $params[] = $my_user_id;
+        $types .= "i";
+        foreach ($my_group_ids as $gid) {
+            $params[] = (int)$gid;
+            $types .= "i";
+        }
+    } else {
+        $where[] = "u.id = ?";
+        $params[] = $my_user_id;
+        $types .= "i";
+    }
 } else {
     // Master global vê apenas os da paróquia selecionada no contexto
     $where[] = "u.paroquia_id = ?";
@@ -270,7 +322,7 @@ $users = $stmt->get_result();
                     <?php
                         $isSelfCard = (int)$u['id'] === $my_user_id;
                         $canEditThisUser = $isSelfCard || ((int)$u['nivel_acesso'] >= $my_level);
-                        $canToggleThisUser = !$isSelfCard && ((int)$u['nivel_acesso'] >= $my_level);
+                        $canToggleThisUser = !$isSelfCard && ((int)$u['nivel_acesso'] > $my_level);
                     ?>
                     <?php if ($can_edit && $canEditThisUser): ?>
                     <div class="user-actions">

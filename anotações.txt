@@ -24,3 +24,14 @@ simillar ao que ja estamos fazendo, evite ao maximo alterar os demais
 arquivos para não quebrar se precisar mexer em algo teste antes paraver
  como funicna e depois para ver se permaece
  **************************************************
+
+
+ na pagina de login a 
+
+Bem-vindo de volta! 
+Identifique-se.
+
+para dispositivos moveis quebre a linha a partir do identifique-se
+
+na tabela perfis se o campo descricao não tiver em uso para outra coisa, 
+voce irá usala para o paroquia_id que faltou atribuir a esssa tabela

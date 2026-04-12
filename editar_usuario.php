@@ -12,6 +12,14 @@ $my_user_id = (int)($_SESSION['usuario_id'] ?? 0);
 $my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
 $my_pid = (int)($_SESSION['paroquia_id'] ?? 0);
 $is_self = ($id === $my_user_id);
+$my_group_ids = getUserGroups($conn, $my_user_id, $my_pid);
+$todos_group_id = getDefaultTodosGroupId($conn, $my_pid);
+if ($todos_group_id > 0) {
+    $my_group_ids = array_values(array_filter(
+        $my_group_ids,
+        static fn(int $gid): bool => $gid !== $todos_group_id
+    ));
+}
 
 $stmt = $conn->prepare('SELECT * FROM usuarios WHERE id = ?');
 $stmt->bind_param('i', $id);
@@ -33,11 +41,34 @@ if (
     (int)$user['id'] !== $my_user_id &&
     (
         (int)$user['paroquia_id'] !== $my_pid ||
-        (int)$user['nivel_acesso'] <= $my_level
+        (int)$user['nivel_acesso'] < $my_level
     )
 ) {
     header('Location: usuarios.php?error=unauthorized');
     exit();
+}
+
+if (
+    !$is_master &&
+    !$is_self
+) {
+    if (empty($my_group_ids)) {
+        header('Location: usuarios.php?error=unauthorized');
+        exit();
+    }
+
+    $target_group_ids = getUserGroups($conn, (int)$user['id'], $my_pid);
+    if ($todos_group_id > 0) {
+        $target_group_ids = array_values(array_filter(
+            $target_group_ids,
+            static fn(int $gid): bool => $gid !== $todos_group_id
+        ));
+    }
+    $has_common_group = !empty(array_intersect($my_group_ids, $target_group_ids));
+    if (!$has_common_group) {
+        header('Location: usuarios.php?error=unauthorized');
+        exit();
+    }
 }
 
 $can_manage_target = $is_master || $is_self || (
@@ -46,6 +77,7 @@ $can_manage_target = $is_master || $is_self || (
     (int)$user['paroquia_id'] === $my_pid &&
     (int)$user['nivel_acesso'] > $my_level
 );
+$is_same_level_peer = !$is_master && !$is_self && (int)$user['nivel_acesso'] === $my_level;
 
 $can_edit_photo_for_target = $is_master || $is_self || $can_manage_target;
 $can_edit_email_for_target = $is_self || $can_manage_target;
@@ -119,7 +151,9 @@ foreach ($allGroupsRaw as $g) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = sanitize_post($_POST);
 
-    if (isset($data['delete_request'])) {
+    if ($is_same_level_peer) {
+        $error = 'Voce nao pode editar ou excluir usuarios do mesmo nivel.';
+    } elseif (isset($data['delete_request'])) {
         if (!$can_delete_target) {
             $error = 'Voce nao tem permissao para excluir este usuario.';
         } else {
@@ -492,6 +526,7 @@ $adminGroups = $adminGroups_ctx;
                 <?php endif; ?>
 
                 <form method="POST" enctype="multipart/form-data" class="edit-user-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <?php if (!$is_same_level_peer): ?>
                     <div class="form-group" style="grid-column: span 2;">
                         <label>NOME COMPLETO</label>
                         <input type="text" name="nome" value="<?= h($user['nome']) ?>" required>
@@ -533,8 +568,13 @@ $adminGroups = $adminGroups_ctx;
                             <option value="F" <?= $user['sexo'] == 'F' || $user['sexo'] == 'Feminino' ? 'selected' : '' ?>>Feminino</option>
                         </select>
                     </div>
+                    <?php else: ?>
+                    <div style="grid-column: span 2; padding: 1rem 1.2rem; border: 1px solid var(--border); border-radius: 12px; color: var(--text-dim); font-size: 0.9rem;">
+                        Usuarios do mesmo nivel podem ser visualizados, mas nao podem ser editados ou excluidos.
+                    </div>
+                    <?php endif; ?>
 
-                    <?php if (!$is_self && ($can_manage_target || array_filter($visiblePermissions))): ?>
+                    <?php if (!$is_same_level_peer && !$is_self && ($can_manage_target || array_filter($visiblePermissions))): ?>
                     <div style="grid-column: span 2; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
                         <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Configurações de Acesso e Grupos</h3>
 
@@ -703,9 +743,11 @@ $adminGroups = $adminGroups_ctx;
                     <?php endif; ?>
 
                     <div class="actions-row">
+                        <?php if (!$is_same_level_peer): ?>
                         <button type="submit" class="btn btn-primary shimmer" style="flex: 2;">Confirmar Alteracoes</button>
+                        <?php endif; ?>
                         <a href="usuarios.php" class="btn btn-ghost" style="flex: 1;">Cancelar</a>
-                        <?php if ($can_delete_target): ?>
+                        <?php if ($can_delete_target && !$is_same_level_peer): ?>
                             <button type="submit" name="delete_request" value="1" class="btn btn-ghost" style="flex: 1; border-color: rgba(239,68,68,0.5); color: #fca5a5;">Excluir Usuario</button>
                         <?php endif; ?>
                     </div>
