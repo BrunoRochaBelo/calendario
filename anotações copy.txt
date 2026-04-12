@@ -90,3 +90,8 @@ no campo nivel de acesso vai haver uma escola de viveis acesso que aparecerá ap
 para mudar no Perfil_nome tambem vai aparecer para cadastrar ou editar apenas niveis igual ou abaixo de quem esta cadastrando ou editando
 
 para ambos os casos novo usuario se não have escolha vai para ambos para o ultimo nivel e insegi na tabela.
+
+
+
+ja niveis de acesso com podeiramos  fazer:
+na coluna "descricao" vamos 

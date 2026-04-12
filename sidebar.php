@@ -149,6 +149,13 @@ function is_active(string $page): string {
             </a>
             <?php endif; ?>
 
+            <?php if (can('admin_sistema')): ?>
+            <a href="perfis.php" class="<?= is_active('perfis.php') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg>
+                <span>Perfis</span>
+            </a>
+            <?php endif; ?>
+
             <?php if (can('gerenciar_grupos')): ?>
             <a href="grupos_trabalho.php" class="<?= is_active('grupos_trabalho.php') ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="12"/><path d="M2 12h20"/></svg>

@@ -62,6 +62,27 @@ function current_paroquia_id(): int {
     return (int)($_SESSION['paroquia_id'] ?? 0);
 }
 
+function current_user_id(): int {
+    return (int)($_SESSION['usuario_id'] ?? 0);
+}
+
+function current_user_perfil_id(mysqli $db): int {
+    $sid = (int)($_SESSION['usuario_perfil_id'] ?? 0);
+    if ($sid > 0) return $sid;
+
+    $uid = current_user_id();
+    if ($uid <= 0) return 0;
+
+    $stmt = $db->prepare('SELECT perfil_id FROM usuarios WHERE id = ? LIMIT 1');
+    if (!$stmt) return 0;
+    $stmt->bind_param('i', $uid);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    $pid = (int)($row['perfil_id'] ?? 0);
+    $_SESSION['usuario_perfil_id'] = $pid;
+    return $pid;
+}
+
 function userCanSwitchParish(): bool {
     return (bool)(
         ($_SESSION['usuario_id'] ?? 0) === 1 ||
@@ -714,22 +735,21 @@ function infer_perfil_nivel(array $perfilRow): int {
     return 6; // Visitante
 }
 
-function list_perfis_for_user(mysqli $db, int $myLevel, bool $isMaster): array {
-    if (!$isMaster) {
-        $myLevel = max(0, min(6, $myLevel));
-    }
+function list_perfis_for_user(mysqli $db, int $myPerfilId, bool $isMaster): array {
+    // Regra: perfis.id menor = maior privilegio. Mostrar apenas "igual ou abaixo":
+    // id >= meu_perfil_id (exceto master que ve todos).
     $rows = [];
-    $sql = "SELECT id, nome, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos, perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema FROM perfis ORDER BY nome ASC";
-    $res = $db->query($sql);
+    $res = $db->query("SELECT id, nome FROM perfis ORDER BY id ASC");
     if (!$res) return [];
 
     while ($r = $res->fetch_assoc()) {
-        $nivel = infer_perfil_nivel($r);
-        if ($isMaster || $nivel >= $myLevel) {
-            $r['nivel_inferido'] = $nivel;
+        $pid = (int)($r['id'] ?? 0);
+        if ($isMaster || ($myPerfilId > 0 && $pid >= $myPerfilId)) {
+            $r['nivel_inferido'] = $pid; // mantem chave usada por pick_default_perfil_id (quanto maior, "mais baixo")
             $rows[] = $r;
         }
     }
+
     return $rows;
 }
 

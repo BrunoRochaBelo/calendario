@@ -84,7 +84,8 @@ $permissionLabels = [
 
 $max_access_level = 6;
 $allowed_access_levels = selectable_access_levels_for_user($my_level, $is_master, $max_access_level);
-$perfis_options = list_perfis_for_user($conn, $my_level, $is_master);
+$my_perfil_id = current_user_perfil_id($conn);
+$perfis_options = list_perfis_for_user($conn, $my_perfil_id, $is_master);
 $allowedPerfilMap = [];
 foreach ($perfis_options as $p) {
     $allowedPerfilMap[(int)$p['id']] = $p;

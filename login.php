@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mins = max(1, (int)ceil(((int)($throttle['seconds_left'] ?? 0)) / 60));
             $error = "Muitas tentativas. Tente novamente em {$mins} minuto(s).";
         } else {
-            $stmt = $conn->prepare('SELECT id, nome, senha, paroquia_id, nivel_acesso, ativo, foto_perfil FROM usuarios WHERE email = ? LIMIT 1');
+            $stmt = $conn->prepare('SELECT id, nome, senha, paroquia_id, nivel_acesso, perfil_id, perfil_nome, ativo, foto_perfil FROM usuarios WHERE email = ? LIMIT 1');
             if ($stmt) {
                 $stmt->bind_param('s', $email);
                 $stmt->execute();
@@ -45,6 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $_SESSION['usuario_nome'] = $u['nome'];
                     $_SESSION['paroquia_id'] = (int)$u['paroquia_id'];
                     $_SESSION['usuario_nivel'] = (int)$u['nivel_acesso'];
+                    $_SESSION['usuario_perfil_id'] = (int)($u['perfil_id'] ?? 0);
+                    $_SESSION['usuario_perfil_nome'] = (string)($u['perfil_nome'] ?? '');
                     $_SESSION['usuario_foto'] = $u['foto_perfil'] ?? '';
                     $_SESSION['perms'] = loadPermissions($conn, (int)$u['id']);
 
