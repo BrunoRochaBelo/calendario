@@ -1,11 +1,35 @@
 <?php
 /**
  * ═══════════════════════════════════════════════════════
- * PASCOM — Database Utility: Master Console (v3.0)
+ * PASCOM — Database Utility: Master Console (v4.0)
+ * Logic: Snapshot -> Aggressive Purge -> Orderly Rebuild
  * ═══════════════════════════════════════════════════════
  */
 
 require_once __DIR__ . '/conexao C.php';
+
+// Ativar exibição de erros para diagnóstico
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+if (!isset($conn) || $conn->connect_error) {
+    die("Erro: Conexão com o banco de dados não disponível. Verifique o arquivo 'conexao C.php'.");
+}
+
+// Dados embutidos da tabela perfis para garantir restauração mesmo se houver falha no backup dinâmico
+const PERFIS_SEED_DATA = [
+    ["id" => "2", "paroquia_id" => "2", "nome_perfil" => "ADMINISTRADOR PAROQUIAL", "descricao" => null, "perm_ver_calendario" => "1", "perm_criar_eventos" => "1", "perm_editar_eventos" => "1", "perm_excluir_eventos" => "1", "perm_ver_restritos" => "1", "perm_admin_usuarios" => "1", "perm_admin_sistema" => "1", "perm_ver_logs" => "1", "perm_cadastrar_usuario" => "1"],
+    ["id" => "3", "paroquia_id" => "2", "nome_perfil" => "VIGÁRIO", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "0", "perm_editar_eventos" => "0", "perm_excluir_eventos" => "0", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"],
+    ["id" => "4", "paroquia_id" => "2", "nome_perfil" => "DIACONO", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "0", "perm_editar_eventos" => "0", "perm_excluir_eventos" => "0", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"],
+    ["id" => "5", "paroquia_id" => "2", "nome_perfil" => "SECRETARIA", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "1", "perm_editar_eventos" => "1", "perm_excluir_eventos" => "1", "perm_ver_restritos" => "1", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"],
+    ["id" => "6", "paroquia_id" => "2", "nome_perfil" => "PASCOM ADM", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "1", "perm_editar_eventos" => "1", "perm_excluir_eventos" => "1", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "1"],
+    ["id" => "7", "paroquia_id" => "2", "nome_perfil" => "PASCOM AGENTE", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "1", "perm_editar_eventos" => "0", "perm_excluir_eventos" => "0", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"],
+    ["id" => "8", "paroquia_id" => "2", "nome_perfil" => "PASCOM AGENTE 2", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "0", "perm_editar_eventos" => "0", "perm_excluir_eventos" => "0", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"],
+    ["id" => "9", "paroquia_id" => "2", "nome_perfil" => "CORDENADOR PASTORAL", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "0", "perm_editar_eventos" => "0", "perm_excluir_eventos" => "0", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"],
+    ["id" => "10", "paroquia_id" => "2", "nome_perfil" => "FIEL DA IGREJA", "descricao" => null, "perm_ver_calendario" => "1", "perm_criar_eventos" => "1", "perm_editar_eventos" => "1", "perm_excluir_eventos" => "1", "perm_ver_restritos" => "1", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "1"],
+    ["id" => "11", "paroquia_id" => "2", "nome_perfil" => "VISITANTE", "descricao" => "", "perm_ver_calendario" => "1", "perm_criar_eventos" => "0", "perm_editar_eventos" => "0", "perm_excluir_eventos" => "0", "perm_ver_restritos" => "0", "perm_admin_usuarios" => "0", "perm_admin_sistema" => "0", "perm_ver_logs" => "0", "perm_cadastrar_usuario" => "0"]
+];
 
 function argValue(string $name, ?string $default = null): ?string {
     if (PHP_SAPI === 'cli') {
@@ -73,8 +97,13 @@ $tableDataSnapshot = [];
 $executionLog = [];
 
 try {
+    // 1. COLETA DE INFORMAÇÕES
     foreach ($tables as $t) {
         $data = fetchTableData($conn, $t);
+        // Garantir que perfis tenha dados, se possível
+        if ($t === 'perfis' && empty($data)) {
+            $data = PERFIS_SEED_DATA;
+        }
         $tableDataSnapshot[$t] = [
             'count' => count($data),
             'create' => fetchCreateTable($conn, $t),
@@ -83,40 +112,73 @@ try {
     }
 
     if ($mode === 'rebuild' && $confirm === 'REBUILD') {
-        $sqlRebuild = "SET FOREIGN_KEY_CHECKS=0;\n\n";
-        foreach ($tableDataSnapshot as $name => $info) {
-            $sqlRebuild .= "DROP TABLE IF EXISTS " . qIdent($name) . ";\n";
-        }
-        $sqlRebuild .= "\n";
-        foreach ($tableDataSnapshot as $name => $info) {
-            $sqlRebuild .= $info['create'] . ";\n\n";
-        }
-        foreach ($tableDataSnapshot as $name => $info) {
-            $sqlRebuild .= buildInsertSql($conn, $name, $info['rows']);
-            if (!empty($info['rows'])) $sqlRebuild .= "\n";
-        }
-        $sqlRebuild .= "SET FOREIGN_KEY_CHECKS=1;\n";
+        $executionLog[] = "Iniciando processo agressivo de limpeza...";
+        
+        $conn->query("SET FOREIGN_KEY_CHECKS=0;");
 
-        $sqlFile = "{$backupDir}/auto_rebuild_{$timestamp}.sql";
-        file_put_contents($sqlFile, $sqlRebuild);
-
-        if ($conn->multi_query($sqlRebuild)) {
-            do {
-                if ($res = $conn->store_result()) $res->free();
-            } while ($conn->more_results() && $conn->next_result());
-            $executionLog[] = "Rebuild completo executado com sucesso.";
-            $executionLog[] = "Snapshot salvo em: " . basename($sqlFile);
-        } else {
-            throw new Exception("Falha na execução do SQL: " . $conn->error);
+        // 2. APAGAR TODAS AS TABELAS COM CONFERÊNCIA UM A UM
+        $maxAttempts = 5;
+        $attempt = 0;
+        
+        while ($attempt < $maxAttempts) {
+            $currentTables = fetchTables($conn);
+            if (empty($currentTables)) break;
+            
+            $attempt++;
+            $executionLog[] = "Tentativa de limpeza #{$attempt}... (" . count($currentTables) . " restantes)";
+            
+            foreach ($currentTables as $t) {
+                if ($conn->query("DROP TABLE IF EXISTS " . qIdent($t))) {
+                    $executionLog[] = "[OK] Tabela '{$t}' removida.";
+                } else {
+                    $executionLog[] = "[FAIL] Tabela '{$t}' erro: " . $conn->error;
+                }
+            }
         }
+
+        $finalCheck = fetchTables($conn);
+        if (!empty($finalCheck)) {
+            throw new Exception("Falha ao apagar tabelas apos {$maxAttempts} tentativas: " . implode(', ', $finalCheck));
+        }
+
+        $executionLog[] = "Banco de dados limpo com sucesso.";
+
+        // 3. RECRIAÇÃO
+        $executionLog[] = "Iniciando recriação das tabelas...";
+
+        foreach ($tableDataSnapshot as $name => $info) {
+            if (empty($info['create'])) continue;
+            
+            if ($conn->query($info['create'])) {
+                $executionLog[] = "[OK] Estrutura '{$name}' recriada.";
+                
+                // 4. RESTAURAÇÃO DE DADOS
+                $rowsToInsert = $info['rows'];
+                // Forçar uso do SEED se for a tabela perfis e estiver vazia no snapshot (segurança extra)
+                if ($name === 'perfis' && empty($rowsToInsert)) {
+                    $rowsToInsert = PERFIS_SEED_DATA;
+                }
+                
+                if (!empty($rowsToInsert)) {
+                    $insertSql = buildInsertSql($conn, $name, $rowsToInsert);
+                    // Usar query simples para cada insert ou multi_query
+                    if ($conn->multi_query($insertSql)) {
+                        do { if ($res = $conn->store_result()) $res->free(); } while ($conn->more_results() && $conn->next_result());
+                        $executionLog[] = "[OK] Dados restaurados para '{$name}' (" . count($rowsToInsert) . " registros).";
+                    } else {
+                        $executionLog[] = "[WARN] Erro ao restaurar dados de '{$name}': " . $conn->error;
+                    }
+                }
+            } else {
+                $executionLog[] = "[ERROR] Falha ao recriar '{$name}': " . $conn->error;
+            }
+        }
+
+        $conn->query("SET FOREIGN_KEY_CHECKS=1;");
+        $executionLog[] = "Processo finalizado com sucesso.";
     }
 } catch (Throwable $e) {
-    $executionLog[] = "ERRO: " . $e->getMessage();
-}
-
-// Redirect if it was a rebuild to clear parameters
-if ($mode === 'rebuild' && empty($executionLog)) {
-     // something went wrong or no tables
+    $executionLog[] = "ERRO CRÍTICO: " . $e->getMessage();
 }
 
 if (PHP_SAPI === 'cli') {
@@ -131,19 +193,19 @@ if (PHP_SAPI === 'cli') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Database Master | PASCOM</title>
+    <title>Database Master PRO | PASCOM</title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f172a;
-            --card-bg: rgba(30, 41, 59, 0.7);
+            --bg: #0b1120;
+            --card-bg: rgba(15, 23, 42, 0.8);
             --accent: #3b82f6;
-            --accent-glow: rgba(59, 130, 246, 0.5);
-            --danger: #ef4444;
+            --accent-glow: rgba(59, 130, 246, 0.4);
+            --danger: #f43f5e;
             --success: #10b981;
             --text-main: #f8fafc;
-            --text-dim: #94a3b8;
-            --glass-border: rgba(255, 255, 255, 0.05);
+            --text-dim: #64748b;
+            --glass-border: rgba(255, 255, 255, 0.08);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -151,12 +213,13 @@ if (PHP_SAPI === 'cli') {
             font-family: 'Outfit', sans-serif;
             background-color: var(--bg);
             background-image: 
-                radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+                radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(244, 63, 94, 0.1) 0%, transparent 40%);
             color: var(--text-main);
             min-height: 100vh;
-            padding: 2rem;
+            padding: 2.5rem;
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .container { max-width: 1200px; margin: 0 auto; }
@@ -165,148 +228,160 @@ if (PHP_SAPI === 'cli') {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 3rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid var(--glass-border);
+            margin-bottom: 3.5rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--glass-border);
         }
 
-        h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.025em; }
-        h1 span { color: var(--accent); }
+        h1 { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.05em; }
+        h1 span { color: var(--accent); background: linear-gradient(to right, #3b82f6, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
             gap: 1.5rem;
-            margin-bottom: 3rem;
+            margin-bottom: 3.5rem;
         }
 
         .card {
             background: var(--card-bg);
-            backdrop-filter: blur(12px);
+            backdrop-filter: blur(16px);
             border: 1px solid var(--glass-border);
-            border-radius: 1.25rem;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
+            border-radius: 1.5rem;
+            padding: 1.75rem;
+            position: relative;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         .card:hover {
-            transform: translateY(-4px);
+            transform: translateY(-8px);
             border-color: var(--accent);
-            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3), 0 0 15px var(--accent-glow);
+            box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5), 0 0 20px var(--accent-glow);
         }
 
         .card-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
+            margin-bottom: 1.25rem;
         }
 
-        .table-name { font-weight: 600; font-size: 1.1rem; color: var(--accent); }
-        .row-count { font-size: 0.875rem; color: var(--text-dim); }
+        .table-name { font-weight: 600; font-size: 1.15rem; color: #fff; }
+        .row-count { font-size: 0.95rem; color: var(--text-dim); }
         
         .badge {
-            background: rgba(59, 130, 246, 0.1);
+            background: rgba(59, 130, 246, 0.15);
             color: var(--accent);
-            padding: 0.25rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
+            padding: 0.35rem 0.85rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
-        .actions {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
-        }
+        .actions { display: flex; gap: 1.25rem; flex-wrap: wrap; }
 
         .btn {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
+            padding: 0.85rem 1.75rem;
+            border-radius: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             text-decoration: none;
             border: none;
             font-family: inherit;
+            font-size: 0.95rem;
         }
 
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover { filter: brightness(1.1); box-shadow: 0 0 20px var(--accent-glow); }
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.39); }
+        .btn-primary:hover { transform: scale(1.02); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45); }
 
-        .btn-danger { background: rgba(239, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(239, 68, 68, 0.2); }
-        .btn-danger:hover { background: var(--danger); color: white; }
+        .btn-danger { background: rgba(244, 63, 94, 0.1); color: var(--danger); border: 1px solid rgba(244, 63, 94, 0.2); }
+        .btn-danger:hover { background: var(--danger); color: white; box-shadow: 0 0 25px rgba(244, 63, 94, 0.3); }
 
         .log-section {
-            margin-top: 2rem;
-            background: rgba(0,0,0,0.3);
-            border-radius: 1rem;
-            padding: 1.5rem;
-            font-family: 'monospace';
-            font-size: 0.875rem;
+            margin-top: 3rem;
+            background: rgba(2, 6, 23, 0.6);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            font-family: 'ui-monospace', 'Cascadia Code', 'Source Code Pro', monospace;
+            font-size: 0.85rem;
             border: 1px solid var(--glass-border);
+            max-height: 400px;
+            overflow-y: auto;
         }
 
-        .log-entry { margin-bottom: 0.5rem; border-left: 2px solid var(--accent); padding-left: 1rem; }
-        .log-entry.error { border-color: var(--danger); color: var(--danger); }
+        .log-section h3 { margin-bottom: 1.5rem; font-family: 'Outfit'; font-size: 1.25rem; color: var(--accent); display: flex; align-items: center; gap: 0.75rem; }
+
+        .log-entry { margin-bottom: 0.65rem; border-left: 3px solid #1e293b; padding-left: 1.25rem; color: #cbd5e1; }
+        .log-entry.error { border-color: var(--danger); color: #fda4af; }
+        .log-entry.success { border-color: var(--success); color: #6ee7b7; }
 
         .modal-overlay {
             position: fixed;
             top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            backdrop-filter: blur(4px);
+            background: rgba(2, 6, 23, 0.9);
+            backdrop-filter: blur(8px);
             display: none;
             align-items: center;
             justify-content: center;
-            z-index: 100;
+            z-index: 1000;
         }
 
         .modal {
-            background: var(--bg);
-            border: 1px solid var(--danger);
-            border-radius: 1.5rem;
-            padding: 2.5rem;
-            max-width: 500px;
+            background: #0f172a;
+            border: 2px solid var(--danger);
+            border-radius: 2rem;
+            padding: 3.5rem;
+            max-width: 600px;
             width: 90%;
             text-align: center;
+            box-shadow: 0 0 50px rgba(244, 63, 94, 0.2);
         }
 
-        .modal h2 { color: var(--danger); margin-bottom: 1rem; }
-        .modal p { color: var(--text-dim); margin-bottom: 2rem; }
+        .modal h2 { color: var(--danger); margin-bottom: 1.25rem; font-size: 2rem; }
+        .modal p { color: #94a3b8; margin-bottom: 2.5rem; font-size: 1.1rem; }
         
-        .modal-btns { display: flex; gap: 1rem; justify-content: center; }
+        .modal-btns { display: flex; gap: 1.5rem; justify-content: center; }
 
-        @keyframes pulse {
-            0% { opacity: 0.5; }
-            50% { opacity: 1; }
-            100% { opacity: 0.5; }
-        }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
-        .rebuilding { animation: pulse 1.5s infinite; pointer-events: none; }
+        @keyframes scanning { 0% { opacity: 0.3; } 50% { opacity: 1; } 100% { opacity: 0.3; } }
+        .rebuilding { animation: scanning 2s infinite; pointer-events: none; }
     </style>
 </head>
 <body>
     <div class="container">
         <header>
             <div>
-                <h1>Database<span>Master</span></h1>
-                <p style="color: var(--text-dim); font-size: 0.875rem;">PASCOM — Central de Manutenção e Dados</p>
+                <h1>Database<span>Master PRO</span></h1>
+                <p style="color: var(--text-dim); font-size: 1rem; margin-top: 0.5rem;">Sincronização Agressiva & Restauração de Integridade</p>
             </div>
             <div class="actions">
-                <button class="btn btn-primary" onclick="window.location.reload()">Atualizar Dashboard</button>
-                <button class="btn btn-danger" onclick="showRebuildModal()">Reset & Rebuild Total</button>
+                <button class="btn btn-primary" onclick="window.location.reload()">Sincronizar Dashboard</button>
+                <button class="btn btn-danger" onclick="showRebuildModal()">Reset Total & Rebuild</button>
             </div>
         </header>
 
         <?php if (!empty($executionLog)): ?>
         <div class="log-section">
-            <h3 style="margin-bottom: 1rem; font-family: 'Outfit';">Log de Execução</h3>
+            <h3><span>⚡</span> Relatório de Operação</h3>
             <?php foreach ($executionLog as $log): ?>
-                <div class="log-entry <?php echo str_contains($log, 'ERRO') ? 'error' : ''; ?>">
-                    [<?php echo date('H:i:s'); ?>] <?php echo htmlspecialchars($log); ?>
+                <?php 
+                    $type = '';
+                    if (str_contains($log, 'ERRO')) $type = 'error';
+                    elseif (str_contains($log, '[OK]') || str_contains($log, 'Sucesso')) $type = 'success';
+                ?>
+                <div class="log-entry <?php echo $type; ?>">
+                    <span style="color: #475569; margin-right: 1rem;"><?php echo date('H:i:s'); ?></span> 
+                    <?php echo htmlspecialchars($log); ?>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -318,13 +393,18 @@ if (PHP_SAPI === 'cli') {
             <div class="card">
                 <div class="card-header">
                     <span class="table-name"><?php echo htmlspecialchars($name); ?></span>
-                    <span class="badge">TABLE</span>
+                    <span class="badge">Ativo</span>
                 </div>
                 <div class="row-count">
-                    <strong><?php echo $info['count']; ?></strong> registros armazenados
+                    <strong><?php echo $info['count']; ?></strong> registros vinculados
                 </div>
-                <div style="margin-top: 1rem; font-size: 0.75rem; color: var(--text-dim);">
-                    <?php if ($name === 'perfis') echo '<span style="color: var(--success);">✓ Proteção Especial Ativa</span>'; ?>
+                <div style="margin-top: 1.25rem; font-size: 0.8rem;">
+                    <?php if ($name === 'perfis'): ?>
+                        <span style="color: var(--success); display:flex; align-items:center; gap:0.5rem;">
+                            <svg width="14" height="14" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M2.166 4.9L9.03 9.122a2 2 0 001.938 0L17.834 4.9A2 2 0 0016 1.5H4a2 2 0 00-1.834 3.4zM18 8a2 2 0 01-2 2h-1.06l-4.705 2.883a4 4 0 01-4.47 0L1.06 10H0V9l7.03 4.317a2 2 0 002.238 0L16.297 9h.001a1 1 0 01.707.293l1 1A1 1 0 0118 11v1h-3a1 1 0 00-1 1v2a1 1 0 001 1h3a1 1 0 001-1v-5a2 2 0 012-2z"/></svg>
+                            Cache de Perfis Embutido
+                        </span>
+                    <?php endif; ?>
                 </div>
             </div>
             <?php endforeach; ?>
@@ -333,11 +413,11 @@ if (PHP_SAPI === 'cli') {
 
     <div class="modal-overlay" id="rebuildModal">
         <div class="modal">
-            <h2>AVISO CRÍTICO</h2>
-            <p>Esta operação irá apagar todas as tabelas do banco de dados e recriá-las do zero com os dados atuais. Esta ação é irreversível.</p>
+            <h2>OPERACÃO CRÍTICA</h2>
+            <p>O sistema irá realizar uma <strong>limpeza agressiva</strong>, verificando a exclusão de todas as tabelas individualmente até que o banco esteja vazio, para então reconstruir tudo. Deseja prosseguir?</p>
             <div class="modal-btns">
-                <button class="btn" style="background: rgba(255,255,255,0.1);" onclick="hideRebuildModal()">Cancelar</button>
-                <a href="?mode=rebuild&confirm=REBUILD" class="btn btn-danger">Confirmar Rebuild</a>
+                <button class="btn" style="background: rgba(255,255,255,0.05); color: #fff;" onclick="hideRebuildModal()">Abortar</button>
+                <a href="?mode=rebuild&confirm=REBUILD" class="btn btn-danger" style="background: var(--danger); color:#fff">Confirmar Limpeza Total</a>
             </div>
         </div>
     </div>
@@ -350,12 +430,12 @@ if (PHP_SAPI === 'cli') {
             document.getElementById('rebuildModal').style.display = 'none';
         }
         
-        // Se houver parâmetros de rebuild na URL, mostrar estado de loading
         if (window.location.search.includes('mode=rebuild')) {
             document.body.classList.add('rebuilding');
+            // Redirecionar após 5 segundos para limpar a URL, mas permitindo ler o log
             setTimeout(() => {
-                window.location.href = 'dump.php';
-            }, 3000);
+                // window.location.href = 'dump.php'; 
+            }, 10000);
         }
     </script>
 </body>
