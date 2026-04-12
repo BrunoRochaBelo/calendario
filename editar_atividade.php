@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Activity Edition (v2.0)
@@ -63,6 +63,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 restrito = ?, cor = ?, is_multi_color = ?, is_flashing = ?
                 WHERE id = ? AND paroquia_id = ?";
         
+        $local = !empty($data['local_id']) ? (int)$data['local_id'] : null;
+        $tipo = !empty($data['tipo_id']) ? (int)$data['tipo_id'] : null;
+
+        // Detectar se houve mudança crítica para notificar participantes
+        $currentH = formatTime($activity['hora_inicio']);
+        $newH = formatTime($hora_inicio);
+        
+        $forceReset = (
+            $data['data_inicio'] !== $activity['data_inicio'] ||
+            $newH !== $currentH ||
+            $local !== (isset($activity['local_id']) ? (int)$activity['local_id'] : null)
+        );
+
         $stmt = $conn->prepare($sql);
         $stmt->bind_param('siisssisiiii', 
             $data['nome'], $local, $tipo, 
@@ -71,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         );
         
         if ($stmt->execute()) {
-            saveEventActivityItems($conn, $id, $pid, $data['atividades_evento'] ?? []);
+            saveEventActivityItems($conn, $id, $pid, $data['atividades_evento'] ?? [], $forceReset);
             saveActivityGroups($conn, $id, $data['grupos_evento'] ?? []);
             $eM = (int)date('n', strtotime($data['data_inicio']));
             $eY = (int)date('Y', strtotime($data['data_inicio']));

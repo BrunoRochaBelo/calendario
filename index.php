@@ -16,6 +16,29 @@ $canInteractActivities = canInteractWithActivity();
 $msg = $_GET['msg'] ?? '';
 $autoRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
 
+// 1. Fetch unread notifications
+$unreadNotifications = [];
+if ($userId > 0) {
+    ensureNotificationsTable($conn);
+    
+    // Handle Clearing
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clear_notifications') {
+        $stmtC = $conn->prepare("UPDATE notificacoes SET lida = 1 WHERE usuario_id = ?");
+        $stmtC->bind_param('i', $userId);
+        $stmtC->execute();
+        $stmtC->close();
+        header("Location: index.php");
+        exit();
+    }
+
+    $resN = $conn->query("SELECT * FROM notificacoes WHERE usuario_id = $userId AND lida = 0 ORDER BY data_criacao DESC");
+    if ($resN) {
+        while ($rn = $resN->fetch_assoc()) {
+            $unreadNotifications[] = $rn;
+        }
+    }
+}
+
 // 1. Date Navigation Logic
 $month = isset($_GET['m']) ? (int)$_GET['m'] : (int)date('m');
 $year  = isset($_GET['y']) ? (int)$_GET['y'] : (int)date('Y');
@@ -550,6 +573,28 @@ foreach ($holidays as $mmdd => $hName) {
         <?php include 'sidebar.php'; ?>
 
         <main class="main-content">
+            <?php if (!empty($unreadNotifications)): ?>
+                <div class="notifications-overlay animate-in" id="notifOverlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(10px); z-index: 9999; display: flex; align-items: center; justify-content: center; padding: 2rem;">
+                    <div class="glass" style="width: min(500px, 100%); padding: 2.5rem; border-radius: 24px; border: 1px solid var(--border); text-align: center;">
+                        <div style="width: 60px; height: 60px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; color: #fff;">
+                            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        </div>
+                        <h2 class="gradient-text" style="font-size: 1.8rem; font-weight: 900; margin-bottom: 1rem;">Notificações</h2>
+                        <div style="max-height: 300px; overflow-y: auto; margin-bottom: 2rem; display: grid; gap: 1rem; padding-right: 0.5rem; text-align: left;">
+                            <?php foreach ($unreadNotifications as $n): ?>
+                                <div style="background: rgba(255,255,255,0.03); padding: 1.2rem; border-radius: 16px; border: 1px solid var(--border); font-size: 0.9rem; line-height: 1.5;">
+                                    <?= h($n['mensagem']) ?>
+                                    <div style="font-size: 0.7rem; color: var(--text-ghost); margin-top: 0.5rem;"><?= date('d/m/Y H:i', strtotime($n['data_criacao'])) ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        </div>
+                        <form method="POST" id="clearNotifForm">
+                            <input type="hidden" name="action" value="clear_notifications">
+                            <button type="submit" class="btn btn-primary shimmer" style="width: 100%;">Entendido, fechar</button>
+                        </form>
+                    </div>
+                </div>
+            <?php endif; ?>
             <?php if ($msg && strpos(strtolower($msg), 'contexto') === false): ?>
                 <div class="animate-in status-alert" style="margin-bottom: 1rem;"><?= alert('success', h($msg)) ?></div>
             <?php endif; ?>

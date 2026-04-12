@@ -143,6 +143,41 @@ function ensureInscricoesTable(mysqli $db): bool {
     return (bool)$db->query($sql);
 }
 
+function ensureNotificationsTable(mysqli $db): bool {
+    static $checked = false;
+    if ($checked) return true;
+    $checked = true;
+
+    if (defined('DB_SCHEMA_MUTATIONS_ENABLED') && !DB_SCHEMA_MUTATIONS_ENABLED) {
+        $exists = $db->query("SHOW TABLES LIKE 'notificacoes'");
+        return (bool)($exists && $exists->num_rows > 0);
+    }
+
+    $sql = "
+        CREATE TABLE IF NOT EXISTS notificacoes (
+            id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT,
+            usuario_id INT(10) UNSIGNED NOT NULL,
+            mensagem TEXT NOT NULL,
+            lida TINYINT(1) NOT NULL DEFAULT 0,
+            data_criacao TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY fk_notificacao_usuario (usuario_id),
+            CONSTRAINT fk_notificacao_usuario FOREIGN KEY (usuario_id) REFERENCES usuarios (id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+    return (bool)$db->query($sql);
+}
+
+function addNotification(mysqli $db, int $userId, string $message): bool {
+    ensureNotificationsTable($db);
+    $stmt = $db->prepare("INSERT INTO notificacoes (usuario_id, mensagem) VALUES (?, ?)");
+    if (!$stmt) return false;
+    $stmt->bind_param('is', $userId, $message);
+    $ok = $stmt->execute();
+    $stmt->close();
+    return $ok;
+}
+
 function ensureEventActivitiesStructure(mysqli $db): bool {
     static $checked = false;
 
@@ -307,75 +342,98 @@ function normalizeEventActivityCatalogIds(mixed $rawIds): array {
     return array_values(array_unique($normalized));
 }
 
-function saveEventActivityItems(mysqli $db, int $eventoId, int $paroquiaId, mixed $rawIds): void {
+function saveEventActivityItems(mysqli $db, int $eventoId, int $paroquiaId, mixed $rawIds, bool $forceReset = false): void {
     if ($eventoId <= 0 || $paroquiaId <= 0 || !ensureEventActivitiesStructure($db)) {
         return;
     }
 
-    $ids = normalizeEventActivityCatalogIds($rawIds);
+    $newCatalogIds = normalizeEventActivityCatalogIds($rawIds);
 
-    $delete = $db->prepare("DELETE FROM atividade_evento_itens WHERE evento_id = ?");
-    if ($delete) {
-        $delete->bind_param('i', $eventoId);
-        $delete->execute();
-        $delete->close();
-    }
-
-    if (!$ids) {
-        return;
-    }
-
-    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-    $types = str_repeat('i', count($ids) + 1);
-    $params = array_merge([$paroquiaId], $ids);
-
-    $sql = "
-        SELECT id
-        FROM atividades_catalogo
-        WHERE paroquia_id = ? AND ativo = 1 AND id IN ($placeholders)
-        ORDER BY nome ASC
-    ";
-    $stmt = $db->prepare($sql);
-    if (!$stmt) {
-        return;
-    }
-
-    $bindValues = [];
-    $bindValues[] = &$types;
-    foreach ($params as $key => $value) {
-        $bindValues[] = &$params[$key];
-    }
-    call_user_func_array([$stmt, 'bind_param'], $bindValues);
+    // 1. Obter itens atuais vinculados ao evento
+    $currentItems = [];
+    $stmt = $db->prepare("SELECT id, atividade_catalogo_id FROM atividade_evento_itens WHERE evento_id = ?");
+    $stmt->bind_param('i', $eventoId);
     $stmt->execute();
-    $result = $stmt->get_result();
-
-    $validIds = [];
-    while ($row = $result->fetch_assoc()) {
-        $validIds[] = (int)$row['id'];
+    $res = $stmt->get_result();
+    while ($row = $res->fetch_assoc()) {
+        $currentItems[(int)$row['atividade_catalogo_id']] = (int)$row['id'];
     }
     $stmt->close();
 
-    if (!$validIds) {
-        return;
+    // 2. Identificar o que fazer
+    $catalogIdsToRemove = array_keys(array_diff_key($currentItems, array_flip($newCatalogIds)));
+    
+    // Se forceReset for true (mudou data/hora/local), removemos TODOS para garantir notificação
+    if ($forceReset) {
+        $catalogIdsToRemove = array_keys($currentItems);
+        // O que sobrar em newCatalogIds será "adicionado" (criado do zero)
+        $catalogIdsRemaining = []; 
+    } else {
+        $catalogIdsRemaining = array_intersect($newCatalogIds, array_keys($currentItems));
     }
+    
+    $catalogIdsToAdd = array_diff($newCatalogIds, $forceReset ? [] : array_keys($currentItems));
+    if ($forceReset) $catalogIdsToAdd = $newCatalogIds;
 
-    $insert = $db->prepare("
-        INSERT INTO atividade_evento_itens (evento_id, atividade_catalogo_id, ordem)
-        VALUES (?, ?, ?)
-    ");
-    if (!$insert) {
-        return;
-    }
+    // 3. Processar Remoções e Notificações
+    if ($catalogIdsToRemove) {
+        foreach ($catalogIdsToRemove as $catId) {
+            $itemId = $currentItems[$catId];
+            
+            // Buscar participantes antes de deletar
+            $sub = $db->prepare("SELECT usuario_id FROM atividade_evento_inscricoes WHERE evento_item_id = ?");
+            $sub->bind_param('i', $itemId);
+            $sub->execute();
+            $pRes = $sub->get_result();
+            
+            $uids = [];
+            while($p = $pRes->fetch_assoc()) $uids[] = (int)$p['usuario_id'];
+            $sub->close();
 
-    foreach ($ids as $ordem => $catalogId) {
-        if (!in_array($catalogId, $validIds, true)) {
-            continue;
+            if ($uids) {
+                // Buscar nomes para a mensagem
+                $details = $db->query("
+                    SELECT a.nome as evento_nome, ac.nome as atividade_nome 
+                    FROM atividades a
+                    JOIN atividades_catalogo ac ON ac.id = $catId
+                    WHERE a.id = $eventoId 
+                    LIMIT 1
+                ")->fetch_assoc();
+                
+                $eventoNome = $details['evento_nome'] ?? 'Evento';
+                $atividadeNome = $details['atividade_nome'] ?? 'Atividade';
+
+                $msg = $forceReset 
+                    ? "Você foi removido da atividade '{$atividadeNome}' no evento '{$eventoNome}' porque houve alteração crítica (Data, Hora ou Local) no evento."
+                    : "A atividade '{$atividadeNome}' foi removida do evento '{$eventoNome}' e sua inscrição foi cancelada.";
+
+                foreach ($uids as $uid) {
+                    addNotification($db, $uid, $msg);
+                }
+            }
+
+            $db->query("DELETE FROM atividade_evento_itens WHERE id = $itemId");
         }
-        $posicao = $ordem + 1;
-        $insert->bind_param('iii', $eventoId, $catalogId, $posicao);
-        $insert->execute();
+    }
+
+    // 4. Inserir Novos e Reordenar
+    $insert = $db->prepare("INSERT INTO atividade_evento_itens (evento_id, atividade_catalogo_id, ordem) VALUES (?, ?, ?)");
+    $update = $db->prepare("UPDATE atividade_evento_itens SET ordem = ? WHERE id = ?");
+
+    foreach ($newCatalogIds as $index => $catId) {
+        $ordem = $index + 1;
+        if (isset($currentItems[$catId]) && !$forceReset) {
+            // Apenas atualiza a ordem
+            $update->bind_param('ii', $ordem, $currentItems[$catId]);
+            $update->execute();
+        } else {
+            // Insere novo (ou re-insere se foi forçado o reset)
+            $insert->bind_param('iii', $eventoId, $catId, $ordem);
+            $insert->execute();
+        }
     }
     $insert->close();
+    $update->close();
 }
 
 function getEventActivityItems(mysqli $db, int $eventoId, int $usuarioId = 0): array {
@@ -528,7 +586,7 @@ function getUserGroups(mysqli $db, int $userId, ?int $paroquiaId = null): array 
     $res = $stmt->get_result();
     $ids = [];
     while ($row = $res->fetch_assoc()) {
-        $ids[] = (int)$row['grupo_id'];
+        $ids[] = (int)$row['id'] ?? (int)$row['grupo_id'];
     }
     return $ids;
 }
@@ -829,4 +887,3 @@ function pick_default_perfil_id(array $perfis, int $fallback = 9): int {
     return $bestId;
 }
 ?>
-
