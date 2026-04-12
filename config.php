@@ -7,8 +7,15 @@
 
 // 1. Session & Environment Security
 date_default_timezone_set('America/Sao_Paulo');
+ini_set('session.use_strict_mode', 1);
 ini_set('session.cookie_httponly', 1);
 ini_set('session.use_only_cookies', 1);
+// SameSite ajuda contra CSRF basico; Secure so quando estiver em HTTPS
+$is_https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ((int)($_SERVER['SERVER_PORT'] ?? 0) === 443);
+ini_set('session.cookie_samesite', 'Lax');
+if ($is_https) {
+    ini_set('session.cookie_secure', 1);
+}
 session_start();
 
 // 2. Load Database Connection
@@ -356,6 +363,63 @@ function ensureAuthThrottleTable(mysqli $db): void {
     ");
 }
 
+function authThrottleTableExists(mysqli $db): bool {
+    static $checked = false;
+    static $exists = false;
+    if ($checked) return $exists;
+    $checked = true;
+
+    $res = $db->query("SHOW TABLES LIKE 'auth_throttle'");
+    $exists = (bool)($res && $res->num_rows > 0);
+    return $exists;
+}
+
+function authThrottleFallbackKey(string $scope, string $identifier): string {
+    return 'throttle|' . authThrottleKey($scope, $identifier);
+}
+
+function authThrottleFallbackState(string $scope, string $identifier, int $maxAttempts = 3): array {
+    $key = authThrottleFallbackKey($scope, $identifier);
+    $st = $_SESSION[$key] ?? ['attempts' => 0, 'locked_until' => 0];
+    $attempts = (int)($st['attempts'] ?? 0);
+    $lockedUntil = (int)($st['locked_until'] ?? 0);
+
+    $secondsLeft = max(0, $lockedUntil - time());
+    if ($secondsLeft > 0) {
+        return ['allowed' => false, 'attempts' => $attempts, 'remaining' => 0, 'locked_until' => $lockedUntil, 'seconds_left' => $secondsLeft];
+    }
+
+    return ['allowed' => true, 'attempts' => $attempts, 'remaining' => max(0, $maxAttempts - $attempts), 'locked_until' => null, 'seconds_left' => 0];
+}
+
+function authThrottleFallbackRegisterFailure(string $scope, string $identifier, int $maxAttempts = 3, int $lockMinutes = 5): array {
+    $key = authThrottleFallbackKey($scope, $identifier);
+    $state = authThrottleFallbackState($scope, $identifier, $maxAttempts);
+    if (!$state['allowed']) return $state;
+
+    $attempts = min($maxAttempts, ((int)$state['attempts']) + 1);
+    $lockedUntil = 0;
+    if ($attempts >= $maxAttempts) {
+        $lockedUntil = time() + ($lockMinutes * 60);
+    }
+
+    $_SESSION[$key] = ['attempts' => $attempts, 'locked_until' => $lockedUntil];
+    $secondsLeft = max(0, $lockedUntil - time());
+
+    return [
+        'allowed' => $attempts < $maxAttempts,
+        'attempts' => $attempts,
+        'remaining' => max(0, $maxAttempts - $attempts),
+        'locked_until' => $lockedUntil > 0 ? $lockedUntil : null,
+        'seconds_left' => $secondsLeft,
+    ];
+}
+
+function authThrottleFallbackReset(string $scope, string $identifier): void {
+    $key = authThrottleFallbackKey($scope, $identifier);
+    unset($_SESSION[$key]);
+}
+
 function authThrottleIdentifier(string $value): string {
     $normalized = mb_strtolower(trim($value));
     return $normalized !== '' ? $normalized : 'unknown';
@@ -383,9 +447,14 @@ function authThrottleState(mysqli $db, string $scope, string $identifier, int $m
 
     $scope = authThrottleIdentifier($scope);
     $identifier = authThrottleIdentifier($identifier);
+
+    if (!authThrottleTableExists($db)) {
+        return authThrottleFallbackState($scope, $identifier, $maxAttempts);
+    }
+
     $stmt = $db->prepare('SELECT attempts, locked_until FROM auth_throttle WHERE scope = ? AND identifier = ? LIMIT 1');
     if (!$stmt) {
-        return ['allowed' => true, 'attempts' => 0, 'remaining' => $maxAttempts, 'locked_until' => null, 'seconds_left' => 0];
+        return authThrottleFallbackState($scope, $identifier, $maxAttempts);
     }
 
     $stmt->bind_param('ss', $scope, $identifier);
@@ -424,6 +493,11 @@ function authThrottleRegisterFailure(mysqli $db, string $scope, string $identifi
 
     $scope = authThrottleIdentifier($scope);
     $identifier = authThrottleIdentifier($identifier);
+
+    if (!authThrottleTableExists($db)) {
+        return authThrottleFallbackRegisterFailure($scope, $identifier, $maxAttempts, $lockMinutes);
+    }
+
     $state = authThrottleState($db, $scope, $identifier, $maxAttempts);
 
     if (!$state['allowed']) {
@@ -438,13 +512,7 @@ function authThrottleRegisterFailure(mysqli $db, string $scope, string $identifi
 
     $stmt = $db->prepare('SELECT id FROM auth_throttle WHERE scope = ? AND identifier = ? LIMIT 1');
     if (!$stmt) {
-        return [
-            'allowed' => $attempts < $maxAttempts,
-            'attempts' => $attempts,
-            'remaining' => max(0, $maxAttempts - $attempts),
-            'locked_until' => $lockedUntil,
-            'seconds_left' => authThrottleSecondsLeft($lockedUntil),
-        ];
+        return authThrottleFallbackRegisterFailure($scope, $identifier, $maxAttempts, $lockMinutes);
     }
 
     $stmt->bind_param('ss', $scope, $identifier);
@@ -477,6 +545,12 @@ function authThrottleReset(mysqli $db, string $scope, string $identifier): void 
 
     $scope = authThrottleIdentifier($scope);
     $identifier = authThrottleIdentifier($identifier);
+
+    if (!authThrottleTableExists($db)) {
+        authThrottleFallbackReset($scope, $identifier);
+        return;
+    }
+
     $stmt = $db->prepare('DELETE FROM auth_throttle WHERE scope = ? AND identifier = ?');
     if ($stmt) {
         $stmt->bind_param('ss', $scope, $identifier);
