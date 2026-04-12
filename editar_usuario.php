@@ -10,6 +10,7 @@ $id = (int)($_GET['id'] ?? 0);
 $is_master = has_level(0);
 $my_user_id = (int)($_SESSION['usuario_id'] ?? 0);
 $my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
+$can_manage_users_by_level = $is_master || $my_level <= 3;
 $my_pid = (int)($_SESSION['paroquia_id'] ?? 0);
 $is_self = ($id === $my_user_id);
 $my_group_ids = getUserGroups($conn, $my_user_id, $my_pid);
@@ -73,6 +74,7 @@ if (
 
 $can_manage_target = $is_master || $is_self || (
     !$is_master &&
+    $can_manage_users_by_level &&
     (int)$user['id'] !== $my_user_id &&
     (int)$user['paroquia_id'] === $my_pid &&
     (int)$user['nivel_acesso'] > $my_level
@@ -114,7 +116,7 @@ $permissionLabels = [
     'perm_gerenciar_grupos' => 'Gerenciar Grupos de Trabalho',
 ];
 
-$max_access_level = 6;
+$max_access_level = 7;
 $allowed_access_levels = selectable_access_levels_for_user($my_level, $is_master, $max_access_level);
 $my_perfil_id = current_user_perfil_id($conn);
 $perfis_options = list_perfis_for_user($conn, $my_perfil_id, $is_master);
@@ -151,7 +153,9 @@ foreach ($allGroupsRaw as $g) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $data = sanitize_post($_POST);
 
-    if ($is_same_level_peer) {
+    if (!$is_self && !$can_manage_target) {
+        $error = 'Voce nao tem permissao para editar este usuario.';
+    } elseif ($is_same_level_peer) {
         $error = 'Voce nao pode editar ou excluir usuarios do mesmo nivel.';
     } elseif (isset($data['delete_request'])) {
         if (!$can_delete_target) {
@@ -574,7 +578,7 @@ $adminGroups = $adminGroups_ctx;
                     </div>
                     <?php endif; ?>
 
-                    <?php if (!$is_same_level_peer && !$is_self && ($can_manage_target || array_filter($visiblePermissions))): ?>
+                    <?php if (!$is_same_level_peer && !$is_self && $can_manage_users_by_level && ($can_manage_target || array_filter($visiblePermissions))): ?>
                     <div style="grid-column: span 2; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
                         <h3 style="margin-bottom: 1.5rem; color: var(--primary);">Configurações de Acesso e Grupos</h3>
 

@@ -16,6 +16,7 @@ $can_edit = can('admin_usuarios');
 $is_master = has_level(0);
 $my_user_id = (int)($_SESSION['usuario_id'] ?? 0);
 $my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
+$can_manage_users_by_level = $is_master || $my_level <= 3;
 $my_group_ids = getUserGroups($conn, $my_user_id, $pid);
 $todos_group_id = getDefaultTodosGroupId($conn, $pid);
 if ($todos_group_id > 0) {
@@ -35,6 +36,14 @@ if (isset($_GET['toggle_status']) && $can_edit) {
 
     if (!$oldState) {
         header('Location: usuarios.php?error=notfound');
+        exit();
+    }
+
+    if (
+        !$can_manage_users_by_level &&
+        !$is_master
+    ) {
+        header('Location: usuarios.php?error=unauthorized');
         exit();
     }
 
@@ -132,7 +141,11 @@ $sql = "
         WHEN u.nivel_acesso = 0 THEN 'Master'
         WHEN u.nivel_acesso = 1 THEN 'Administrador'
         WHEN u.nivel_acesso = 2 THEN 'Gerente'
-        WHEN u.nivel_acesso = 6 THEN 'Visitante'
+        WHEN u.nivel_acesso = 3 THEN 'Supervisor'
+        WHEN u.nivel_acesso = 4 THEN 'Encarregado'
+        WHEN u.nivel_acesso = 5 THEN 'Trabalhador'
+        WHEN u.nivel_acesso = 6 THEN 'Consultor'
+        WHEN u.nivel_acesso = 7 THEN 'Visitante'
         ELSE 'Usuário'
     END as nivel_label
     FROM usuarios u
@@ -321,8 +334,8 @@ $users = $stmt->get_result();
 
                     <?php
                         $isSelfCard = (int)$u['id'] === $my_user_id;
-                        $canEditThisUser = $isSelfCard || ((int)$u['nivel_acesso'] >= $my_level);
-                        $canToggleThisUser = !$isSelfCard && ((int)$u['nivel_acesso'] > $my_level);
+                        $canEditThisUser = $isSelfCard || ($can_manage_users_by_level && ((int)$u['nivel_acesso'] > $my_level));
+                        $canToggleThisUser = !$isSelfCard && $can_manage_users_by_level && ((int)$u['nivel_acesso'] > $my_level);
                     ?>
                     <?php if ($can_edit && $canEditThisUser): ?>
                     <div class="user-actions">
@@ -367,3 +380,4 @@ $users = $stmt->get_result();
     </script>
 </body>
 </html>
+

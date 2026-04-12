@@ -34,9 +34,13 @@ function formatTime(?string $time): string {
 function getAccessLabel(int $level): string {
     $labels = [
         0 => 'Master',
-        1 => 'Gerente',
-        2 => 'Usuário',
-        3 => 'Visitante'
+        1 => 'Administrador',
+        2 => 'Gerente',
+        3 => 'Supervisor',
+        4 => 'Encarregado',
+        5 => 'Trabalhador',
+        6 => 'Consultor',
+        7 => 'Visitante'
     ];
     return $labels[$level] ?? 'Desconhecido';
 }
@@ -47,10 +51,11 @@ function getAccessLabelV2(int $level): string {
         0 => 'Master',
         1 => 'Administrador',
         2 => 'Gerente',
-        3 => 'Usuario',
-        4 => 'Usuario',
-        5 => 'Usuario',
-        6 => 'Visitante',
+        3 => 'Supervisor',
+        4 => 'Encarregado',
+        5 => 'Trabalhador',
+        6 => 'Consultor',
+        7 => 'Visitante',
     ];
     return $labels[$level] ?? ('Nivel ' . $level);
 }
@@ -718,7 +723,7 @@ function getDefaultTodosGroupId(mysqli $db, int $paroquiaId): int {
 
 // Convencao: numero menor = mais privilegio. O usuario logado so pode atribuir
 // niveis "iguais ou abaixo" na hierarquia, ou seja: nivel >= meu nivel.
-function selectable_access_levels_for_user(int $myLevel, bool $isMaster, int $maxLevel = 6): array {
+function selectable_access_levels_for_user(int $myLevel, bool $isMaster, int $maxLevel = 7): array {
     if (!$isMaster && $myLevel > $maxLevel) {
         $myLevel = $maxLevel;
     }
@@ -744,15 +749,26 @@ function infer_perfil_nivel(array $perfilRow): int {
 
     if ($adminSistema || $adminUsuarios) return 1; // Administrador
     if ($cadastrarUser) return 2; // Gerente
-    if ($verRestritos || $criar || $editar || $excluir) return 3; // Usuario
-    return 6; // Visitante
+    if ($verRestritos || $criar || $editar || $excluir) return 3; // Supervisor
+    return 7; // Visitante
 }
 
 function list_perfis_for_user(mysqli $db, int $myPerfilId, bool $isMaster): array {
     // Regra: perfis.id menor = maior privilegio. Mostrar apenas "igual ou abaixo":
     // id >= meu_perfil_id (exceto master que ve todos).
     $rows = [];
-    $res = $db->query("SELECT id, nome FROM perfis ORDER BY id ASC");
+    $res = $db->query("
+        SELECT
+            p.id,
+            COALESCE(
+                NULLIF(MAX(NULLIF(TRIM(u.perfil_nome), '')), ''),
+                CONCAT('Perfil #', p.id)
+            ) AS nome
+        FROM perfis p
+        LEFT JOIN usuarios u ON u.perfil_id = p.id
+        GROUP BY p.id
+        ORDER BY p.id ASC
+    ");
     if (!$res) return [];
 
     while ($r = $res->fetch_assoc()) {
@@ -789,3 +805,4 @@ function pick_default_perfil_id(array $perfis, int $fallback = 9): int {
     return $bestId;
 }
 ?>
+

@@ -15,7 +15,7 @@ $msg = $_GET['msg'] ?? '';
 $error = $_GET['error'] ?? '';
 $my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
 $is_master = has_level(0) || (int)($_SESSION['usuario_id'] ?? 0) === 1;
-$max_access_level = 6;
+$max_access_level = 7;
 $allowed_access_levels = selectable_access_levels_for_user($my_level, $is_master, $max_access_level);
 $my_perfil_id = current_user_perfil_id($conn);
 $perfis_options = list_perfis_for_user($conn, $my_perfil_id, $is_master);
@@ -81,13 +81,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'perm_admin_sistema' => 0,
             'perm_ver_logs' => 0,
         ];
-        $stPf = $conn->prepare("SELECT nome, perm_ver_calendario, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos, perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema, perm_ver_logs FROM perfis WHERE id = ? LIMIT 1");
+        if (isset($allowedPerfilIds[$perfil_id])) {
+            $perfilNome = (string)($allowedPerfilIds[$perfil_id]['nome'] ?? '');
+        }
+
+        $stPf = $conn->prepare("SELECT perm_ver_calendario, perm_criar_eventos, perm_editar_eventos, perm_excluir_eventos, perm_ver_restritos, perm_cadastrar_usuario, perm_admin_usuarios, perm_admin_sistema, perm_ver_logs FROM perfis WHERE id = ? LIMIT 1");
         if ($stPf) {
             $stPf->bind_param('i', $perfil_id);
             $stPf->execute();
             $pfRow = $stPf->get_result()->fetch_assoc();
             if ($pfRow) {
-                $perfilNome = (string)($pfRow['nome'] ?? '');
                 foreach ($perfilPerms as $k => $_) {
                     $perfilPerms[$k] = (int)($pfRow[$k] ?? 0);
                 }

@@ -81,12 +81,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($g && $g['nome'] === 'Todos') {
             $error = "O grupo padrão 'Todos' não pode ser excluído.";
         } else {
-            $stmt = $conn->prepare("DELETE FROM grupos_trabalho WHERE id = ? AND paroquia_id = ?");
-            $stmt->bind_param('ii', $id, $pid);
-            if ($stmt->execute()) {
-                logAction($conn, 'EXCLUIR_GRUPO', 'grupos_trabalho', $id);
-                header("Location: grupos_trabalho.php?msg=Grupo excluído com sucesso.");
-                exit();
+            $my_level = (int)($_SESSION['usuario_nivel'] ?? 99);
+            $stmtGuard = $conn->prepare("
+                SELECT u.id
+                FROM usuario_grupos ug
+                INNER JOIN usuarios u ON u.id = ug.usuario_id
+                WHERE ug.grupo_id = ?
+                  AND ug.paroquia_id = ?
+                  AND u.id <> ?
+                  AND u.nivel_acesso <= ?
+                LIMIT 1
+            ");
+
+            $blockedByHierarchy = false;
+            if ($stmtGuard) {
+                $stmtGuard->bind_param('iiii', $id, $pid, $my_user_id, $my_level);
+                $stmtGuard->execute();
+                $blockedByHierarchy = (bool)$stmtGuard->get_result()->fetch_assoc();
+            }
+
+            if ($blockedByHierarchy) {
+                $error = 'Nao e possivel excluir: existe usuario do mesmo nivel ou superior neste grupo.';
+            } else {
+                $stmt = $conn->prepare("DELETE FROM grupos_trabalho WHERE id = ? AND paroquia_id = ?");
+                $stmt->bind_param('ii', $id, $pid);
+                if ($stmt->execute()) {
+                    logAction($conn, 'EXCLUIR_GRUPO', 'grupos_trabalho', $id);
+                    header("Location: grupos_trabalho.php?msg=Grupo excluído com sucesso.");
+                    exit();
+                }
             }
         }
     }
