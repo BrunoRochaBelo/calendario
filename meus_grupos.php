@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * ═══════════════════════════════════════════════════════
  * PASCOM — Meus Grupos de Trabalho (v1.0)
@@ -33,7 +33,6 @@ function isGrupoAtivo(int $id, $filtro): bool {
     if ($filtro === null) return true;
     return in_array($id, $filtro, true);
 }
-$geralAtivo = isGrupoAtivo(0, $filtroAtual);
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -191,23 +190,6 @@ $geralAtivo = isGrupoAtivo(0, $filtroAtual);
         <?php else: ?>
         <div id="gruposContainer" class="grupos-grid animate-in" style="animation-delay:0.1s;">
 
-            <!-- Card: Eventos Gerais (sem grupo associado) -->
-            <article class="glass grupo-card card-geral <?= !$geralAtivo ? 'inactive-card' : '' ?>" id="card-geral">
-                <div class="card-header">
-                    <div class="card-icon" style="background: #64748b;">G</div>
-                    <div class="card-title">
-                        <h3>Eventos Gerais</h3>
-                        <p>Sem grupo específico</p>
-                    </div>
-                </div>
-                <div class="toggle-row" style="--grp-color: #64748b;">
-                    <span class="toggle-label">Mostrar no calendário</span>
-                    <label class="toggle-switch" title="Ativar/desativar Eventos Gerais">
-                        <input type="checkbox" class="grupo-toggle" data-grupo-id="0" <?= $geralAtivo ? 'checked' : '' ?>>
-                        <span class="toggle-track"></span>
-                    </label>
-                </div>
-            </article>
 
             <?php foreach ($grupos as $g): ?>
             <?php $ativo = isGrupoAtivo((int)$g['id'], $filtroAtual); ?>

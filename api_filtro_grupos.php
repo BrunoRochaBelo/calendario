@@ -37,8 +37,6 @@ if ($action === 'toggle') {
         while ($r = $res->fetch_assoc()) {
             $todos[] = (int)$r['grupo_id'];
         }
-        // Incluir 0 para "Eventos Gerais"
-        $todos[] = 0;
         $_SESSION['filtro_grupos'] = $todos;
     }
 

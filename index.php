@@ -107,16 +107,13 @@ $activitiesByDay = [];
 
 // Session-based group filter (from meus_grupos.php)
 $filtroGrupos = $_SESSION['filtro_grupos'] ?? null; // null = todos ativos
-$filtroGeralAtivo = ($filtroGrupos === null) || in_array(0, $filtroGrupos, true);
 
 while ($row = $res->fetch_assoc()) {
     // Apply session group filter (admins see everything)
     if (!$isAdmin && $filtroGrupos !== null) {
         $grupoIds = $row['grupo_ids'] ?? '';
         $isGeneral = ($grupoIds === '' || $grupoIds === null);
-        if ($isGeneral) {
-            if (!$filtroGeralAtivo) continue; // user hid general events
-        } else {
+        if (!$isGeneral) {
             $eGrupos = array_map('intval', explode(',', $grupoIds));
             $hasActive = !empty(array_intersect($eGrupos, $filtroGrupos));
             if (!$hasActive) continue; // all groups of this event are inactive
@@ -174,6 +171,7 @@ while ($u = $resB->fetch_assoc()) {
     $bdayAct = [
         'is_birthday' => true,
         'nome' => "Aniv. {$shortName}",
+        'nome_completo' => (string)$u['nome'],
         'foto_perfil' => (string)($u['foto_perfil'] ?? '')
     ];
     if (!isset($activitiesByDay[$day])) $activitiesByDay[$day] = [];
@@ -453,6 +451,31 @@ foreach ($holidays as $mmdd => $hName) {
             border: 1px solid var(--border); font-size: 0.85rem; color: var(--text);
             width: 100%;
         }
+
+        /* Modal de Aniversário */
+        .bday-trigger { cursor: pointer !important; transition: transform 0.2s var(--anim); }
+        .bday-trigger:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(var(--accent-rgb), 0.3); }
+
+        .bday-modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(12px); display: none; align-items: center; justify-content: center;
+            z-index: 3000; padding: 2rem;
+        }
+        .bday-modal-backdrop.open { display: flex; }
+        .bday-modal {
+            width: fit-content; min-width: 200px; max-width: 90vw;
+            background: rgba(26, 28, 46, 0.95); border: 1px solid var(--border);
+            border-radius: 100px; box-shadow: var(--sh-lg); padding: 0.8rem 1.5rem;
+            text-align: center; display: flex; align-items: center; justify-content: center;
+            gap: 0.8rem; animation: toastIn 0.4s var(--ease);
+        }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .bday-icon { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; flex-shrink: 0; }
+        .bday-icon svg { width: 16px; height: 16px; }
+        .bday-info h2 { display: none; }
+        .bday-info p { font-size: 0.95rem; font-weight: 800; color: var(--text); white-space: nowrap; margin: 0; }
+        .bday-actions { display: none; }
         .event-items-wrap { margin-top: 1rem; display: none; }
         .event-items-wrap.show { display: block; }
         .event-items-list { display: grid; gap: 0.75rem; margin-top: 1rem; }
@@ -579,14 +602,16 @@ foreach ($holidays as $mmdd => $hName) {
                                 <?php if (isset($activitiesByDay[$dayIdx])): ?>
                                     <?php foreach ($activitiesByDay[$dayIdx] as $act): ?>
                                         <?php if (!empty($act['is_birthday'])): ?>
-                                            <div class="act-pill act-birthday" style="pointer-events: none;">
-                                                <?php if (!empty($act['foto_perfil']) && file_exists(__DIR__ . '/' . $act['foto_perfil'])): ?>
-                                                    <img class="bday-photo" src="<?= h($act['foto_perfil']) ?>?v=<?= time() ?>" alt="Foto">
-                                                <?php else: ?>
-                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v2"/><path d="M12 8v2"/><path d="M17 8v2"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/></svg>
-                                                <?php endif; ?>
-                                                <strong style="font-weight: 700; font-size: 0.55rem;"><?= h($act['nome']) ?></strong>
-                                            </div>
+                                                <div class="act-pill act-birthday bday-trigger" 
+                                                     data-full-name="<?= h($act['nome_completo']) ?>"
+                                                     title="<?= h($act['nome_completo']) ?>">
+                                                    <?php if (!empty($act['foto_perfil']) && file_exists(__DIR__ . '/' . $act['foto_perfil'])): ?>
+                                                        <img class="bday-photo" src="<?= h($act['foto_perfil']) ?>?v=<?= time() ?>" alt="Foto">
+                                                    <?php else: ?>
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v2"/><path d="M12 8v2"/><path d="M17 8v2"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/></svg>
+                                                    <?php endif; ?>
+                                                    <strong style="font-weight: 700; font-size: 0.55rem;"><?= h($act['nome']) ?></strong>
+                                                </div>
                                         <?php elseif (!empty($act['is_holiday'])): ?>
                                             <div class="act-pill act-holiday" style="pointer-events: none;">
                                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
@@ -736,6 +761,22 @@ foreach ($holidays as $mmdd => $hName) {
                 <button type="button" class="btn btn-primary shimmer" id="eventJoinButton" style="display:none;">Inscrever-me</button>
                 <button type="button" class="btn btn-ghost" id="eventLeaveButton" style="display:none;">Desistir</button>
                 <a href="#" class="btn btn-ghost" id="eventViewButton">Ver detalhes</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Aniversário -->
+    <div class="bday-modal-backdrop" id="bdayModalBackdrop">
+        <div class="bday-modal">
+            <div class="bday-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 21v-8a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8"/><path d="M4 16s.5-1 2-1 2.5 2 4 2 2.5-2 4-2 2.5 2 4 2 2-1 2-1"/><path d="M2 21h20"/><path d="M7 8v2"/><path d="M12 8v2"/><path d="M17 8v2"/><path d="M7 4h.01"/><path d="M12 4h.01"/><path d="M17 4h.01"/></svg>
+            </div>
+            <div class="bday-info">
+                <h2>Aniversariante do Dia</h2>
+                <p id="bdayModalName">Nome do Usuário</p>
+            </div>
+            <div class="bday-actions">
+                <button type="button" class="btn btn-primary shimmer" style="width: 100%;" id="closeBdayModal">SAIR</button>
             </div>
         </div>
     </div>
@@ -948,6 +989,40 @@ foreach ($holidays as $mmdd => $hName) {
                     statusAlert.style.transform = 'translateY(-10px)';
                     setTimeout(() => statusAlert.remove(), 500);
                 }, 3000);
+            }
+            // --- Lógica do Popup de Aniversário (Mobile/Desktop) ---
+            const bdayBackdrop = document.getElementById('bdayModalBackdrop');
+            const bdayName     = document.getElementById('bdayModalName');
+            let bdayTimer      = null;
+
+            document.addEventListener('click', (e) => {
+                const trigger = e.target.closest('.bday-trigger');
+                if (!trigger) return;
+
+                // Detecta se é mobile (largura < 1024px ou se possui touch)
+                const isMobile = window.innerWidth <= 1024 || ('ontouchstart' in window);
+
+                if (isMobile) {
+                    const fullName = trigger.getAttribute('data-full-name');
+                    bdayName.textContent = fullName;
+                    bdayBackdrop.classList.add('open');
+
+                    // Fecha automaticamente após 3 segundos
+                    if (bdayTimer) clearTimeout(bdayTimer);
+                    bdayTimer = setTimeout(() => {
+                        bdayBackdrop.classList.remove('open');
+                    }, 3000);
+                }
+            });
+
+            // Permite fechar manualmente clicando fora (mesmo no mobile)
+            if (bdayBackdrop) {
+                bdayBackdrop.onclick = (e) => {
+                    if (e.target === bdayBackdrop) {
+                        bdayBackdrop.classList.remove('open');
+                        if (bdayTimer) clearTimeout(bdayTimer);
+                    }
+                };
             }
         });
     </script>
