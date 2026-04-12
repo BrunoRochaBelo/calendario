@@ -756,19 +756,43 @@ function infer_perfil_nivel(array $perfilRow): int {
 function list_perfis_for_user(mysqli $db, int $myPerfilId, bool $isMaster): array {
     // Regra: perfis.id menor = maior privilegio. Mostrar apenas "igual ou abaixo":
     // id >= meu_perfil_id (exceto master que ve todos).
+    $paroquiaId = current_paroquia_id();
     $rows = [];
-    $res = $db->query("
+    $baseSelect = "
         SELECT
             p.id,
             COALESCE(
+                NULLIF(MAX(NULLIF(TRIM(p.nome_perfil), '')), ''),
                 NULLIF(MAX(NULLIF(TRIM(u.perfil_nome), '')), ''),
                 CONCAT('Perfil #', p.id)
             ) AS nome
         FROM perfis p
         LEFT JOIN usuarios u ON u.perfil_id = p.id
-        GROUP BY p.id
-        ORDER BY p.id ASC
-    ");
+    ";
+
+    $res = null;
+    if ($paroquiaId > 0) {
+        $res = $db->query($baseSelect . "
+            WHERE p.paroquia_id = " . (int)$paroquiaId . "
+            GROUP BY p.id
+            ORDER BY p.id ASC
+        ");
+
+        // Fallback: se nao houver perfis na paroquia atual, volta ao comportamento
+        // mais amplo para evitar dropdown vazio em contextos globais.
+        if ($res && $res->num_rows === 0) {
+            $res = $db->query($baseSelect . "
+                GROUP BY p.id
+                ORDER BY p.id ASC
+            ");
+        }
+    } else {
+        $res = $db->query($baseSelect . "
+            GROUP BY p.id
+            ORDER BY p.id ASC
+        ");
+    }
+
     if (!$res) return [];
 
     while ($r = $res->fetch_assoc()) {

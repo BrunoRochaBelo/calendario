@@ -8,6 +8,7 @@ requirePerm('admin_sistema');
 $msg = $_GET['msg'] ?? '';
 $error = '';
 
+$pid = current_paroquia_id();
 $is_master = has_level(0) || (int)($_SESSION['usuario_id'] ?? 0) === 1;
 $my_perfil_id = current_user_perfil_id($conn);
 
@@ -31,10 +32,10 @@ foreach ($permCols as $col => $label) {
     }
 }
 
-function fetch_perfil(mysqli $db, int $id): ?array {
-    $stmt = $db->prepare('SELECT * FROM perfis WHERE id = ? LIMIT 1');
+function fetch_perfil(mysqli $db, int $id, int $paroquiaId): ?array {
+    $stmt = $db->prepare('SELECT * FROM perfis WHERE id = ? AND paroquia_id = ? LIMIT 1');
     if (!$stmt) return null;
-    $stmt->bind_param('i', $id);
+    $stmt->bind_param('ii', $id, $paroquiaId);
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
     return $row ?: null;
@@ -50,7 +51,7 @@ function can_manage_perfil(bool $isMaster, int $myPerfilId, int $perfilId): bool
 $edit_id = (int)($_GET['id'] ?? 0);
 $editing = null;
 if ($edit_id > 0) {
-    $editing = fetch_perfil($conn, $edit_id);
+    $editing = fetch_perfil($conn, $edit_id, $pid);
     if (!$editing) {
         $editing = null;
         $error = 'Perfil nao encontrado.';
@@ -66,11 +67,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'save') {
         $id = (int)($data['id'] ?? 0);
-        $nome = trim((string)($data['nome'] ?? ''));
+        $nome_perfil = trim((string)($data['nome_perfil'] ?? ''));
         $descricao = trim((string)($data['descricao'] ?? ''));
 
-        if ($nome === '') {
-            $error = 'Nome obrigatorio.';
+        if ($nome_perfil === '') {
+            $error = 'Nome do perfil obrigatorio.';
         } elseif ($id > 0 && !can_manage_perfil($is_master, $my_perfil_id, $id)) {
             $error = 'Voce nao tem permissao para editar este perfil.';
         } else {
@@ -80,13 +81,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($id > 0) {
-                $perfilAtual = fetch_perfil($conn, $id);
+                $perfilAtual = fetch_perfil($conn, $id, $pid);
                 if (!$perfilAtual) {
                     $error = 'Perfil nao encontrado.';
                 } else {
-                    $set = "nome = ?, descricao = ?";
+                    $set = "nome_perfil = ?, descricao = ?";
                     $types = "ss";
-                    $params = [$nome, ($descricao !== '' ? $descricao : null)];
+                    $params = [$nome_perfil, ($descricao !== '' ? $descricao : null)];
 
                     foreach ($availablePermCols as $col => $_label) {
                         $set .= ", {$col} = ?";
@@ -94,17 +95,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $params[] = (int)$permValues[$col];
                     }
 
-                    $types .= "i";
+                    $types .= "ii";
                     $params[] = $id;
+                    $params[] = $pid;
 
-                    $sql = "UPDATE perfis SET {$set} WHERE id = ?";
+                    $sql = "UPDATE perfis SET {$set} WHERE id = ? AND paroquia_id = ?";
                     $stmt = $conn->prepare($sql);
                     if (!$stmt) {
                         $error = 'Falha ao preparar atualizacao.';
                     } else {
                         $stmt->bind_param($types, ...$params);
                         if ($stmt->execute()) {
-                            logAction($conn, 'EDITAR_PERFIL', 'perfis', $id, ['antigo' => $perfilAtual, 'novo' => array_merge($perfilAtual, ['nome' => $nome, 'descricao' => ($descricao !== '' ? $descricao : null)], $permValues)]);
+                            // Mantem o rotulo de perfil sincronizado nos usuarios da mesma paroquia.
+                            $sync = $conn->prepare('UPDATE usuarios SET perfil_nome = ? WHERE perfil_id = ? AND paroquia_id = ?');
+                            if ($sync) {
+                                $sync->bind_param('sii', $nome_perfil, $id, $pid);
+                                $sync->execute();
+                            }
+                            logAction($conn, 'EDITAR_PERFIL', 'perfis', $id, ['antigo' => $perfilAtual, 'novo' => array_merge($perfilAtual, ['nome_perfil' => $nome_perfil, 'descricao' => ($descricao !== '' ? $descricao : null)], $permValues)]);
                             header('Location: perfis.php?msg=Perfil atualizado com sucesso!');
                             exit();
                         }
@@ -113,10 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             } else {
                 // Criar novo perfil (fica no fim pela auto_increment, coerente com "menor privilegio")
-                $cols = ['nome', 'descricao'];
-                $place = ['?', '?'];
-                $types = "ss";
-                $params = [$nome, ($descricao !== '' ? $descricao : null)];
+                $cols = ['paroquia_id', 'nome_perfil', 'descricao'];
+                $place = ['?', '?', '?'];
+                $types = "iss";
+                $params = [$pid, $nome_perfil, ($descricao !== '' ? $descricao : null)];
 
                 foreach ($availablePermCols as $col => $_label) {
                     $cols[] = $col;
@@ -133,11 +141,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $stmt->bind_param($types, ...$params);
                     if ($stmt->execute()) {
                         $newId = (int)$conn->insert_id;
-                        logAction($conn, 'CRIAR_PERFIL', 'perfis', $newId, ['novo' => ['nome' => $nome, 'descricao' => ($descricao !== '' ? $descricao : null)] + $permValues]);
+                        logAction($conn, 'CRIAR_PERFIL', 'perfis', $newId, ['novo' => ['paroquia_id' => $pid, 'nome_perfil' => $nome_perfil, 'descricao' => ($descricao !== '' ? $descricao : null)] + $permValues]);
                         header('Location: perfis.php?msg=Perfil criado com sucesso!');
                         exit();
                     }
-                    $error = 'Erro ao criar perfil. O nome pode ja existir.';
+                    $error = 'Erro ao criar perfil.';
                 }
             }
         }
@@ -149,19 +157,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Evita excluir por engano (e evita quebrar FK). Se precisar, voce pode habilitar.
             $error = 'Exclusao de perfil desativada por seguranca.';
         } else {
-            $perfilAtual = fetch_perfil($conn, $id);
+            $perfilAtual = fetch_perfil($conn, $id, $pid);
             if (!$perfilAtual) {
                 $error = 'Perfil nao encontrado.';
             } else {
-                $check = $conn->prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ?');
-                $check->bind_param('i', $id);
+                $check = $conn->prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ? AND paroquia_id = ?');
+                $check->bind_param('ii', $id, $pid);
                 $check->execute();
                 $c = (int)($check->get_result()->fetch_assoc()['c'] ?? 0);
                 if ($c > 0) {
                     $error = 'Nao e possivel excluir: existem usuarios com este perfil.';
                 } else {
-                    $del = $conn->prepare('DELETE FROM perfis WHERE id = ?');
-                    $del->bind_param('i', $id);
+                    $del = $conn->prepare('DELETE FROM perfis WHERE id = ? AND paroquia_id = ?');
+                    $del->bind_param('ii', $id, $pid);
                     if ($del->execute()) {
                         logAction($conn, 'EXCLUIR_PERFIL', 'perfis', $id, ['antigo' => $perfilAtual]);
                         header('Location: perfis.php?msg=Perfil excluido!');
@@ -182,18 +190,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             // Vizinho por id (a "posicao" e definida pelo ID).
             if ($dir === 'up') {
-                $stmtN = $conn->prepare('SELECT * FROM perfis WHERE id < ? ORDER BY id DESC LIMIT 1');
+                $stmtN = $conn->prepare('SELECT * FROM perfis WHERE paroquia_id = ? AND id < ? ORDER BY id DESC LIMIT 1');
             } else {
-                $stmtN = $conn->prepare('SELECT * FROM perfis WHERE id > ? ORDER BY id ASC LIMIT 1');
+                $stmtN = $conn->prepare('SELECT * FROM perfis WHERE paroquia_id = ? AND id > ? ORDER BY id ASC LIMIT 1');
             }
 
             if (!$stmtN) {
                 $error = 'Falha ao preparar movimentacao.';
             } else {
-                $stmtN->bind_param('i', $id);
+                $stmtN->bind_param('ii', $pid, $id);
                 $stmtN->execute();
                 $neighbor = $stmtN->get_result()->fetch_assoc();
-                $current = fetch_perfil($conn, $id);
+                $current = fetch_perfil($conn, $id, $pid);
 
                 if (!$current || !$neighbor) {
                     $error = 'Nao ha para onde mover.';
@@ -206,20 +214,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $conn->begin_transaction();
                     try {
                         // Swap de conteudo (mantem IDs). Isso altera a "posicao" na hierarquia.
-                        // Importante: perfis.nome e UNIQUE, entao precisamos de um nome temporario para nao colidir.
                         $permColsOnly = array_keys($availablePermCols);
 
-                        $tempName = '__SWAP__' . $aId . '__' . bin2hex(random_bytes(3));
-                        $stTemp = $conn->prepare('UPDATE perfis SET nome = ? WHERE id = ?');
-                        if (!$stTemp) throw new Exception('Falha ao preparar temp name.');
-                        $stTemp->bind_param('si', $tempName, $aId);
-                        if (!$stTemp->execute()) throw new Exception('Falha ao aplicar temp name.');
-
-                        // Prepara SQL base (descricao + perms)
-                        $setTail = "descricao = ?";
-                        $typesTail = "s";
-                        $valsA = [(string)($current['descricao'] ?? '')];
-                        $valsB = [(string)($neighbor['descricao'] ?? '')];
+                        // Prepara SQL base (nome_perfil + descricao + perms)
+                        $setTail = "nome_perfil = ?, descricao = ?";
+                        $typesTail = "ss";
+                        $valsA = [
+                            (string)($current['nome_perfil'] ?? ''),
+                            (string)($current['descricao'] ?? ''),
+                        ];
+                        $valsB = [
+                            (string)($neighbor['nome_perfil'] ?? ''),
+                            (string)($neighbor['descricao'] ?? ''),
+                        ];
                         foreach ($permColsOnly as $col) {
                             $setTail .= ", {$col} = ?";
                             $typesTail .= "i";
@@ -227,35 +234,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $valsB[] = (int)($neighbor[$col] ?? 0);
                         }
 
-                        // 1) Atualiza B com conteudo de A (nome original de A, etc) - sem colidir porque A ja tem tempName
-                        $sqlB = "UPDATE perfis SET nome = ?, {$setTail} WHERE id = ?";
+                        // 1) Atualiza B com conteudo de A
+                        $sqlB = "UPDATE perfis SET {$setTail} WHERE id = ? AND paroquia_id = ?";
                         $stB = $conn->prepare($sqlB);
                         if (!$stB) throw new Exception('Falha ao preparar update B.');
-                        $typesB = "s" . $typesTail . "i";
-                        $paramsB = array_merge([(string)($current['nome'] ?? '')], $valsA, [$bId]);
+                        $typesB = $typesTail . "ii";
+                        $paramsB = array_merge($valsA, [$bId, $pid]);
                         $stB->bind_param($typesB, ...$paramsB);
                         if (!$stB->execute()) throw new Exception('Falha ao atualizar B.');
 
-                        // 2) Atualiza A com conteudo de B (nome de B, etc)
-                        $sqlA = "UPDATE perfis SET nome = ?, {$setTail} WHERE id = ?";
+                        // 2) Atualiza A com conteudo de B
+                        $sqlA = "UPDATE perfis SET {$setTail} WHERE id = ? AND paroquia_id = ?";
                         $stA = $conn->prepare($sqlA);
                         if (!$stA) throw new Exception('Falha ao preparar update A.');
-                        $typesA = "s" . $typesTail . "i";
-                        $paramsA = array_merge([(string)($neighbor['nome'] ?? '')], $valsB, [$aId]);
+                        $typesA = $typesTail . "ii";
+                        $paramsA = array_merge($valsB, [$aId, $pid]);
                         $stA->bind_param($typesA, ...$paramsA);
                         if (!$stA->execute()) throw new Exception('Falha ao atualizar A.');
 
-                        // Sincroniza perfil_nome na tabela usuarios (rotulagem)
+                        // Mantem usuarios.perfil_nome alinhado com o perfil atualizado.
                         if (db_has_column($conn, 'usuarios', 'perfil_nome')) {
-                            $newAName = (string)($neighbor['nome'] ?? '');
-                            $newBName = (string)($current['nome'] ?? '');
-                            $up1 = $conn->prepare('UPDATE usuarios SET perfil_nome = ? WHERE perfil_id = ?');
-                            $up2 = $conn->prepare('UPDATE usuarios SET perfil_nome = ? WHERE perfil_id = ?');
-                            if ($up1 && $up2) {
-                                $up1->bind_param('si', $newAName, $aId);
-                                $up2->bind_param('si', $newBName, $bId);
-                                $up1->execute();
-                                $up2->execute();
+                            $syncA = $conn->prepare('UPDATE usuarios SET perfil_nome = ? WHERE perfil_id = ? AND paroquia_id = ?');
+                            $syncB = $conn->prepare('UPDATE usuarios SET perfil_nome = ? WHERE perfil_id = ? AND paroquia_id = ?');
+                            if ($syncA && $syncB) {
+                                $newNameA = (string)($neighbor['nome_perfil'] ?? '');
+                                $newNameB = (string)($current['nome_perfil'] ?? '');
+                                $syncA->bind_param('sii', $newNameA, $aId, $pid);
+                                $syncB->bind_param('sii', $newNameB, $bId, $pid);
+                                $syncA->execute();
+                                $syncB->execute();
                             }
                         }
 
@@ -275,7 +282,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Lista de perfis (visibilidade tambem segue a regra do ID)
 $perfis = [];
-$res = $conn->query('SELECT * FROM perfis ORDER BY id ASC');
+$res = $conn->query("
+    SELECT p.*,
+           COALESCE(
+             NULLIF(MAX(NULLIF(TRIM(p.nome_perfil), '')), ''),
+             NULLIF(MAX(NULLIF(TRIM(u.perfil_nome), '')), ''),
+             CONCAT('Perfil #', p.id)
+           ) AS label_nome
+    FROM perfis p
+    LEFT JOIN usuarios u ON u.perfil_id = p.id AND u.paroquia_id = p.paroquia_id
+    WHERE p.paroquia_id = " . (int)$pid . "
+    GROUP BY p.id
+    ORDER BY p.id ASC
+");
 if ($res) {
     while ($r = $res->fetch_assoc()) {
         if ($is_master || can_manage_perfil($is_master, $my_perfil_id, (int)$r['id'])) {
@@ -286,7 +305,7 @@ if ($res) {
 
 $form = $editing ?: [
     'id' => 0,
-    'nome' => '',
+    'nome_perfil' => '',
     'descricao' => '',
 ];
 foreach ($availablePermCols as $col => $_label) {
@@ -362,7 +381,7 @@ foreach ($availablePermCols as $col => $_label) {
                         <?php foreach ($perfis as $idx => $p): ?>
                             <div class="perfil-row">
                                 <div class="perfil-meta">
-                                    <div class="perfil-name">#<?= (int)$p['id'] ?> · <?= h($p['nome']) ?></div>
+                                    <div class="perfil-name">#<?= (int)$p['id'] ?> · <?= h($p['label_nome'] ?? ('Perfil #' . (int)$p['id'])) ?></div>
                                     <div class="perfil-sub"><?= h((string)($p['descricao'] ?? '')) ?></div>
                                 </div>
                                 <div style="display:flex; gap:0.5rem; align-items:center; flex-shrink:0;">
@@ -399,12 +418,10 @@ foreach ($availablePermCols as $col => $_label) {
                     <form method="POST" class="form-grid" autocomplete="off">
                         <input type="hidden" name="action" value="save">
                         <input type="hidden" name="id" value="<?= (int)($form['id'] ?? 0) ?>">
-
                         <div class="form-group full">
-                            <label>NOME</label>
-                            <input type="text" name="nome" value="<?= h($form['nome'] ?? '') ?>" required>
+                            <label>NOME DO PERFIL</label>
+                            <input type="text" name="nome_perfil" value="<?= h((string)($form['nome_perfil'] ?? '')) ?>" required>
                         </div>
-
                         <div class="form-group full">
                             <label>DESCRICAO (OPCIONAL)</label>
                             <textarea name="descricao" rows="3" style="width:100%; padding: 1rem; border-radius: 16px; background: rgba(255,255,255,0.03); border:1px solid var(--border); color:#fff;"><?= h((string)($form['descricao'] ?? '')) ?></textarea>
@@ -444,3 +461,4 @@ foreach ($availablePermCols as $col => $_label) {
     </div>
 </body>
 </html>
+
