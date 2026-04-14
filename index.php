@@ -267,7 +267,8 @@ foreach ($holidays as $mmdd => $hName) {
     <title>Calendário Paroquial – PASCOM</title>
     <link rel="stylesheet" href="style.css?v=2.5.1">
     <link rel="stylesheet" href="css/responsive.css?v=2.5.1">
-    <link rel="stylesheet" href="css/calendar.css?v=2.5.1">
+    <link rel="stylesheet" href="css/calendar.css?v=2.5.2">
+
 </head>
 <body>
     <div class="bg-mesh"></div>
@@ -351,7 +352,7 @@ foreach ($holidays as $mmdd => $hName) {
                                 <?php if (isset($activitiesByDay[$dayIdx])): ?>
                                     <?php foreach ($activitiesByDay[$dayIdx] as $act): ?>
                                         <?php if (!empty($act['is_birthday'])): ?>
-                                                <div class="act-pill act-birthday bday-trigger"
+                                                <div class="act-pill act-birthday bday-trigger" 
                                                      data-full-name="<?= h($act['nome_completo']) ?>"
                                                      title="<?= h($act['nome_completo']) ?>">
                                                     <?php if (!empty($act['foto_perfil']) && file_exists(__DIR__ . '/' . $act['foto_perfil'])): ?>
@@ -367,56 +368,96 @@ foreach ($holidays as $mmdd => $hName) {
                                                 <strong style="font-weight: 800;"><?= h($act['nome']) ?></strong>
                                             </div>
                                         <?php else: ?>
+                                            <?php if ($canInteractActivities): ?>
                                             <?php
-                                                // SPEC-13: Dados compartilhados pelas duas branches (interativo/estático)
-                                                $pillClasses = "act-pill";
+                                                $pillClasses = "act-pill button-reset event-trigger";
                                                 if (!empty($act['is_multi_color'])) $pillClasses .= " is-multi";
-                                                if (!empty($act['is_flashing']))    $pillClasses .= " is-flashing";
+                                                if (!empty($act['is_flashing'])) $pillClasses .= " is-flashing";
+                                                
                                                 $pillStyle = "border-left: 3px solid " . ($act['cor'] ?: 'var(--primary)') . ";";
                                                 if (!empty($act['is_multi_color'])) {
                                                     $pillStyle .= " background: linear-gradient(90deg, " . ($act['cor'] ?: '#8b5cf6') . "22, rgba(255,255,255,0.02)) !important;";
                                                 }
-                                                $pillInner = '<span style="opacity:0.6;">' . substr($act['hora_inicio'] ?? '', 0, 5) . '</span>'
-                                                           . '<strong class="act-name">' . h($act['nome']) . '</strong>'
-                                                           . '<span class="act-count">' . (int)($act['total_inscritos'] ?? 0) . '</span>';
                                             ?>
-                                            <?php if ($canInteractActivities): ?>
-                                                <button type="button"
-                                                        class="<?= $pillClasses ?> button-reset event-trigger"
-                                                        data-activity-id="<?= (int)$act['id'] ?>"
-                                                        style="<?= $pillStyle ?>"><?= $pillInner ?></button>
-                                            <?php else: ?>
-                                                <a href="ver_atividade.php?id=<?= $act['id'] ?>"
-                                                   class="<?= $pillClasses ?>"
-                                                   style="<?= $pillStyle ?>"><?= $pillInner ?></a>
-                                            <?php endif; ?>
-                                            <?php /* SPEC-13: Preview de inscritos — único bloco compartilhado */ ?>
-                                            <?php
-                                                $previewArr    = $act['preview_inscritos_array'] ?? [];
-                                                $enTotal       = (int)($act['total_inscritos'] ?? 0);
-                                                $hasInscritos  = count($previewArr) > 0;
-                                                $firstNameDisp = '?';
-                                                if ($hasInscritos) {
-                                                    $enParts       = preg_split('/\s+/', trim($previewArr[0]['nome'])) ?: [];
-                                                    $enFirst       = $enParts[0] ?? $previewArr[0]['nome'];
-                                                    $enLast        = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
-                                                    $firstNameDisp = mb_substr(trim($enFirst . ' ' . $enLast), 0, 12) ?: '?';
-                                                }
-                                                $enMore = max(0, $enTotal - count($previewArr));
-                                            ?>
-                                            <div class="enroll-preview" <?= ($enTotal > 0 && $hasInscritos) ? '' : 'hidden' ?>>
-                                                <div style="display:flex; align-items:center;">
-                                                    <?php foreach ($previewArr as $u): ?>
-                                                        <?php if ($u['foto'] !== '' && file_exists(__DIR__ . '/' . $u['foto'])): ?>
-                                                            <img class="enroll-avatar-img" src="<?= h($u['foto']) ?>?v=<?= time() ?>" alt="Foto" title="<?= h($u['nome']) ?>">
-                                                        <?php else: ?>
-                                                            <div class="enroll-avatar" title="<?= h($u['nome']) ?>"><?= mb_strtoupper(mb_substr($u['nome'] ?: '?', 0, 1)) ?></div>
-                                                        <?php endif; ?>
-                                                    <?php endforeach; ?>
+                                            <button
+                                                    type="button"
+                                                    class="<?= $pillClasses ?>"
+                                                    data-activity-id="<?= (int)$act['id'] ?>"
+                                                    style="<?= $pillStyle ?>"
+                                                >
+                                                    <span style="opacity: 0.6;"><?= substr($act['hora_inicio'] ?? '', 0, 5) ?></span>
+                                                    <strong class="act-name"><?= h($act['nome']) ?></strong>
+                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?></span>
+                                                </button>
+                                                <?php
+                                                    $previewArr = $act['preview_inscritos_array'] ?? [];
+                                                    $enTotal = (int)($act['total_inscritos'] ?? 0);
+                                                    $hasInscritos = (count($previewArr) > 0);
+                                                    $firstNameDisp = '?';
+                                                    if ($hasInscritos) {
+                                                        $enParts = preg_split('/\s+/', trim($previewArr[0]['nome'])) ?: [];
+                                                        $enFirst = $enParts[0] ?? $previewArr[0]['nome'];
+                                                        $enLast = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
+                                                        $firstNameDisp = mb_substr(trim($enFirst . ' ' . $enLast), 0, 12) ?: '?';
+                                                    }
+                                                    $enMore = max(0, $enTotal - count($previewArr));
+                                                ?>
+                                                <div class="enroll-preview" <?= ($enTotal > 0 && $hasInscritos) ? '' : 'hidden' ?>>
+                                                    <div style="display: flex; align-items: center;">
+                                                        <?php foreach ($previewArr as $i => $u): ?>
+                                                            <?php if ($u['foto'] !== '' && file_exists(__DIR__ . '/' . $u['foto'])): ?>
+                                                                <img class="enroll-avatar-img" src="<?= h($u['foto']) ?>?v=<?= time() ?>" alt="Foto" title="<?= h($u['nome']) ?>">
+                                                            <?php else: ?>
+                                                                <div class="enroll-avatar" title="<?= h($u['nome']) ?>"><?= mb_strtoupper(mb_substr($u['nome'] ?: '?', 0, 1)) ?></div>
+                                                            <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                    <span class="enroll-name" style="margin-left: 0.3rem;"><?= h($firstNameDisp) ?></span>
+                                                    <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
                                                 </div>
-                                                <span class="enroll-name" style="margin-left:0.3rem;"><?= h($firstNameDisp) ?></span>
-                                                <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
-                                            </div>
+                                            <?php else: ?>
+                                                <?php
+                                                    $pillClasses = "act-pill";
+                                                    if (!empty($act['is_multi_color'])) $pillClasses .= " is-multi";
+                                                    if (!empty($act['is_flashing'])) $pillClasses .= " is-flashing";
+                                                    
+                                                    $pillStyle = "border-left: 3px solid " . ($act['cor'] ?: 'var(--primary)') . ";";
+                                                    if (!empty($act['is_multi_color'])) {
+                                                        $pillStyle .= " background: linear-gradient(90deg, " . ($act['cor'] ?: '#8b5cf6') . "22, rgba(255,255,255,0.02)) !important;";
+                                                    }
+                                                ?>
+                                                <a href="ver_atividade.php?id=<?= $act['id'] ?>" class="<?= $pillClasses ?>" style="<?= $pillStyle ?>">
+                                                    <span style="opacity: 0.6;"><?= substr($act['hora_inicio'] ?? '', 0, 5) ?></span>
+                                                    <strong class="act-name"><?= h($act['nome']) ?></strong>
+                                                    <span class="act-count"><?= (int)($act['total_inscritos'] ?? 0) ?></span>
+                                                </a>
+                                                <?php
+                                                    $previewArr = $act['preview_inscritos_array'] ?? [];
+                                                    $enTotal = (int)($act['total_inscritos'] ?? 0);
+                                                    $hasInscritos = (count($previewArr) > 0);
+                                                    $firstNameDisp = '?';
+                                                    if ($hasInscritos) {
+                                                        $enParts = preg_split('/\s+/', trim($previewArr[0]['nome'])) ?: [];
+                                                        $enFirst = $enParts[0] ?? $previewArr[0]['nome'];
+                                                        $enLast = count($enParts) > 1 ? $enParts[count($enParts) - 1] : '';
+                                                        $firstNameDisp = mb_substr(trim($enFirst . ' ' . $enLast), 0, 12) ?: '?';
+                                                    }
+                                                    $enMore = max(0, $enTotal - count($previewArr));
+                                                ?>
+                                                <div class="enroll-preview" <?= ($enTotal > 0 && $hasInscritos) ? '' : 'hidden' ?>>
+                                                    <div style="display: flex; align-items: center;">
+                                                        <?php foreach ($previewArr as $i => $u): ?>
+                                                            <?php if ($u['foto'] !== '' && file_exists(__DIR__ . '/' . $u['foto'])): ?>
+                                                                <img class="enroll-avatar-img" src="<?= h($u['foto']) ?>?v=<?= time() ?>" alt="Foto" title="<?= h($u['nome']) ?>">
+                                                            <?php else: ?>
+                                                                <div class="enroll-avatar" title="<?= h($u['nome']) ?>"><?= mb_strtoupper(mb_substr($u['nome'] ?: '?', 0, 1)) ?></div>
+                                                            <?php endif; ?>
+                                                        <?php endforeach; ?>
+                                                    </div>
+                                                    <span class="enroll-name" style="margin-left: 0.3rem;"><?= h($firstNameDisp) ?></span>
+                                                    <?php if ($enMore > 0): ?><span class="enroll-more">+<?= $enMore ?></span><?php endif; ?>
+                                                </div>
+                                            <?php endif; ?>
                                         <?php endif; ?>
                                     <?php endforeach; ?>
                                 <?php endif; ?>
@@ -490,251 +531,15 @@ foreach ($holidays as $mmdd => $hName) {
         </div>
     </div>
 
+    <!-- Global Data for JS -->
     <script>
-        (() => {
-            const backdrop = document.getElementById('eventModalBackdrop');
-            const closeButton = document.getElementById('closeEventModal');
-            const joinButton = document.getElementById('eventJoinButton');
-            const leaveButton = document.getElementById('eventLeaveButton');
-            const viewButton = document.getElementById('eventViewButton');
-            const noteBox = document.getElementById('eventModalNote');
-            const feedbackBox = document.getElementById('eventModalFeedback');
-            const itemsWrap = document.getElementById('eventModalItemsWrap');
-            const itemsContainer = document.getElementById('eventModalItems');
-            const participantsWrap = document.getElementById('eventModalParticipantsWrap');
-            let currentActivityId = null;
-
-            function setFeedback(type, message) {
-                if (!message) {
-                    feedbackBox.className = 'modal-feedback';
-                    feedbackBox.innerHTML = '';
-                    return;
-                }
-                feedbackBox.className = 'modal-feedback show';
-                feedbackBox.innerHTML = <?= json_encode(alert('info', '__MSG__')) ?>.replace('__MSG__', message);
-                if (type === 'error') {
-                    feedbackBox.innerHTML = <?= json_encode(alert('error', '__MSG__')) ?>.replace('__MSG__', message);
-                }
-                if (type === 'success') {
-                    feedbackBox.innerHTML = <?= json_encode(alert('success', '__MSG__')) ?>.replace('__MSG__', message);
-                }
-            }
-
-            function closeModal() {
-                backdrop.classList.remove('open');
-                currentActivityId = null;
-                setFeedback('', '');
-                noteBox.style.display = 'none';
-                noteBox.textContent = '';
-                itemsWrap.classList.remove('show');
-                itemsContainer.innerHTML = '';
-                participantsWrap.style.display = 'block';
-            }
-
-            async function loadActivity(id) {
-                const response = await fetch(`atividade_json.php?id=${id}`, { headers: { 'Accept': 'application/json' } });
-                const payload = await response.json();
-                if (!payload.success) {
-                    throw new Error(payload.message || 'Falha ao carregar atividade.');
-                }
-                return payload.data.activity;
-            }
-
-            function renderParticipants(participants) {
-                const container = document.getElementById('eventModalParticipants');
-                if (!participants.length) {
-                    container.innerHTML = '<div class="participant-chip">Nenhum inscrito ainda</div>';
-                    return;
-                }
-                container.innerHTML = participants.map((participant) => (
-                    `<div class="participant-chip">${participant.nome}</div>`
-                )).join('');
-            }
-
-            function renderEventItems(activity) {
-                const items = Array.isArray(activity.event_items) ? activity.event_items : [];
-                if (!items.length) {
-                    itemsWrap.classList.remove('show');
-                    itemsContainer.innerHTML = '';
-                    participantsWrap.style.display = 'block';
-                    return false;
-                }
-
-                participantsWrap.style.display = 'none';
-                itemsWrap.classList.add('show');
-                itemsContainer.innerHTML = items.map((item) => {
-                    const participants = Array.isArray(item.participants) && item.participants.length
-                        ? item.participants.map((participant) => `<div class="participant-chip">${participant.nome}</div>`).join('')
-                        : '<div class="participant-chip">Nenhum inscrito nesta atividade</div>';
-                    const joinAction = activity.can_interact && !item.usuario_inscrito
-                        ? `<button type="button" class="btn btn-primary shimmer event-item-action" data-action="join" data-item-id="${item.id}">Inscrever-me</button>`
-                        : '';
-                    const leaveAction = activity.can_interact && item.usuario_inscrito && activity.can_cancel_now
-                        ? `<button type="button" class="btn btn-ghost event-item-action" data-action="leave" data-item-id="${item.id}">Desistir</button>`
-                        : '';
-                    const note = item.usuario_inscrito && !activity.can_cancel_now
-                        ? `<div class="event-item-note">${activity.deadline_message}</div>`
-                        : '';
-
-                    return `
-                        <div class="event-item-card">
-                            <div class="event-item-head">
-                                <div class="event-item-title">${item.nome}</div>
-                                <div class="event-item-count">${item.total_inscritos} inscrito(s)</div>
-                            </div>
-                            <div class="event-item-actions">${joinAction}${leaveAction}</div>
-                            <div class="event-item-participants">${participants}</div>
-                            ${note}
-                        </div>
-                    `;
-                }).join('');
-                return true;
-            }
-
-            function fillModal(activity) {
-                const hasEventItems = renderEventItems(activity);
-                currentActivityId = activity.id;
-                document.getElementById('eventModalType').textContent = activity.nome_tipo || 'Evento';
-                document.getElementById('eventModalTitle').textContent = activity.nome;
-                document.getElementById('eventModalDate').textContent = `${activity.data_inicio} às ${String(activity.hora_inicio || '00:00').slice(0, 5)}`;
-                document.getElementById('eventModalLocation').textContent = activity.local_nome || 'Local não definido';
-                document.getElementById('eventModalDescription').textContent = activity.descricao || 'Sem descrição.';
-                viewButton.href = `ver_atividade.php?id=${activity.id}`;
-                if (!hasEventItems) {
-                    renderParticipants(activity.participants || []);
-                }
-
-                joinButton.style.display = !hasEventItems && activity.can_interact && !activity.usuario_inscrito ? 'inline-flex' : 'none';
-                leaveButton.style.display = !hasEventItems && activity.can_interact && activity.usuario_inscrito ? 'inline-flex' : 'none';
-
-                noteBox.style.display = !hasEventItems && !activity.can_cancel_now && activity.usuario_inscrito ? 'block' : 'none';
-                noteBox.textContent = !hasEventItems && !activity.can_cancel_now && activity.usuario_inscrito ? activity.deadline_message : '';
-                setFeedback('', '');
-            }
-
-            async function refreshModal() {
-                if (!currentActivityId) return;
-                const activity = await loadActivity(currentActivityId);
-                fillModal(activity);
-            }
-
-            async function submitEnrollment(action, itemId = null) {
-                if (!currentActivityId) return;
-                const response = await fetch('inscrever.php', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                        'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRF-TOKEN': '<?= csrf_token() ?>'
-                    },
-                    body: new URLSearchParams({
-                        id: String(currentActivityId),
-                        action,
-                        item_id: itemId ? String(itemId) : ''
-                    })
-                });
-                const payload = await response.json();
-                setFeedback(payload.success ? 'success' : 'error', payload.message || '');
-                if (payload.success) {
-                    await refreshModal();
-                    setTimeout(() => window.location.reload(), 1000);
-                }
-            }
-
-            document.querySelectorAll('.event-trigger').forEach((button) => {
-                button.addEventListener('click', async () => {
-                    try {
-                        const activity = await loadActivity(button.dataset.activityId);
-                        fillModal(activity);
-                        backdrop.classList.add('open');
-                    } catch (error) {
-                        alert(error.message);
-                    }
-                });
-            });
-
-            closeButton.addEventListener('click', closeModal);
-            backdrop.addEventListener('click', (event) => {
-                if (event.target === backdrop) {
-                    closeModal();
-                }
-            });
-            joinButton.addEventListener('click', () => submitEnrollment('join'));
-            leaveButton.addEventListener('click', () => submitEnrollment('leave'));
-            itemsContainer.addEventListener('click', (event) => {
-                const button = event.target.closest('.event-item-action');
-                if (!button) {
-                    return;
-                }
-                submitEnrollment(button.dataset.action, button.dataset.itemId);
-            });
-
-            <?php if ($autoRefresh): ?>
-            setTimeout(() => {
-                const url = new URL(window.location.href);
-                url.searchParams.delete('refresh');
-                window.location.replace(url.toString());
-            }, 1000);
-            <?php endif; ?>
-        })();
+        window.CSRF_TOKEN = '<?= csrf_token() ?>';
+        window.AUTO_REFRESH = <?= $autoRefresh ? 'true' : 'false' ?>;
+        window.MSG_SUCCESS_ALERT = <?= json_encode(alert('success', '__MSG__')) ?>;
+        window.MSG_ERROR_ALERT   = <?= json_encode(alert('error', '__MSG__')) ?>;
+        window.MSG_INFO_ALERT    = <?= json_encode(alert('info', '__MSG__')) ?>;
     </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const ctxMsg = document.getElementById('ctxMsg');
-            if (ctxMsg) {
-                setTimeout(() => {
-                    ctxMsg.style.transition = 'all 0.5s ease';
-                    ctxMsg.style.opacity = '0';
-                    ctxMsg.style.transform = 'translateX(-10px)';
-                    setTimeout(() => ctxMsg.remove(), 500);
-                }, 4000);
-            }
+    <script src="js/calendar.js?v=2.5.2"></script>
 
-            const statusAlert = document.querySelector('.status-alert');
-            if (statusAlert) {
-                setTimeout(() => {
-                    statusAlert.style.transition = 'all 0.5s ease';
-                    statusAlert.style.opacity = '0';
-                    statusAlert.style.transform = 'translateY(-10px)';
-                    setTimeout(() => statusAlert.remove(), 500);
-                }, 3000);
-            }
-            // --- Lógica do Popup de Aniversário (Mobile/Desktop) ---
-            const bdayBackdrop = document.getElementById('bdayModalBackdrop');
-            const bdayName     = document.getElementById('bdayModalName');
-            let bdayTimer      = null;
-
-            document.addEventListener('click', (e) => {
-                const trigger = e.target.closest('.bday-trigger');
-                if (!trigger) return;
-
-                // Detecta se é mobile (largura < 1024px ou se possui touch)
-                const isMobile = window.innerWidth <= 1024 || ('ontouchstart' in window);
-
-                if (isMobile) {
-                    const fullName = trigger.getAttribute('data-full-name');
-                    bdayName.textContent = fullName;
-                    bdayBackdrop.classList.add('open');
-
-                    // Fecha automaticamente após 3 segundos
-                    if (bdayTimer) clearTimeout(bdayTimer);
-                    bdayTimer = setTimeout(() => {
-                        bdayBackdrop.classList.remove('open');
-                    }, 3000);
-                }
-            });
-
-            // Permite fechar manualmente clicando fora (mesmo no mobile)
-            if (bdayBackdrop) {
-                bdayBackdrop.onclick = (e) => {
-                    if (e.target === bdayBackdrop) {
-                        bdayBackdrop.classList.remove('open');
-                        if (bdayTimer) clearTimeout(bdayTimer);
-                    }
-                };
-            }
-        });
-    </script>
 </body>
 </html>

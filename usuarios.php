@@ -153,11 +153,31 @@ $sql = "
     LEFT JOIN paroquias p ON u.paroquia_id = p.id
 ";
 
+// Paginação (SPEC-09)
+$itemsPerPage = 12;
+$page = max(1, (int)($_GET['page'] ?? 1));
+$offset = ($page - 1) * $itemsPerPage;
+
+// COUNT total queries
+$sqlCount = "SELECT COUNT(*) as total FROM usuarios u LEFT JOIN paroquias p ON u.paroquia_id = p.id";
+if ($where) {
+    $sqlCount .= " WHERE " . implode(" AND ", $where);
+}
+$stmtCount = $conn->prepare($sqlCount);
+if ($params) {
+    $stmtCount->bind_param($types, ...$params);
+}
+$stmtCount->execute();
+$totalItems = (int)$stmtCount->get_result()->fetch_assoc()['total'];
+$totalPages = max(1, ceil($totalItems / $itemsPerPage));
+
 if ($where) {
     $sql .= " WHERE " . implode(" AND ", $where);
 }
-
-$sql .= " ORDER BY u.nome ASC";
+$sql .= " ORDER BY u.nome ASC LIMIT ? OFFSET ?";
+$types .= "ii";
+$params[] = $itemsPerPage;
+$params[] = $offset;
 
 $stmt = $conn->prepare($sql);
 if ($params) {
@@ -214,6 +234,20 @@ $users = $stmt->get_result();
             .main-content { padding: 1.5rem; }
             .header-flex { flex-direction: column; align-items: flex-start; gap: 1.5rem; }
         }
+
+        /* Paginação */
+        .pagination { display: flex; gap: 0.4rem; justify-content: center; margin-top: 3rem; flex-wrap: wrap; }
+        .page-item {
+            width: 40px; height: 40px; border-radius: 12px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--panel); border: 1px solid var(--border);
+            font-size: 0.9rem; font-weight: 800; color: var(--text-dim);
+            transition: all var(--anim); cursor: pointer; text-decoration: none;
+        }
+        .page-item.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: var(--sh-primary); }
+        .page-item:not(.active):hover { background: var(--panel-hi); color: var(--text); border-color: rgba(255,255,255,0.1); }
+        .page-item.disabled { opacity: 0.5; pointer-events: none; }
+
 
         /* ── View Modes ────────────────────────────────────────── */
         .view-controls { display: flex; gap: 0.5rem; background: var(--panel); padding: 0.4rem; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 1.5rem; width: fit-content; }
@@ -358,6 +392,39 @@ $users = $stmt->get_result();
                 </div>
                 <?php endwhile; ?>
             </div>
+
+            <!-- Navegação da Paginação (SPEC-09) -->
+            <?php if ($totalPages > 1): ?>
+            <div class="pagination animate-in" style="animation-delay: 0.2s;">
+                <?php if ($page > 1): ?>
+                    <a href="?page=<?= $page - 1 ?>" class="page-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></a>
+                <?php else: ?>
+                    <div class="page-item disabled"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></div>
+                <?php endif; ?>
+
+                <?php
+                // Range de até 5 páginas ex: [ 1 2 3 ... 10 ]
+                $startPage = max(1, $page - 2);
+                $endPage = min($totalPages, $page + 2);
+                
+                if ($startPage > 1) { echo '<a href="?page=1" class="page-item">1</a>'; if ($startPage > 2) echo '<div class="page-item disabled" style="border:none;background:transparent;">...</div>'; }
+                
+                for ($p = $startPage; $p <= $endPage; $p++) {
+                    $activeClass = ($p === $page) ? 'active' : '';
+                    echo "<a href='?page={$p}' class='page-item {$activeClass}'>{$p}</a>";
+                }
+                
+                if ($endPage < $totalPages) { if ($endPage < $totalPages - 1) echo '<div class="page-item disabled" style="border:none;background:transparent;">...</div>'; echo "<a href='?page={$totalPages}' class='page-item'>{$totalPages}</a>"; }
+                ?>
+
+                <?php if ($page < $totalPages): ?>
+                    <a href="?page=<?= $page + 1 ?>" class="page-item"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></a>
+                <?php else: ?>
+                    <div class="page-item disabled"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg></div>
+                <?php endif; ?>
+            </div>
+            <?php endif; ?>
+
         </main>
     </div>
 
