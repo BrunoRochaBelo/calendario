@@ -63,6 +63,15 @@ function verify_csrf_token(string $token): bool {
     return hash_equals($_SESSION['csrf_token'], $token);
 }
 
+/**
+ * SPEC-23: Rotaciona o CSRF token, invalidando o anterior.
+ * Deve ser chamado após qualquer mutação de estado POST bem-sucedida.
+ * Isso garante que tokens capturados por XSS expirem após o primeiro uso.
+ */
+function csrf_token_rotate(): void {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 function require_csrf_token(): void {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
@@ -70,6 +79,9 @@ function require_csrf_token(): void {
             http_response_code(403);
             die(json_encode(['success' => false, 'message' => 'Sessão expirada ou requisição inválida (CSRF falhou).']));
         }
+        // SPEC-23: Rotaciona o token após validação bem-sucedida.
+        // Isso invalida o token anterior, forçando um novo em cada request POST.
+        csrf_token_rotate();
     }
 }
 

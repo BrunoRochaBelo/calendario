@@ -49,19 +49,41 @@ if ($where) {
     $sql .= " WHERE " . implode(" AND ", $where);
 }
 
-$sql .= " ORDER BY l.data_hora DESC LIMIT 100";
+// SPEC-09: Paginação server-side
+$perPage  = 25;
+$page     = max(1, (int)($_GET['page'] ?? 1));
+$offset   = ($page - 1) * $perPage;
+
+// Query de contagem total (para calcular páginas)
+$sqlCount = "SELECT COUNT(*) AS total FROM log_alteracoes l LEFT JOIN usuarios u ON l.usuario_id = u.id";
+if ($where) {
+    $sqlCount .= " WHERE " . implode(" AND ", $where);
+}
+$stmtCount = $conn->prepare($sqlCount);
+if ($params) {
+    $stmtCount->bind_param($types, ...$params);
+}
+$stmtCount->execute();
+$totalRows  = (int)($stmtCount->get_result()->fetch_assoc()['total'] ?? 0);
+$totalPages = (int)ceil($totalRows / $perPage);
+$stmtCount->close();
+
+$sql .= " ORDER BY l.data_hora DESC LIMIT ? OFFSET ?";
 
 $stmt = $conn->prepare($sql);
-if ($params) {
-    $stmt->bind_param($types, ...$params);
-}
+$allParams = $params ? array_merge($params, [$perPage, $offset]) : [$perPage, $offset];
+$allTypes  = $types . 'ii';
+$stmt->bind_param($allTypes, ...$allParams);
 $stmt->execute();
 $logs = $stmt->get_result();
 ?>
 <?php
-// Autocomplete data for filters
-$usuarios_list = $conn->query("SELECT DISTINCT nome FROM usuarios WHERE paroquia_id = $pid ORDER BY nome");
-$tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes ORDER BY tabela_afetada");
+// Autocomplete data for filters (prepared statements)
+$stmtUL = $conn->prepare("SELECT DISTINCT nome FROM usuarios WHERE paroquia_id = ? ORDER BY nome");
+$stmtUL->bind_param('i', $pid);
+$stmtUL->execute();
+$usuarios_list = $stmtUL->get_result();
+$tabelas_list  = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes ORDER BY tabela_afetada");
 ?>
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -69,8 +91,9 @@ $tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Auditoria do Sistema – PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.4.5"
+    <link rel="stylesheet" href="style.css?v=2.4.5">
         <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
+
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }
@@ -229,6 +252,35 @@ $tabelas_list = $conn->query("SELECT DISTINCT tabela_afetada FROM log_alteracoes
                     </div>
                 <?php endif; ?>
             </section>
+
+            <?php if ($totalPages > 1): ?>
+            <nav class="animate-in" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; margin-top:1.5rem; flex-wrap:wrap; animation-delay:0.3s;">
+                <?php
+                $baseUrl = '?' . http_build_query(array_filter([
+                    'tabela'  => $filter_table,
+                    'usuario' => $filter_user,
+                ]));
+                $baseUrl = rtrim($baseUrl, '?&') ?: '?';
+                ?>
+                <?php if ($page > 1): ?>
+                    <a href="<?= $baseUrl ?>&page=<?= $page - 1 ?>" class="btn btn-ghost" style="padding:0.5rem 1rem; font-size:0.8rem;">&laquo; Anterior</a>
+                <?php endif; ?>
+
+                <?php
+                $start = max(1, $page - 2);
+                $end   = min($totalPages, $page + 2);
+                for ($p = $start; $p <= $end; $p++):
+                ?>
+                    <a href="<?= $baseUrl ?>&page=<?= $p ?>" class="btn <?= $p === $page ? 'btn-primary' : 'btn-ghost' ?>" style="padding:0.5rem 0.9rem; font-size:0.8rem; min-width:40px; text-align:center;"><?= $p ?></a>
+                <?php endfor; ?>
+
+                <?php if ($page < $totalPages): ?>
+                    <a href="<?= $baseUrl ?>&page=<?= $page + 1 ?>" class="btn btn-ghost" style="padding:0.5rem 1rem; font-size:0.8rem;">Próxima &raquo;</a>
+                <?php endif; ?>
+
+                <span style="font-size:0.75rem; color:var(--text-ghost); margin-left:0.5rem;"><?= $totalRows ?> registros totais</span>
+            </nav>
+            <?php endif; ?>
         </main>
     </div>
 
