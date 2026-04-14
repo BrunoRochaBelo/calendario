@@ -30,7 +30,7 @@ if ($todos_group_id > 0) {
 if (isset($_POST['toggle_status']) && $can_edit) {
     require_csrf_token();
     $uid = (int)$_POST['toggle_status'];
-    $checkStmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ? LIMIT 1");
+    $checkStmt = $conn->prepare("SELECT id, paroquia_id, nivel_acesso, ativo FROM usuarios WHERE id = ? LIMIT 1");
     $checkStmt->bind_param('i', $uid);
     $checkStmt->execute();
     $oldState = $checkStmt->get_result()->fetch_assoc();
@@ -172,8 +172,9 @@ $users = $stmt->get_result();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Gestão de Usuários — PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.4.5"
+    <link rel="stylesheet" href="style.css?v=2.4.5">
         <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
+
     <style>
         .app-shell { display: flex; min-height: 100vh; }
         .main-content { flex: 1; margin-left: var(--sidebar-w); padding: 3rem; transition: margin 0.3s; }

@@ -80,25 +80,11 @@ function formatTime(?string $time): string {
 }
 
 /**
- * Retorna o nível de acesso do usuário atual de forma legível
+ * Retorna o label de nível de acesso.
+ * Escala invertida: 0 = maior privilégio (Master), 7 = menor (Visitante).
  */
 function getAccessLabel(int $level): string {
-    $labels = [
-        0 => 'Master',
-        1 => 'Administrador',
-        2 => 'Gerente',
-        3 => 'Supervisor',
-        4 => 'Encarregado',
-        5 => 'Trabalhador',
-        6 => 'Consultor',
-        7 => 'Visitante'
-    ];
-    return $labels[$level] ?? 'Desconhecido';
-}
-
-// Rotulos oficiais (numero menor = mais privilegio)
-function getAccessLabelV2(int $level): string {
-    $labels = [
+    static $labels = [
         0 => 'Master',
         1 => 'Administrador',
         2 => 'Gerente',
@@ -108,8 +94,14 @@ function getAccessLabelV2(int $level): string {
         6 => 'Consultor',
         7 => 'Visitante',
     ];
-    return $labels[$level] ?? ('Nivel ' . $level);
+    return $labels[$level] ?? ('Nível ' . $level);
 }
+
+/** @deprecated Use getAccessLabel() */
+function getAccessLabelV2(int $level): string {
+    return getAccessLabel($level);
+}
+
 
 /**
  * Retorna o ID da paróquia atual da sessão
@@ -446,13 +438,20 @@ function saveEventActivityItems(mysqli $db, int $eventoId, int $paroquiaId, mixe
 
             if ($uids) {
                 // Buscar nomes para a mensagem
-                $details = $db->query("
-                    SELECT a.nome as evento_nome, ac.nome as atividade_nome 
+                $stmtDetails = $db->prepare("
+                    SELECT a.nome AS evento_nome, ac.nome AS atividade_nome
                     FROM atividades a
-                    JOIN atividades_catalogo ac ON ac.id = $catId
-                    WHERE a.id = $eventoId 
+                    JOIN atividades_catalogo ac ON ac.id = ?
+                    WHERE a.id = ?
                     LIMIT 1
-                ")->fetch_assoc();
+                ");
+                $details = null;
+                if ($stmtDetails) {
+                    $stmtDetails->bind_param('ii', $catId, $eventoId);
+                    $stmtDetails->execute();
+                    $details = $stmtDetails->get_result()->fetch_assoc();
+                    $stmtDetails->close();
+                }
                 
                 $eventoNome = $details['evento_nome'] ?? 'Evento';
                 $atividadeNome = $details['atividade_nome'] ?? 'Atividade';
@@ -884,8 +883,9 @@ function list_perfis_for_user(mysqli $db, int $myPerfilId, bool $isMaster): arra
     // Regra: perfis.id menor = maior privilegio. Mostrar apenas "igual ou abaixo":
     // id >= meu_perfil_id (exceto master que ve todos).
     $paroquiaId = current_paroquia_id();
-    $rows = [];
-    $baseSelect = "
+    $rows       = [];
+
+    $SQL_BASE = "
         SELECT
             p.id,
             COALESCE(
@@ -897,35 +897,36 @@ function list_perfis_for_user(mysqli $db, int $myPerfilId, bool $isMaster): arra
         LEFT JOIN usuarios u ON u.perfil_id = p.id
     ";
 
-    $res = null;
-    if ($paroquiaId > 0) {
-        $res = $db->query($baseSelect . "
-            WHERE p.paroquia_id = " . (int)$paroquiaId . "
-            GROUP BY p.id
-            ORDER BY p.id ASC
-        ");
+    // Closure auxiliar: prepara, vincula parâmetros e executa uma query.
+    $execQuery = static function (string $sql, string $types = '', mixed ...$binds) use ($db): ?\mysqli_result {
+        $stmt = $db->prepare($sql);
+        if (!$stmt) return null;
+        if ($types !== '') {
+            $stmt->bind_param($types, ...$binds);
+        }
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $stmt->close();
+        return $result ?: null;
+    };
 
-        // Fallback: se nao houver perfis na paroquia atual, volta ao comportamento
-        // mais amplo para evitar dropdown vazio em contextos globais.
-        if ($res && $res->num_rows === 0) {
-            $res = $db->query($baseSelect . "
-                GROUP BY p.id
-                ORDER BY p.id ASC
-            ");
+    if ($paroquiaId > 0) {
+        $res = $execQuery($SQL_BASE . " WHERE p.paroquia_id = ? GROUP BY p.id ORDER BY p.id ASC", 'i', $paroquiaId);
+
+        // Fallback: se não houver perfis na paróquia, exibe todos (contextos globais).
+        if ($res !== null && $res->num_rows === 0) {
+            $res = $execQuery($SQL_BASE . " GROUP BY p.id ORDER BY p.id ASC");
         }
     } else {
-        $res = $db->query($baseSelect . "
-            GROUP BY p.id
-            ORDER BY p.id ASC
-        ");
+        $res = $execQuery($SQL_BASE . " GROUP BY p.id ORDER BY p.id ASC");
     }
 
     if (!$res) return [];
 
     while ($r = $res->fetch_assoc()) {
-        $pid = (int)($r['id'] ?? 0);
-        if ($isMaster || ($myPerfilId > 0 && $pid >= $myPerfilId)) {
-            $r['nivel_inferido'] = $pid; // mantem chave usada por pick_default_perfil_id (quanto maior, "mais baixo")
+        $perfilId = (int)($r['id'] ?? 0);
+        if ($isMaster || ($myPerfilId > 0 && $perfilId >= $myPerfilId)) {
+            $r['nivel_inferido'] = $perfilId;
             $rows[] = $r;
         }
     }

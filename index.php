@@ -62,44 +62,23 @@ $monthNames = [
 $displayMonth = $monthNames[$month];
 
 // 2. Calendar Metadata
-$daysInMonth = (int)$dt->format('t');
+$daysInMonth    = (int)$dt->format('t');
 $firstDayOfWeek = (int)$dt->format('w'); // 0 (Sun) to 6 (Sat)
-$today = date('Y-m-d');
+$today          = date('Y-m-d');
 
-// 3. Fetch Activities for the Month
+// 3. Fetch Activities — SPEC-06: query principal limpa sem subqueries correlacionadas.
+// Contagens e previews são obtidos em batch separado (veja abaixo).
 $startMonth = "$year-" . str_pad($month, 2, '0', STR_PAD_LEFT) . "-01";
-$endMonth = "$year-" . str_pad($month, 2, '0', STR_PAD_LEFT) . "-" . $daysInMonth;
+$endMonth   = "$year-" . str_pad($month, 2, '0', STR_PAD_LEFT) . "-" . $daysInMonth;
 
 $sql = "
     SELECT
-        a.*,
-        t.cor AS tipo_cor,
+        a.id, a.nome, a.descricao, a.data_inicio, a.hora_inicio,
+        a.local_id, a.tipo_atividade_id, a.cor, a.is_multi_color,
+        a.is_flashing, a.restrito, a.criador_id, a.paroquia_id,
+        a.vagas, a.inscricoes_abertas,
+        t.cor  AS tipo_cor,
         t.icone,
-        COALESCE(
-            (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('nome', u.nome, 'foto', COALESCE(u.foto_perfil, '')))
-                FROM inscricoes i_pre
-                INNER JOIN usuarios u ON u.id = i_pre.usuario_id
-                WHERE i_pre.atividade_id = a.id
-            ),
-            (
-                SELECT JSON_ARRAYAGG(JSON_OBJECT('nome', u.nome, 'foto', COALESCE(u.foto_perfil, '')))
-                FROM atividade_evento_inscricoes aei
-                INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
-                INNER JOIN usuarios u ON u.id = aei.usuario_id
-                WHERE ei.evento_id = a.id
-            )
-        ) AS preview_inscritos,
-        (
-            SELECT COUNT(*)
-            FROM inscricoes i
-            WHERE i.atividade_id = a.id
-        ) + (
-            SELECT COUNT(*)
-            FROM atividade_evento_inscricoes aei
-            INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
-            WHERE ei.evento_id = a.id
-        ) AS total_inscritos,
         (
             SELECT GROUP_CONCAT(ag.grupo_id ORDER BY ag.grupo_id ASC)
             FROM atividade_grupos ag
@@ -107,15 +86,15 @@ $sql = "
         ) AS grupo_ids
     FROM atividades a
     LEFT JOIN tipos_atividade t ON a.tipo_atividade_id = t.id
-    WHERE a.paroquia_id = ? 
+    WHERE a.paroquia_id = ?
       AND a.data_inicio BETWEEN ? AND ?
       AND (a.restrito = 0 OR ? = 1 OR a.criador_id = ?)
       AND (
           NOT EXISTS (SELECT 1 FROM atividade_grupos ag WHERE ag.atividade_id = a.id)
           OR ? = 1
           OR EXISTS (
-              SELECT 1 FROM atividade_grupos ag 
-              INNER JOIN usuario_grupos ug ON ug.grupo_id = ag.grupo_id 
+              SELECT 1 FROM atividade_grupos ag
+              INNER JOIN usuario_grupos ug ON ug.grupo_id = ag.grupo_id
               WHERE ag.atividade_id = a.id AND ug.usuario_id = ?
           )
       )
@@ -123,55 +102,96 @@ $sql = "
 ";
 
 $canVerRestritos = (int)can('ver_restritos');
-$isAdmin = (int)(can('admin_sistema') || ($_SESSION['usuario_nivel'] ?? 99) === 0);
-$bypassGroups = max($canVerRestritos, $isAdmin);
+$isAdmin         = (int)(can('admin_sistema') || ($_SESSION['usuario_nivel'] ?? 99) === 0);
+$bypassGroups    = max($canVerRestritos, $isAdmin);
 
 $stmt = $conn->prepare($sql);
 $stmt->bind_param('issiiii', $pid, $startMonth, $endMonth, $canVerRestritos, $userId, $bypassGroups, $userId);
 $stmt->execute();
-$res = $stmt->get_result();
+$rawActivities = $stmt->get_result()->fetch_all(MYSQLI_ASSOC);
+$stmt->close();
 
+// 4. Batch: contagens e previews — SPEC-06.
+// Evita N+1: uma query para todos os IDs retornados, ao invés de uma subquery por atividade.
+$activityIds     = array_column($rawActivities, 'id');
+$countsByAct     = [];   // [atividade_id => total_inscritos]
+$previewsByAct   = [];   // [atividade_id => [['nome'=>..,'foto'=>..], ...]]
+
+if ($activityIds) {
+    $placeholders = implode(',', array_fill(0, count($activityIds), '?'));
+    $types        = str_repeat('i', count($activityIds));
+
+    // 4a. Contagem total de inscritos (inscricoes diretas + por evento_item)
+    $sqlCounts = "
+        SELECT atividade_id, COUNT(*) AS cnt
+        FROM inscricoes
+        WHERE atividade_id IN ($placeholders)
+        GROUP BY atividade_id
+
+        UNION ALL
+
+        SELECT ei.evento_id AS atividade_id, COUNT(*) AS cnt
+        FROM atividade_evento_inscricoes aei
+        INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
+        WHERE ei.evento_id IN ($placeholders)
+        GROUP BY ei.evento_id
+    ";
+    $stmtC = $conn->prepare($sqlCounts);
+    $allIds = array_merge($activityIds, $activityIds); // duas listas para os dois IN()
+    $stmtC->bind_param($types . $types, ...$allIds);
+    $stmtC->execute();
+    $resC = $stmtC->get_result();
+    while ($c = $resC->fetch_assoc()) {
+        $countsByAct[(int)$c['atividade_id']] = ($countsByAct[(int)$c['atividade_id']] ?? 0) + (int)$c['cnt'];
+    }
+    $stmtC->close();
+
+    // 4b. Preview: até 3 inscritos por atividade (inscricoes diretas, deduplicados por nome)
+    $sqlPreview = "
+        SELECT i.atividade_id, u.nome, COALESCE(u.foto_perfil, '') AS foto
+        FROM inscricoes i
+        INNER JOIN usuarios u ON u.id = i.usuario_id
+        WHERE i.atividade_id IN ($placeholders)
+        ORDER BY i.atividade_id, u.nome
+    ";
+    $stmtP = $conn->prepare($sqlPreview);
+    $stmtP->bind_param($types, ...$activityIds);
+    $stmtP->execute();
+    $resP = $stmtP->get_result();
+    while ($p = $resP->fetch_assoc()) {
+        $aid = (int)$p['atividade_id'];
+        if (!isset($previewsByAct[$aid])) $previewsByAct[$aid] = [];
+        if (count($previewsByAct[$aid]) < 3) {
+            $foto = $p['foto'];
+            if ($foto !== '' && !file_exists(__DIR__ . '/' . $foto)) $foto = '';
+            $previewsByAct[$aid][] = ['nome' => $p['nome'], 'foto' => $foto];
+        }
+    }
+    $stmtP->close();
+}
+
+// 5. Montar $activitiesByDay com os dados enriquecidos
 $activitiesByDay = [];
 
 // Session-based group filter (from meus_grupos.php)
 $filtroGrupos = $_SESSION['filtro_grupos'] ?? null; // null = todos ativos
 
-while ($row = $res->fetch_assoc()) {
-    // Apply session group filter (admins see everything)
+foreach ($rawActivities as $row) {
+    // Aplicar filtro de grupo da sessão (admins veem tudo)
     if (!$isAdmin && $filtroGrupos !== null) {
         $grupoIds = $row['grupo_ids'] ?? '';
         $isGeneral = ($grupoIds === '' || $grupoIds === null);
         if (!$isGeneral) {
-            $eGrupos = array_map('intval', explode(',', $grupoIds));
+            $eGrupos  = array_map('intval', explode(',', $grupoIds));
             $hasActive = !empty(array_intersect($eGrupos, $filtroGrupos));
-            if (!$hasActive) continue; // all groups of this event are inactive
+            if (!$hasActive) continue;
         }
     }
 
-    $row['preview_inscritos_array'] = [];
-    $previewRaw = trim((string)($row['preview_inscritos'] ?? ''));
-    if ($previewRaw !== '' && $previewRaw !== 'null' && $previewRaw !== '[]') {
-        $decoded = json_decode($previewRaw, true);
-        if (is_array($decoded)) {
-            $uniqueUsers = [];
-            foreach ($decoded as $uInfo) {
-                $pname = trim((string)($uInfo['nome'] ?? ''));
-                $pphoto = trim((string)($uInfo['foto'] ?? ''));
-                $key = $pname . '||' . $pphoto;
-                if (!isset($uniqueUsers[$key])) {
-                    $uniqueUsers[$key] = true;
-                    if ($pphoto !== '' && !file_exists(__DIR__ . '/' . $pphoto)) {
-                        $pphoto = '';
-                    }
-                    $row['preview_inscritos_array'][] = [
-                        'nome'  => $pname,
-                        'foto'  => $pphoto
-                    ];
-                    if (count($row['preview_inscritos_array']) >= 3) break;
-                }
-            }
-        }
-    }
+    $aid = (int)$row['id'];
+    $row['total_inscritos']        = $countsByAct[$aid] ?? 0;
+    $row['preview_inscritos_array'] = $previewsByAct[$aid] ?? [];
+
     $day = (int)date('d', strtotime($row['data_inicio']));
     $activitiesByDay[$day][] = $row;
 }
