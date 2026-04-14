@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
             const backdrop = document.getElementById('eventModalBackdrop');
             const closeButton = document.getElementById('closeEventModal');
             const joinButton = document.getElementById('eventJoinButton');
@@ -156,7 +156,11 @@
                         fillModal(activity);
                         backdrop.classList.add('open');
                     } catch (error) {
-                        alert(error.message);
+                        if (typeof showToast === 'function') {
+                            showToast(error.message, 'error');
+                        } else {
+                            alert(error.message);
+                        }
                     }
                 });
             });
