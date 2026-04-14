@@ -27,8 +27,9 @@ if ($todos_group_id > 0) {
 }
 
 // 1. Handle Status Toggles (AJAX/Simple POST)
-if (isset($_GET['toggle_status']) && $can_edit) {
-    $uid = (int)$_GET['toggle_status'];
+if (isset($_POST['toggle_status']) && $can_edit) {
+    require_csrf_token();
+    $uid = (int)$_POST['toggle_status'];
     $checkStmt = $conn->prepare("SELECT * FROM usuarios WHERE id = ? LIMIT 1");
     $checkStmt->bind_param('i', $uid);
     $checkStmt->execute();
@@ -82,9 +83,9 @@ if (isset($_GET['toggle_status']) && $can_edit) {
         }
     }
     
-    $conn->query("UPDATE usuarios SET ativo = 1 - ativo WHERE id = $uid");
+    db_query($conn, "UPDATE usuarios SET ativo = 1 - ativo WHERE id = ?", [$uid]);
     
-    $newResult = $conn->query("SELECT * FROM usuarios WHERE id = $uid");
+    $newResult = db_query($conn, "SELECT * FROM usuarios WHERE id = ?", [$uid]);
     $newState = $newResult->fetch_assoc();
     
     logAction($conn, 'ALTERAR_STATUS_USUARIO', 'usuarios', $uid, ['antigo' => $oldState, 'novo' => $newState]);
@@ -340,9 +341,13 @@ $users = $stmt->get_result();
                     <?php if ($can_edit && $canEditThisUser): ?>
                     <div class="user-actions">
                         <?php if ($canToggleThisUser): ?>
-                        <a href="usuarios.php?toggle_status=<?= $u['id'] ?>" class="btn <?= $u['ativo'] ? 'btn-ghost' : 'btn-primary' ?>" style="flex: 1; font-size: 0.75rem; padding: 0.6rem;">
-                            <?= $u['ativo'] ? 'Desativar' : 'Ativar' ?>
-                        </a>
+                        <form method="POST" action="usuarios.php" style="flex: 1; margin: 0; display: flex;">
+                            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+                            <input type="hidden" name="toggle_status" value="<?= $u['id'] ?>">
+                            <button type="submit" class="btn <?= $u['ativo'] ? 'btn-ghost' : 'btn-primary' ?>" style="width: 100%; font-size: 0.75rem; padding: 0.6rem;">
+                                <?= $u['ativo'] ? 'Desativar' : 'Ativar' ?>
+                            </button>
+                        </form>
                         <?php endif; ?>
                         <a href="editar_usuario.php?id=<?= $u['id'] ?>" class="btn btn-ghost" style="padding: 0.6rem;">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>

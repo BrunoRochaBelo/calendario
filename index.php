@@ -11,6 +11,7 @@ ensureInscricoesTable($conn);
 ensureUserPhotoColumn($conn);
 ensureEventActivitiesStructure($conn);
 
+$userId = (int)($_SESSION['usuario_id'] ?? 0);
 $pid = current_paroquia_id();
 $canInteractActivities = canInteractWithActivity();
 $msg = $_GET['msg'] ?? '';
@@ -20,9 +21,10 @@ $autoRefresh = isset($_GET['refresh']) && $_GET['refresh'] === '1';
 $unreadNotifications = [];
 if ($userId > 0) {
     ensureNotificationsTable($conn);
-    
+
     // Handle Clearing
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'clear_notifications') {
+        require_csrf_token();
         $stmtC = $conn->prepare("UPDATE notificacoes SET lida = 1 WHERE usuario_id = ?");
         $stmtC->bind_param('i', $userId);
         $stmtC->execute();
@@ -31,11 +33,15 @@ if ($userId > 0) {
         exit();
     }
 
-    $resN = $conn->query("SELECT * FROM notificacoes WHERE usuario_id = $userId AND lida = 0 ORDER BY data_criacao DESC");
-    if ($resN) {
+    $stmtN = $conn->prepare("SELECT * FROM notificacoes WHERE usuario_id = ? AND lida = 0 ORDER BY data_criacao DESC");
+    if ($stmtN) {
+        $stmtN->bind_param('i', $userId);
+        $stmtN->execute();
+        $resN = $stmtN->get_result();
         while ($rn = $resN->fetch_assoc()) {
             $unreadNotifications[] = $rn;
         }
+        $stmtN->close();
     }
 }
 
@@ -71,13 +77,13 @@ $sql = "
         t.icone,
         COALESCE(
             (
-                SELECT GROUP_CONCAT(CONCAT(u.nome, '||', COALESCE(u.foto_perfil, '')) ORDER BY i_pre.data_inscricao ASC SEPARATOR ';;')
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('nome', u.nome, 'foto', COALESCE(u.foto_perfil, '')))
                 FROM inscricoes i_pre
                 INNER JOIN usuarios u ON u.id = i_pre.usuario_id
                 WHERE i_pre.atividade_id = a.id
             ),
             (
-                SELECT GROUP_CONCAT(CONCAT(u.nome, '||', COALESCE(u.foto_perfil, '')) ORDER BY aei.data_inscricao ASC SEPARATOR ';;')
+                SELECT JSON_ARRAYAGG(JSON_OBJECT('nome', u.nome, 'foto', COALESCE(u.foto_perfil, '')))
                 FROM atividade_evento_inscricoes aei
                 INNER JOIN atividade_evento_itens ei ON ei.id = aei.evento_item_id
                 INNER JOIN usuarios u ON u.id = aei.usuario_id
@@ -116,7 +122,6 @@ $sql = "
     ORDER BY a.hora_inicio ASC
 ";
 
-$userId = (int)($_SESSION['usuario_id'] ?? 0);
 $canVerRestritos = (int)can('ver_restritos');
 $isAdmin = (int)(can('admin_sistema') || ($_SESSION['usuario_nivel'] ?? 99) === 0);
 $bypassGroups = max($canVerRestritos, $isAdmin);
@@ -145,22 +150,25 @@ while ($row = $res->fetch_assoc()) {
 
     $row['preview_inscritos_array'] = [];
     $previewRaw = trim((string)($row['preview_inscritos'] ?? ''));
-    if ($previewRaw !== '') {
-        $chunks = explode(';;', $previewRaw);
-        $uniqueChunks = array_unique($chunks);
-        foreach ($uniqueChunks as $chunk) {
-            $parts = explode('||', $chunk, 2);
-            $pname = trim((string)($parts[0] ?? ''));
-            $pphoto = trim((string)($parts[1] ?? ''));
-            if ($pphoto !== '' && !file_exists(__DIR__ . '/' . $pphoto)) {
-                $pphoto = '';
-            }
-            $row['preview_inscritos_array'][] = [
-                'nome'  => $pname,
-                'foto'  => $pphoto
-            ];
-            if (count($row['preview_inscritos_array']) >= 3) {
-                break;
+    if ($previewRaw !== '' && $previewRaw !== 'null' && $previewRaw !== '[]') {
+        $decoded = json_decode($previewRaw, true);
+        if (is_array($decoded)) {
+            $uniqueUsers = [];
+            foreach ($decoded as $uInfo) {
+                $pname = trim((string)($uInfo['nome'] ?? ''));
+                $pphoto = trim((string)($uInfo['foto'] ?? ''));
+                $key = $pname . '||' . $pphoto;
+                if (!isset($uniqueUsers[$key])) {
+                    $uniqueUsers[$key] = true;
+                    if ($pphoto !== '' && !file_exists(__DIR__ . '/' . $pphoto)) {
+                        $pphoto = '';
+                    }
+                    $row['preview_inscritos_array'][] = [
+                        'nome'  => $pname,
+                        'foto'  => $pphoto
+                    ];
+                    if (count($row['preview_inscritos_array']) >= 3) break;
+                }
             }
         }
     }
@@ -590,6 +598,7 @@ foreach ($holidays as $mmdd => $hName) {
                         </div>
                         <form method="POST" id="clearNotifForm">
                             <input type="hidden" name="action" value="clear_notifications">
+                            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                             <button type="submit" class="btn btn-primary shimmer" style="width: 100%;">Entendido, fechar</button>
                         </form>
                     </div>
@@ -961,7 +970,8 @@ foreach ($holidays as $mmdd => $hName) {
                     headers: {
                         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
                         'Accept': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest'
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '<?= csrf_token() ?>'
                     },
                     body: new URLSearchParams({
                         id: String(currentActivityId),

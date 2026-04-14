@@ -8,6 +8,57 @@
 require_once __DIR__ . '/config.php';
 
 /**
+ * ─ DATABASE REPOSITORY (SOLID WRAPPER) ──────────────────────
+ * Camada unificada para extinguir interpolação SQL manual
+ */
+function db_execute(mysqli $db, string $sql, array $params = []): mysqli_stmt|false {
+    $stmt = $db->prepare($sql);
+    if (!$stmt) return false;
+    
+    if (!empty($params)) {
+        $types = '';
+        foreach ($params as $param) {
+            if (is_int($param)) $types .= 'i';
+            elseif (is_float($param)) $types .= 'd';
+            else $types .= 's';
+        }
+        $stmt->bind_param($types, ...$params);
+    }
+    
+    if (!$stmt->execute()) return false;
+    return $stmt;
+}
+
+function db_query(mysqli $db, string $sql, array $params = []) {
+    $stmt = db_execute($db, $sql, $params);
+    if (!$stmt) return false;
+    $res = $stmt->get_result();
+    $stmt->close();
+    return $res;
+}
+
+function db_fetch_all(mysqli $db, string $sql, array $params = []): array {
+    $stmt = db_execute($db, $sql, $params);
+    if (!$stmt) return [];
+    $res = $stmt->get_result();
+    $data = [];
+    if ($res) {
+        while ($row = $res->fetch_assoc()) $data[] = $row;
+    }
+    $stmt->close();
+    return $data;
+}
+
+function db_fetch_one(mysqli $db, string $sql, array $params = []): ?array {
+    $stmt = db_execute($db, $sql, $params);
+    if (!$stmt) return null;
+    $res = $stmt->get_result();
+    $row = $res ? $res->fetch_assoc() : null;
+    $stmt->close();
+    return $row ?: null;
+}
+
+/**
  * Formata uma data para o padrão brasileiro (d/m/Y)
  */
 function formatDate(string $date): string {
@@ -101,10 +152,13 @@ function canInteractWithActivity(): bool {
 }
 
 function canBypassEnrollmentDeadline(): bool {
+    // nivel_acesso usa escala invertida: 0 = Master, 7 = Visitante.
+    // Apenas níveis privilegiados (<= 3: Master, Admin, Coordenador, Supervisor)
+    // podem cancelar inscrição com menos de 24h de antecedência (RN09).
     return (bool)(
         can('admin_sistema') ||
         ($_SESSION['usuario_id'] ?? 0) === 1 ||
-        (int)($_SESSION['usuario_nivel'] ?? 0) >= 3
+        (int)($_SESSION['usuario_nivel'] ?? 99) <= 3
     );
 }
 
@@ -412,7 +466,12 @@ function saveEventActivityItems(mysqli $db, int $eventoId, int $paroquiaId, mixe
                 }
             }
 
-            $db->query("DELETE FROM atividade_evento_itens WHERE id = $itemId");
+            $stmtDelItem = $db->prepare("DELETE FROM atividade_evento_itens WHERE id = ?");
+            if ($stmtDelItem) {
+                $stmtDelItem->bind_param('i', $itemId);
+                $stmtDelItem->execute();
+                $stmtDelItem->close();
+            }
         }
     }
 
@@ -586,7 +645,7 @@ function getUserGroups(mysqli $db, int $userId, ?int $paroquiaId = null): array 
     $res = $stmt->get_result();
     $ids = [];
     while ($row = $res->fetch_assoc()) {
-        $ids[] = (int)$row['id'] ?? (int)$row['grupo_id'];
+        $ids[] = (int)$row['grupo_id'];
     }
     return $ids;
 }
@@ -630,7 +689,12 @@ function ensureDefaultVisitorGroup(mysqli $db, int $paroquiaId): void {
     if ($paroquiaId <= 0) return;
 
     // Migrar nome antigo 'Visitante' -> 'Todos' se existir
-    $db->query("UPDATE grupos_trabalho SET nome = 'Todos', descricao = 'Grupo padrão — todos os membros da paróquia', visivel = 1 WHERE paroquia_id = $paroquiaId AND nome = 'Visitante'");
+    $stmtUpd = $db->prepare("UPDATE grupos_trabalho SET nome = 'Todos', descricao = 'Grupo padrão — todos os membros da paróquia', visivel = 1 WHERE paroquia_id = ? AND nome = 'Visitante'");
+    if ($stmtUpd) {
+        $stmtUpd->bind_param('i', $paroquiaId);
+        $stmtUpd->execute();
+        $stmtUpd->close();
+    }
     
     // Verificar se 'Todos' já existe
     $check = $db->prepare("SELECT id FROM grupos_trabalho WHERE paroquia_id = ? AND nome = 'Todos' LIMIT 1");
@@ -654,13 +718,18 @@ function ensureDefaultVisitorGroup(mysqli $db, int $paroquiaId): void {
     if ($grupoId <= 0) return;
 
     // Adicionar todos os usuários da paróquia que ainda não estão no grupo
-    $db->query("
+    $stmtInsUsers = $db->prepare("
         INSERT IGNORE INTO usuario_grupos (usuario_id, grupo_id, paroquia_id)
-        SELECT u.id, $grupoId, $paroquiaId
+        SELECT u.id, ?, ?
         FROM usuarios u
-        WHERE u.paroquia_id = $paroquiaId
-          AND u.id NOT IN (SELECT usuario_id FROM usuario_grupos WHERE grupo_id = $grupoId)
+        WHERE u.paroquia_id = ?
+          AND u.id NOT IN (SELECT usuario_id FROM usuario_grupos WHERE grupo_id = ?)
     ");
+    if ($stmtInsUsers) {
+        $stmtInsUsers->bind_param('iiii', $grupoId, $paroquiaId, $paroquiaId, $grupoId);
+        $stmtInsUsers->execute();
+        $stmtInsUsers->close();
+    }
 }
 
 /**
@@ -886,4 +955,3 @@ function pick_default_perfil_id(array $perfis, int $fallback = 9): int {
     }
     return $bestId;
 }
-?>

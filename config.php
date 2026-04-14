@@ -44,6 +44,35 @@ header("X-Content-Type-Options: nosniff");
 header("X-Frame-Options: SAMEORIGIN");
 header("X-XSS-Protection: 1; mode=block");
 
+// 3.1. CSRF Protection
+function generate_csrf_token(): string {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrf_token(): string {
+    return generate_csrf_token();
+}
+
+function verify_csrf_token(string $token): bool {
+    if (empty($_SESSION['csrf_token']) || empty($token)) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function require_csrf_token(): void {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        if (!verify_csrf_token($token)) {
+            http_response_code(403);
+            die(json_encode(['success' => false, 'message' => 'Sessão expirada ou requisição inválida (CSRF falhou).']));
+        }
+    }
+}
+
 // 4. Authentication Helpers
 function is_authenticated(): bool {
     return isset($_SESSION['usuario_id']) && !empty($_SESSION['usuario_id']);
@@ -519,16 +548,21 @@ function authThrottleRegisterFailure(mysqli $db, string $scope, string $identifi
     $stmt->execute();
     $row = $stmt->get_result()->fetch_assoc();
 
-    $scopeEsc = $db->real_escape_string($scope);
-    $identifierEsc = $db->real_escape_string($identifier);
-
     if ($row) {
         $id = (int)$row['id'];
-        $lockedSql = $lockedUntil ? "'" . $db->real_escape_string($lockedUntil) . "'" : 'NULL';
-        $db->query("UPDATE auth_throttle SET attempts = {$attempts}, locked_until = {$lockedSql}, last_attempt_at = NOW() WHERE id = {$id}");
+        $stmtUpd = $db->prepare('UPDATE auth_throttle SET attempts = ?, locked_until = ?, last_attempt_at = NOW() WHERE id = ?');
+        if ($stmtUpd) {
+            $stmtUpd->bind_param('isi', $attempts, $lockedUntil, $id);
+            $stmtUpd->execute();
+            $stmtUpd->close();
+        }
     } else {
-        $lockedSql = $lockedUntil ? "'" . $db->real_escape_string($lockedUntil) . "'" : 'NULL';
-        $db->query("INSERT INTO auth_throttle (scope, identifier, attempts, locked_until, last_attempt_at) VALUES ('{$scopeEsc}', '{$identifierEsc}', {$attempts}, {$lockedSql}, NOW())");
+        $stmtIns = $db->prepare('INSERT INTO auth_throttle (scope, identifier, attempts, locked_until, last_attempt_at) VALUES (?, ?, ?, ?, NOW())');
+        if ($stmtIns) {
+            $stmtIns->bind_param('ssis', $scope, $identifier, $attempts, $lockedUntil);
+            $stmtIns->execute();
+            $stmtIns->close();
+        }
     }
 
     return [
@@ -600,4 +634,3 @@ function ensureWorkingGroupsTables(mysqli $db): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ");
 }
-?>

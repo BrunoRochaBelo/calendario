@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 require_once 'functions.php';
 requireLogin();
 requirePerm('admin_usuarios');
@@ -151,6 +151,7 @@ foreach ($allGroupsRaw as $g) {
 // -----------------------------------------------------------
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_csrf_token();
     $data = sanitize_post($_POST);
 
     if (!$is_self && !$can_manage_target) {
@@ -175,7 +176,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($confirmText !== 'EXCLUIR USUARIO') {
             $error = 'Digite EXCLUIR USUARIO para confirmar a exclusao.';
         } else {
-            $oldState = $conn->query("SELECT * FROM usuarios WHERE id = $id")->fetch_assoc();
+            $res = db_query($conn, "SELECT * FROM usuarios WHERE id = ?", [$id]);
+            $oldState = $res ? $res->fetch_assoc() : null;
             $oldPhoto = trim((string)($oldState['foto_perfil'] ?? ''));
             if ($oldPhoto !== '' && str_starts_with($oldPhoto, 'img/usuarios/')) {
                 $oldPhotoFs = __DIR__ . '/' . $oldPhoto;
@@ -245,7 +247,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif ($can_edit_password_for_target && $novaSenha !== '' && $novaSenha !== $confirmarNovaSenha) {
             $error = 'As senhas informadas nao coincidem.';
         } else {
-            $oldState = $conn->query("SELECT * FROM usuarios WHERE id = $id")->fetch_assoc();
+            $resOld = db_query($conn, "SELECT * FROM usuarios WHERE id = ?", [$id]);
+            $oldState = $resOld ? $resOld->fetch_assoc() : null;
             $emailToSave = $can_edit_email_for_target ? $email : (string)($user['email'] ?? '');
 
             $permValues = [];
@@ -373,8 +376,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
                         }
                     }
-
-                    $newState = $conn->query("SELECT * FROM usuarios WHERE id = $id")->fetch_assoc();
+                    $resNew = db_query($conn, "SELECT * FROM usuarios WHERE id = ?", [$id]);
+                    $newState = $resNew ? $resNew->fetch_assoc() : null;
                     
                     // SAVE WORKING GROUPS (Scoped)
                     if ($can_manage_target) {
@@ -401,9 +404,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Fetch Parishes for the dropdown
 $pid = current_paroquia_id();
 if (has_level(0) || ($_SESSION['usuario_id'] ?? 0) === 1) {
-    $parishes = $conn->query("SELECT id, nome FROM paroquias ORDER BY nome");
+    $parishes = db_query($conn, "SELECT id, nome FROM paroquias ORDER BY nome");
 } else {
-    $parishes = $conn->query("SELECT id, nome FROM paroquias WHERE id = $pid ORDER BY nome");
+    $parishes = db_query($conn, "SELECT id, nome FROM paroquias WHERE id = ? ORDER BY nome", [$pid]);
 }
 
 // Filter $allGroups based on what the admin can see/manage
@@ -418,8 +421,9 @@ $adminGroups = $adminGroups_ctx;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width,initial-scale=1.0">
     <title>Editar Usuario - PASCOM</title>
-    <link rel="stylesheet" href="style.css?v=2.4.5"
+    <link rel="stylesheet" href="style.css?v=2.4.5">
         <link rel="stylesheet" href="css/responsive.css?v=2.4.5">
+
     <style>
         select option,
         select optgroup {
@@ -518,6 +522,7 @@ $adminGroups = $adminGroups_ctx;
                             Digite <b>EXCLUIR USUARIO</b> para remover permanentemente este cadastro.
                         </p>
                         <form method="POST" style="display: grid; gap: 1rem;">
+                            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label>CONFIRMACAO FINAL</label>
                                 <input type="text" name="delete_confirm_text" placeholder="EXCLUIR USUARIO" required>
@@ -530,6 +535,7 @@ $adminGroups = $adminGroups_ctx;
                 <?php endif; ?>
 
                 <form method="POST" enctype="multipart/form-data" class="edit-user-form" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+                    <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
                     <?php if (!$is_same_level_peer): ?>
                     <div class="form-group" style="grid-column: span 2;">
                         <label>NOME COMPLETO</label>
