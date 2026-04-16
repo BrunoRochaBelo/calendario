@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 function ensureInscricoesTable(mysqli $db): bool {
     static $checked = false;
 

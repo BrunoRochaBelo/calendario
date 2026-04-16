@@ -143,11 +143,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         }
                         if (is_dir($uploadDir) && is_writable($uploadDir)) {
                             $ext = strtolower(pathinfo((string)($_FILES['foto_perfil']['name'] ?? ''), PATHINFO_EXTENSION));
-                            if ($ext === '') {
+                            if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'], true)) {
                                 $ext = preg_replace('/[^a-z0-9]+/i', '', substr($mime, 6));
-                            }
-                            if ($ext === '') {
-                                $ext = 'img';
+                                if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'gif'], true)) {
+                                    $ext = 'png';
+                                }
                             }
                             $fileName = 'user_' . $newUserId . '_' . bin2hex(random_bytes(6)) . '.' . $ext;
                             $targetPath = $uploadDir . '/' . $fileName;

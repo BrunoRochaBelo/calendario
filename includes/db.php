@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * â”€ DATABASE REPOSITORY (SOLID WRAPPER) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
  * Camada unificada para extinguir interpolaÃ§Ã£o SQL manual

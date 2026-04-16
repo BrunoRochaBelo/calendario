@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 function getWorkingGroups(mysqli $db, int $paroquiaId, bool $incluirInativos = false): array {
     $sql = "SELECT * FROM grupos_trabalho WHERE paroquia_id = ? " . ($incluirInativos ? "" : "AND ativo = 1") . " ORDER BY nome ASC";
     $stmt = $db->prepare($sql);

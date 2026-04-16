@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Retorna o ID da parÃ³quia atual da sessÃ£o
  */

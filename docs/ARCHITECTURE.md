@@ -7,19 +7,22 @@ Bem-vindo à engenharia profunda do PASCOM. Nossa prioridade arquitetural foca n
 Nós utilizamos uma premissa **Procedural Estruturada Híbrida** injetada com Componentes e Padrões da orientação a objeto onde faz sentido (Data Access Objects).
 
 ### Camada 1: Database Access Wrapper (SOLID SRE)
-Centralizada em `functions.php`:
-O antigo padrão de acoplamento entre Views (`listar_usuarios.php`) e queries em texto aberto cruzando os arquivos foi aposentado. Nós estruturamos um **Wrapper** rigoroso de Injeção de Dependência (`db_query` e `db_execute`):
-- **Prevenção Real:** Toda query repassada é obrigada a passar como Statement Preparado, travando SQL Injection de forma assintomática e global em todas as pontas da aplicação.
-- **Uniformidade:** Menos `fetch_assoc` repetitivo, chamadas `fetch_all` nativas.
+### Camada 1: Database Access Wrapper (SOLID SRE)
+Centralizada em `includes/db.php`:
+O antigo padrão de acoplamento entre Views e queries em texto aberto espalhadas pelos arquivos foi aposentado. Estruturamos um **Wrapper** rigoroso:
+- **Prevenção Real:** Toda query repassada é obrigada a passar como Statement Preparado, travando SQL Injection de forma assintomática global.
+- **Isolamento de Negócios:** Módulos quebrados como `includes/rbac.php`, `includes/groups.php` retiram toda a lógica engessada do arquivo index principal.
 
-### Camada 2: Proteção Middleware (Anti-CSRF & Throttle)
-Toda comunicação que gera mutação de estado (POST/DELETE) está blindada via **CSRF Guards** gerados server-side no `session` start. Validadores estritos barram chamadas não assinadas da Interface. 
-Mutações que não vem acompanhadas de referenciadores diretos e limpos da Session do Usuário atual ou Paróquia não se movem na pipeline transacional.
+### Camada 2: Proteção Middleware (Anti-CSRF, RCE Mitigation & HSTS)
+- Toda comunicação de mutação de estado (POST/DELETE) é blindada via **CSRF Guards** gerados server-side rotacionados por requisição em `includes/auth.php`.
+- Trava de Upload rígida nos sistemas de cadastro bloqueiam *Remote Code Execution (RCE)* validando magic bytes através de whitelists com PATHINFO.
+- O Config Base injeta `Content-Security-Policy (CSP)` estritas no Client, assegurando confiança "Zero-Trust".
+- Containers rodam num modo *Rootless* onde a pasta Web exige UID `www-data` e o MySQL roda preso a memórias voláteis em `/tmp`.
 
-### Camada 3: Motor UI/UX "Premium Glassmorphism" (Nielsen)
-- **Heurística de Prevenção a Erros:** "Form Skeletons". Ao clicar em 'Salvar Evento', não disparamos requisições múltiplas ao banco; a interface intercepta globalmente o envio (no universal `sidebar.php`), congela os inputs e exibe Spinners Visuais assíncronos. Fim da fricção de "duplo clique no mouse".
-- **Feedback Sensorial Dinâmico:** Os `alerts` travados criadores da década passada foram varridos do core da dashboard. Injeção dinâmica na URL ou Fetch API projeta `Toasts` em tempo real para os casos de validação de sucesso ou erro, estilo _iOS Native App_.
-- **Estética:** Construído através de um sistema sólido de Variáveis Nativas CSS3 na `style.css` — garantindo temas vibrantes (com multi-color gradients e flashings) consumindo zero de Webpacks complexos de montar.
+### Camada 3: Motor UI/UX "Premium Glassmorphism" e Observabilidade Nativa
+- **Heurística de Prevenção a Erros:** Form Skeletons evitam clicks repetidos de salvamento e disparam *Spinners* visuais.
+- **Estética:** Sistema sólido de variáveis CSS3 sem necessidade de *Webpack/Vite*.
+- **Cloud-Logging:** Auditoria via banco cruza com Stream de eventos unificados (JSONs de evento `error_log` enviados diretamente ao *Docker Daemon* para serem monitorados do terminal central).
 
 ---
 
@@ -27,19 +30,19 @@ Mutações que não vem acompanhadas de referenciadores diretos e limpos da Sess
 
 ```mermaid
 graph TD
-    A[Acesso Web - Frontend/Backend Mesclados] -->|Auth e Rotas| B{Core de Controle}
-    B --> C[functions.php / config.php]
-    C -->|Validação de Permissões e Session| D[Painéis Principais]
+    A[Docker Gateway :8080] -->|Proxying| B{Apache Handler}
+    B --> C[config.php / vendor autoload]
+    C -->|Session & CSP Headers| D[Painéis Principais]
+    C -->|DB Manager| H[(MariaDB Container | tmpfs)]
     D --> E[index.php / Calendário Central]
-    D --> F[atividades.php / CRUDS Evento]
+    D --> F[atividades.php / Fluxogramas]
     D --> G[usuarios.php / Gestão RBAC]
-    C -->|Data Access Factory| H[(MariaDB / MySQL)]
-    D -->|Injeções UI In-page| I[sidebar.php - UX Universal]
+    D -->|Sensorial UI| I[sidebar.php / Estilos CSS]
 ```
 
-## 🔗 Dependências
+## 🔗 Dependências & Docker
 
-A aplicação foi planejada sob o conceito de "**Zero-Vendors Abuses**":
-- Servidor PHP 8.*
-- MySQL Server ou MariaDB 10.* (Driver `mysqli`)
-- Opcionais estritas de front-end, totalmente stand-alone (Não depende de Vue, React ou Node.js e nenhum daemon para operar, facilitando a portabilidade total para C-Panels em Hostings baratos de Igrejas).
+A infra-estrutura prega a filosofia da Imutabilidade `as Code`:
+- Imagens do Docker travadas por **SHA-256 digests**.
+- Orquestração completa provida via Hookings do `composer.json` num comando maestro (`composer dev`).
+- Autoloader do Composer ativando pontes externas de relatórios PDF (`Setasign FPDF`) e a suíte de qualificação anti-regressão interna baseada via **PHPUnit**.

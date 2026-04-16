@@ -28,10 +28,10 @@ if (!defined('DB_SCHEMA_MUTATIONS_ENABLED')) {
     define('DB_SCHEMA_MUTATIONS_ENABLED', false);
 }
 
-// 3. Global Security Headers
-header("X-Content-Type-Options: nosniff");
-header("X-Frame-Options: SAMEORIGIN");
-header("X-XSS-Protection: 1; mode=block");
+// 3. Global Security Headers via Middlewares 
+// Os HTTP Security headers pesados (X-Frame, XSS, HSTS) agora foram designados estritamente ao Apache (vhost.conf) Edge Layer para alta performance.
+// Apenas politicas dependentes da session ou dinamicas ficam aqui:
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net; font-src 'self' https://fonts.gstatic.com https://cdn.jsdelivr.net; img-src 'self' data: blob: https:;");
 
 // 4. Módulos da Aplicação (Extratos do antigo functions.php / config.php)
 require_once __DIR__ . '/includes/db.php';

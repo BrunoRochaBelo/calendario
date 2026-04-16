@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Formata uma data para o padrÃ£o brasileiro (d/m/Y)
  */
@@ -107,5 +107,20 @@ function logAction(mysqli $db, string $acao, string $tabela = '', int $regId = 0
         $stmt->bind_param('issisis', $uid, $acao, $tabela, $regId, $detalhes, $parish_id, $ip);
         $stmt->execute();
     }
+    
+    // Cloud-Native Observability: Pipe security events para stdout/stderr em formato JSON
+    // para captura pelo Docker Daemon, Datadog ou Elastic Stack.
+    $observability_event = [
+        'timestamp' => date('c'),
+        'level' => 'INFO',
+        'event_name' => $acao,
+        'user_id' => $uid,
+        'table' => $tabela,
+        'record_id' => $regId,
+        'client_ip' => $ip,
+        'parish_id' => $parish_id,
+        'event_details' => is_string($detalhes) ? json_decode($detalhes, true) ?? $detalhes : $detalhes,
+    ];
+    error_log(json_encode($observability_event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 }
 

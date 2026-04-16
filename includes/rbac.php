@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 function selectable_access_levels_for_user(int $myLevel, bool $isMaster, int $maxLevel = 7): array {
     if (!$isMaster && $myLevel > $maxLevel) {
         $myLevel = $maxLevel;

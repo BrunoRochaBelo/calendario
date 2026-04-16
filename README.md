@@ -11,19 +11,41 @@ O PASCOM System (Agenda & Pastoral) é uma arquitetura robusta de Gestão Paroqu
 
 ## ⚙️ Pré-Requisitos Mínimos
 
-Para rodar este monólito de alta eficiência com custo mínimo:
-1. **PHP 8.0+**
-2. **Servidor HTTP** (Apache, Nginx, ou dev-server interno do php `-S`).
-3. **Servidor MySQL / MariaDB**
+A infraestrutura foi modernizada para **DevSecOps**, eliminando dependências sujas na máquina local. Você só precisará de:
+1. **Docker Desktop** (ou motor Docker equivalente rodando).
+2. **Composer** instalado globalmente.
 
-Nenhum artefato complexo de `npm install` ou Compilação está no caminho da sua produtividade.
+O projeto é 100% conteinerizado isolando perfeitamente o ambiente.
 
-## 🚀 Instalação e Deploy (Básico)
+## 🚀 Como Executar Localmente (Ambiente Dev)
 
-1. **Clone do Repositório**: Faça a cópia direta para o seu `htdocs/`, `/var/www/html/` ou `www/` do seu Servidor Local (Ex: Laragon / Xampp).
-2. **Base de Dados**: Importe os Schemas estruturais descritos em `schema.txt` na base de sua escolha usando Ferramentas (Como HeidiSQL/DBeaver).
-3. **Credenciais**: Abra e edite os cabeçalhos de conexão no motor raiz (Localize o arquivo de `.env` ou o script de configuração global em `functions.php`/`conexao.php`) atrelando seu usuário seguro e dbname do MySQL.
-4. **Primeiro Acesso**: Acesse `http://localhost/pascom` na web. Pronto! Use a conta Seed Master para dar vida ao RBAC completo do ecossistema.
+Todo o ecossistema roda através do `composer`, simulando a elegância do ecossistema JS na fundação PHP.
+
+1. **Faça o Clone do Repositório**:
+   ```bash
+   git clone https://github.com/BrunoRochaBelo/calendario.git
+   cd calendario
+   ```
+2. **Instale as Bibliotecas**:
+   O motor resolverá o FPDF e a suíte PHPUnit.
+   ```bash
+   composer install
+   ```
+3. **Suba os Motores**:
+   ```bash
+   composer dev
+   ```
+   *Mágica acontece aqui: o gancho copia seu `.env` caso não exista, sobe os containers do MariaDB em modo *tmpfs* seguro sob chaves *SHA-256*, instaura o Apache rodando como `www-data` e espeta tudo num túnel na porta `8080`, ligando simultaneamente os Logs ao vivo em Stream!*
+
+4. **Acesse**:
+   Navegue para 👉 `http://localhost:8080/`
+
+### Comandos de Utilidade (A qualquer momento)
+
+- Cortar a orquestração: `composer down`
+- Acessar o banco MySQL na nuvem do Docker: `composer db`
+- Acessar o bash do Apache localmente: `composer shell`
+- Rodar Testes de Unidade Seguros: `composer test`
 
 ---
 _Aprofunde-se tecnicamente nos meandros lendo o arquivo [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) e estude as abstrações no [docs/DATA_MODEL.md](docs/DATA_MODEL.md)._

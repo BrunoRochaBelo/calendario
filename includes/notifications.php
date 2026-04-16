@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 function addNotification(mysqli $db, int $userId, string $message): bool {
     ensureNotificationsTable($db);
     $stmt = $db->prepare("INSERT INTO notificacoes (usuario_id, mensagem) VALUES (?, ?)");

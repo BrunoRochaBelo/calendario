@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 function seedDefaultEventActivities(mysqli $db, int $paroquiaId): void {
     if ($paroquiaId <= 0 || !ensureEventActivitiesStructure($db)) {
         return;
