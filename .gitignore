@@ -20,6 +20,7 @@ config.local.php
 # Backups locais nao devem estar no repositorio.
 sql/backups/
 *.sql
+!sql/db_init/*.sql
 !sql/*.sql.example
 
 # ── Cookies e tokens de sessao de debug ───────────────────────────────────────
@@ -59,6 +60,7 @@ img/tipos_atividade/
 
 # Editor
 .vscode/
+!.vscode/settings.json
 .idea/
 
 # PHPUnit / Composer
